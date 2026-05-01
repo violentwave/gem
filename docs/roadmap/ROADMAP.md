@@ -921,7 +921,7 @@
 
 **Depends on:** 8D.1
 
-### Phase 8D.3: Initial Baseline Commit and GitHub Remote Setup ⏳ In Progress
+### Phase 8D.3: Initial Baseline Commit and GitHub Remote Setup ✅ Completed
 **Goal:** Commit the approved explicit-path repo baseline and push it to a private GitHub repository named `gem`.
 
 **Tasks:**
@@ -937,16 +937,23 @@
 
 **Deliverables:**
 - Repo-local summary: `docs/repo/PHASE8D3_INITIAL_BASELINE_COMMIT.md`
-- Manual report: `~/offload/security-reports/manual/repo-initial-baseline-commit-YYYYMMDD-HHMMSS.md`
-- Initial baseline commit(s)
-- Private GitHub repo: `gem`
+- Manual report: `~/offload/security-reports/manual/repo-initial-baseline-commit-retry-20260430-233405.md`
+- Initial baseline commit: `35f2979cb1c1191d5e138a046700b29614d14679`
+- Private GitHub repo: `https://github.com/violentwave/gem`
 
 **Boundary Notes:**
 - Explicit-path staging only
 - No `git add .`
 - No runtime outputs, secrets, logs, reports, `~/.local`, `~/.config`, or `~/offload` content committed
 
-**Status Note:** Pending commit/push completion.
+**Results:**
+- Trailing whitespace normalized in approved tracked text/source files only
+- Explicit-path staging used; `git add .` was not used
+- `gitleaks dir` scan on staged snapshot passed with no leaks found
+- Stage 4 validators passed before baseline commit
+- `gemma-memory-search` helper compile/executable check passed
+- Baseline pushed to private `origin/main`
+- No runtime outputs, secrets, logs, reports, `~/.local`, `~/.config`, or `~/offload` content committed
 
 **Depends on:** 8D.2
 

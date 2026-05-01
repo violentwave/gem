@@ -1,7 +1,7 @@
 # Phase 8D.3 Initial Baseline Commit
 
 **Phase:** 8D.3
-**Status:** Planned — pre-commit summary
+**Status:** Completed
 **Date:** 2026-04-30
 
 ---
@@ -93,8 +93,30 @@ git remote -v
 
 ## Evidence
 
-Commit SHA, GitHub URL, and push status will be recorded after the baseline commit and push complete.
+Baseline commit SHA: `35f2979cb1c1191d5e138a046700b29614d14679`
+
+GitHub repo URL: `https://github.com/violentwave/gem`
+
+Visibility: `PRIVATE`
+
+Push status: `main` pushed to `origin/main`
+
+Manual report: `/home/lch/offload/security-reports/manual/repo-initial-baseline-commit-retry-20260430-233405.md`
+
+Secret scan command used:
+
+```bash
+TMP_STAGE="$(mktemp -d)"
+git checkout-index -a -f --prefix="$TMP_STAGE/"
+gitleaks dir "$TMP_STAGE" --redact --no-banner
+rm -rf "$TMP_STAGE"
+```
+
+Secret scan result: PASS, no leaks found.
+
+Whitespace repair: Completed on approved tracked text/source files only before staging.
 
 ---
 
-*Pre-commit summary created: 2026-04-30*
+*Completed: 2026-04-30*
+*Evidence commit required: yes — this file and roadmap were updated after baseline push*
