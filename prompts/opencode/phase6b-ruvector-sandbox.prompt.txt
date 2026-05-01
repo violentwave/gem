@@ -1,0 +1,82 @@
+Phase 6B: RuVector Sandbox Prompt
+
+Context:
+You are working on the Bazzite Local AI Operations Stack at ~/projects/gem. Phase 5 (A-F) is complete. Phase 6B tests RuVector in isolated sandbox.
+
+Purpose:
+Test RuVector npm package in user-space environment to verify:
+- Package installs without sudo
+- Basic vector operations work
+- Local-only operation confirmed
+- Fallback to Stage 3A RAG works
+
+Current Known State:
+- RuVector assessment complete (fully local-compatible, no blockers)
+- npm available (check with: npm --version)
+- Stage 3A deterministic RAG operational
+
+Hard Boundaries:
+- Do NOT use sudo
+- Do NOT install to system npm (npm install -g)
+- Do NOT create systemd service or daemon
+- Do NOT download external embedding models
+- Do NOT expose to network beyond localhost
+- Do NOT clone RuVector repository
+- Do NOT build from source
+- Do NOT modify Ollama config
+- Do NOT change OpenCode permissions
+
+Allowed Actions:
+1. Verify package metadata FIRST (npm view)
+2. Create temp directory for testing
+3. Install RuVector in user space (npm install ruvector)
+4. Inspect actual package exports (Object.keys)
+5. Test basic import with ACTUAL API
+6. Verify no network calls AFTER install (during runtime, not npm install)
+7. Compare conceptually with Stage 3A
+8. Document findings
+
+Validation Commands:
+```bash
+# Check npm available
+npm --version
+
+# STEP 1: Verify package metadata FIRST (before install)
+npm view ruvector name version description main types exports --json
+
+# STEP 2: Create sandbox directory
+mkdir -p ~/tmp/ruvector-sandbox
+cd ~/tmp/ruvector-sandbox
+npm init -y
+
+# STEP 3: Install RuVector
+npm install ruvector
+
+# STEP 4: Inspect actual package exports (don't assume API)
+node -e "console.log(Object.keys(require('ruvector')))"
+
+# STEP 5: Test with ACTUAL exports (adapt to what package provides)
+# Try different import patterns based on exports:
+node -e "const rv = require('ruvector'); console.log(typeof rv)"
+node -e "try { const {VectorDB} = require('ruvector'); console.log('VectorDB OK') } catch(e) { console.log('No VectorDB:', e.message) }"
+
+# STEP 6: Verify no network AFTER install (during runtime, not npm install)
+# This tests that the package itself doesn't call home, not npm fetching packages
+node -e "const rv = require('ruvector'); /* Try basic init if available */ console.log('Package loaded OK')"
+
+# STEP 7: Verify Stage 3A still works
+gemma-evals-status
+```
+
+Output Format:
+Create docs/integrations/ruvector/RUVECTOR_SANDBOX_REPORT.md with:
+- Installation results
+- Basic operation test
+- Local-only confirmation
+- Stage 3A fallback verification
+- Recommendations for Phase 7B
+
+Final Response:
+- Confirm installation/test performed
+- Report any issues found
+- State whether ready for Phase 7B integration

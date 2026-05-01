@@ -1,0 +1,63 @@
+Phase 7B.2: RuVector Semantic Prototype Prompt
+
+You are working on Logan's Bazzite Local AI Operations Stack repo:
+
+~/projects/gem
+
+Goal:
+Build a scoped RuVector semantic retrieval prototype using the already-installed local Ollama embedding model `nomic-embed-text:latest`.
+
+Current state:
+- Phase 7B prototype works with placeholder vectors.
+- Phase 7B.1 decision: ready_for_semantic_embedding_prototype.
+- `nomic-embed-text:latest` is already installed locally.
+- Tiny Ollama embedding probe returned a 768-dimensional embedding.
+- Stage 3A deterministic retrieval remains canonical fallback.
+
+Hard boundaries:
+- Do not use sudo.
+- Do not install system packages.
+- Do not install npm packages globally.
+- Do not pull or download embedding models.
+- Do not modify Ollama config or model config.
+- Do not start Agent Zero or Space Agent.
+- Do not index broad roots such as ~/projects or ~/offload/security-reports.
+- Do not ingest secrets, .env files, raw logs, browser data, private code, or unredacted transcripts.
+
+Allowed actions:
+- Read repo docs and approved knowledge docs.
+- Use local Ollama embeddings API with `nomic-embed-text:latest` for small approved-doc chunks.
+- Use existing RuVector prototype directory.
+- Write prototype artifacts under `~/.local/share/bazzite-security/ruvector/semantic-prototype/`.
+- Write reports under repo docs and `~/offload/security-reports/manual/`.
+- Run existing Gemma validators.
+
+Tasks:
+1. Read `docs/integrations/ruvector/RUVECTOR_PHASE7B1_EMBEDDING_STRATEGY.md`.
+2. Create semantic prototype scripts separate from placeholder scripts.
+3. Embed only approved docs/chunks using `nomic-embed-text:latest`.
+4. Record model name, dimension 768, chunk counts, and source paths in the manifest.
+5. Query semantic index for Stage 4 knowledge/path questions.
+6. Compare semantic results against Stage 3A deterministic retrieval.
+7. Produce `docs/integrations/ruvector/RUVECTOR_PHASE7B2_SEMANTIC_PROTOTYPE_REPORT.md`.
+
+Acceptance criteria:
+- No model downloads.
+- No system changes.
+- Semantic prototype artifacts stay under approved paths.
+- Stage 3A fallback remains intact.
+- Existing validators pass.
+- Readiness decision recorded as one of:
+  - semantic_prototype_working
+  - blocked_embedding_api_failure
+  - blocked_quality_gate_failure
+  - design_only_defer_implementation
+
+Final response format:
+- files created
+- files modified
+- model/dimensions used
+- chunks indexed
+- comparison summary
+- validators run
+- readiness decision

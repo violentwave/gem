@@ -1,0 +1,149 @@
+# Phase 8B.4D: Full Memory Quality Validation
+
+**Phase:** 8B.4D
+**Type:** Future Prompt (Not Executable)
+**Purpose:** Run full Gate 1-5 validation with revised source-equivalence metric
+
+---
+
+## Goal
+
+Run comprehensive memory quality validation using the **revised Gate 1 metric** with source-family equivalence. This is a follow-up to Phase 8B.4C (metric revision) and Phase 8B.4B (diagnostics).
+
+---
+
+## Current State
+
+- Phase 8B.4A: Corrected Gate 6 manifest check
+- Phase 8B.4B: Diagnosed FINAL_POLICY.md dominance (NOT a bug)
+- Phase 8B.4C: Revised Gate 1 metric to use source-family equivalence
+
+**Revised Gate 1 Specification:** See `docs/workflows/memory/GATE1_SOURCE_EQUIVALENCE_METRIC.md`
+
+---
+
+## Tasks
+
+### 1. Run Full Gate 1 Validation (Revised Metric)
+
+Using the new source-equivalence metric:
+
+1. Run 10+ known eval queries through RuVector semantic prototype
+2. Run same queries through Stage 3A
+3. Classify each top source by family (Policy/Operational/Advisory/Stage3A)
+4. Calculate:
+   - Exact overlap: `(common_filenames / total_unique_filenames) * 100`
+   - Equivalence: `(equivalent_pairs / total_pairs) * 100`
+5. Determine source authority (which system is more authoritative)
+6. Assign classification labels
+7. Check for factual contradictions
+8. Document FINAL_POLICY.md dominance explanations
+
+**Pass Criteria (ANY of):**
+- ≥70% exact overlap, OR
+- ≥70% equivalence + no contradictions, OR
+- semantic_more_authoritative explained, OR
+- stage3a_more_authoritative explained
+
+**Deliverable:** Revised comparison table with source families and equivalence scores
+
+### 2. Run Gate 3 Semantic Quality (10+ Queries)
+
+1. Run 10+ known eval questions through RuVector
+2. Check relevance scores for top 5 results
+3. Manual spot-check top results
+4. Identify queries where semantic should excel
+
+**Pass Criteria:**
+- Relevant sources in top 5
+- No hallucinations
+- Precision ≥ Stage 3A on complex queries
+
+### 3. Run Gate 4 Source Spot-Check (10 Queries)
+
+1. Run 10 representative queries
+2. Manually verify top 3 are relevant
+3. Check for off-topic results
+
+**Pass Criteria:**
+- 8/10 queries return relevant in top 3
+- No completely off-topic in top 3
+
+### 4. Prepare Gate 5 (Optional - Do NOT Run Heavy Generation)
+
+- Note: Gate 5 requires answer generation
+- Do NOT run heavy generation unless explicitly approved
+- If approved: Compare Gemma + RuVector vs Gemma + Stage 3A
+
+---
+
+## Hard Boundaries
+
+**DO:**
+- Use existing semantic prototype (398 chunks)
+- Use Stage 3A as comparison baseline
+- Use revised Gate 1 metric
+- Output to ~/offload/security-reports/manual/
+- Run gemma-evals-status, gemma-evals-check, gemma-examples-check
+
+**DO NOT:**
+- Promote RuVector to production memory
+- Ingest new memory
+- Reindex (unless human explicitly requests)
+- Change RuVector retrieval behavior
+- Run autonomous validation
+- Modify Ollama/model config
+
+---
+
+## Output Format
+
+Use: `docs/workflows/templates/memory-quality-validation-output-template.md`
+
+Report location: `~/offload/security-reports/manual/ruvector-full-quality-validation-YYYYMMDD-HHMMSS.md`
+
+---
+
+## Expected Decision
+
+After full validation with revised metric:
+
+- If Gate 1 passes with new metric → Proceed to Phase 8B.5 promotion review
+- If Gate 1 still fails → Document remaining issues, consider metric further revision
+
+**Do NOT promote RuVector unless all gates pass with explicit human approval.**
+
+---
+
+## Related Documents
+
+- `docs/workflows/memory/GATE1_SOURCE_EQUIVALENCE_METRIC.md` — Revised metric spec
+- `docs/workflows/memory/MEMORY_QUALITY_GATES.md` — Gate definitions
+- `docs/workflows/memory/WORKFLOW_8B3_MEMORY_QUALITY_VALIDATION.md` — Workflow
+- `docs/workflows/memory/MEMORY_QUALITY_VALIDATION_CHECKLIST.md` — Checklist
+- `docs/roadmap/ROADMAP.md` — Phase status
+
+---
+
+## Validation Commands
+
+```bash
+# Verify required docs exist
+test -f docs/workflows/memory/GATE1_SOURCE_EQUIVALENCE_METRIC.md
+test -f docs/workflows/memory/MEMORY_QUALITY_GATES.md
+test -f docs/workflows/memory/WORKFLOW_8B3_MEMORY_QUALITY_VALIDATION.md
+
+# Run Stage 4 validators
+gemma-evals-status
+gemma-evals-check
+gemma-examples-check
+
+# Check git status
+cd ~/projects/gem && git status --short
+```
+
+---
+
+*Future prompt — not executable in Phase 8B.4C*
+*Phase: 8B.4D*
+*Status: Planned for future execution when human approves*

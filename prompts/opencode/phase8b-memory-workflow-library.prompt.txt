@@ -1,0 +1,80 @@
+Phase 8B: Memory Workflow Library
+
+You are working on Logan's Bazzite Local AI Operations Stack repo:
+
+~/projects/gem
+
+Goal:
+Create the memory workflow library for L6 operations using RuVector prototype with Stage 3A fallback.
+
+Current state:
+- Phase 7B.2: RuVector semantic prototype works with nomic-embed-text:latest
+- RuVector remains prototype-only, not production memory
+- Stage 3A deterministic RAG is canonical fallback
+- 398 semantic chunks indexed from approved docs
+
+Component roles:
+- RuVector: semantic prototype for memory lookup only
+- Stage 3A: deterministic fallback always available
+- Gemma wrappers: context synthesis from retrieved memory
+- OpenCode: implementation work
+- Human: approval authority
+
+Hard boundaries:
+- Do not promote RuVector to production memory
+- Do not allow autonomous memory ingestion
+- Do not grant broad filesystem access
+- Stage 3A must remain fallback
+- No secret ingestion
+
+Tasks:
+
+1. Review RuVector prototype status:
+   - docs/integrations/ruvector/RUVECTOR_PHASE7B2_SEMANTIC_PROTOTYPE_REPORT.md
+   - Check: semantic chunks loaded, fallback behavior
+
+2. Create memory workflow library:
+   - docs/workflows/memory/MEMORY_WORKFLOW_LIBRARY.md
+
+3. Define memory workflows:
+   - Semantic context lookup using RuVector prototype
+   - Memory query with Stage 3A comparison
+   - Memory result synthesis via Gemma
+   - Memory ingestion (scoped, authorized sources only)
+
+4. For each workflow document:
+   - Purpose and use case
+   - Inputs and scope
+   - Allowed components (RuVector prototype, Stage 3A, Gemma)
+   - Forbidden actions
+   - Validation steps
+   - Fallback path (always Stage 3A)
+   - Stop conditions
+
+5. Include routing rules:
+   - Query: RuVector → compare with Stage 3A → Gemma synthesis
+   - Ingestion: Human-authorize → scoped paths only → verify against Stage 3A
+   - Failure: Report to human, do not auto-fix
+
+Validation:
+Run from ~/projects/gem:
+
+test -f docs/workflows/memory/MEMORY_WORKFLOW_LIBRARY.md
+gemma-evals-status
+gemma-evals-check
+gemma-examples-check
+
+Acceptance criteria:
+- Memory workflow library exists
+- RuVector prototype role clear
+- Stage 3A fallback preserved
+- No production memory promotion
+- Validators pass
+
+Final response format:
+- files created
+- workflows defined
+- routing rules
+- boundaries preserved
+- validators run
+- readiness decision

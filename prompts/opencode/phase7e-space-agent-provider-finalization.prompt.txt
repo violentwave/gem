@@ -1,0 +1,46 @@
+Phase 7E: Space Agent Provider Finalization Prompt
+
+You are working on Logan's Bazzite Local AI Operations Stack repo:
+
+~/projects/gem
+
+Goal:
+Record the exact non-secret Space Agent provider verification result and close the remaining manual confirmation gap.
+
+Current state:
+- Phase 7D smoke test passed with manual Space Agent provider confirmation pending.
+- Space Agent runs manually as an AppImage.
+- Config path: `~/.config/space-agent/`.
+- Provider settings are documented, but exact UI test result is not recorded.
+
+Hard boundaries:
+- Do not print or copy API keys, provider secrets, cookies, Local Storage, Session Storage, Trust Tokens, tokens, logs, or browser data.
+- Do not let Space Agent edit `~/projects/gem`.
+- Do not grant broad filesystem access.
+- Do not run autonomous Space Agent tasks.
+- Do not modify Ollama, OpenCode, firewall, systemd, package, security, Agent Zero, Space Agent, or model config.
+
+Tasks:
+1. Ask the user for the non-secret provider result: provider name, endpoint type, model name, max tokens if known, and whether a tiny prompt succeeded.
+2. Record Gemini native results if tested:
+   - Endpoint: `https://generativelanguage.googleapis.com/v1beta/openai/`
+   - Model: `gemini-2.5-pro` or `gemini-2.5-flash`
+   - Do not record API key.
+3. Record local Ollama/Gemma results if tested:
+   - Endpoint: `http://127.0.0.1:11434/v1` or native `http://127.0.0.1:11434`
+   - Model: `gemma4-e4b-bazzite` or `gemma4-e4b-bazzite:latest`
+4. Create or update `docs/integrations/space-agent/SPACE_AGENT_PHASE7E_PROVIDER_FINALIZATION.md`.
+5. Keep Space Agent manual-only unless a later phase explicitly authorizes more.
+
+Acceptance criteria:
+- Exact non-secret provider result recorded.
+- No secrets copied.
+- No repo edits by Space Agent.
+- No autonomous tasks.
+- Existing validators pass.
+
+Final response format:
+- files created/modified
+- provider result summary
+- remaining unknowns
+- readiness decision

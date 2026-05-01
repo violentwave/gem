@@ -1,0 +1,72 @@
+Phase 8B.3: Memory Quality Gates
+
+You are working on Logan's Bazzite Local AI Operations Stack repo:
+
+~/projects/gem
+
+Goal:
+Define how to validate RuVector quality gates before any production memory promotion.
+
+Current state:
+- Phase 7B.2: RuVector semantic prototype working
+- Phase 8B workflow library created
+- Stage 3A remains canonical fallback
+- Quality gates documented in MEMORY_QUALITY_GATES.md
+
+Component roles:
+- RuVector: prototype, not production
+- Stage 3A: fallback and comparison baseline
+- Stage 4: validation system
+- Human: gate approval authority
+
+Hard boundaries:
+- No production memory promotion until gates pass
+- Stage 3A must remain fallback
+- No autonomous promotion
+
+Tasks:
+
+1. Review quality gates:
+   - docs/workflows/memory/MEMORY_QUALITY_GATES.md
+   - docs/integrations/ruvector/RUVECTOR_PHASE7B2_SEMANTIC_PROTOTYPE_REPORT.md
+
+2. Create quality validation workflow:
+   - docs/workflows/memory/WORKFLOW_8B3_MEMORY_QUALITY_VALIDATION.md
+   - Document each gate: criteria, validation method, pass/fail actions
+
+3. Define gate validation sequence:
+   - Gate 1: Stage 3A comparison
+   - Gate 2: Stage 4 validators
+   - Gate 3: Semantic retrieval quality
+   - Gate 4: Source spot-check
+   - Gate 5: Answer generation quality
+   - Gate 6: Manifest metadata
+   - Gate 7: Rollback path
+   - Gate 8: Stale memory review
+
+4. Include production promotion checklist:
+   - All 8 gates must pass
+   - Document each gate status
+
+Validation:
+Run from ~/projects/gem:
+
+test -f docs/workflows/memory/WORKFLOW_8B3_MEMORY_QUALITY_VALIDATION.md
+gemma-evals-status
+gemma-evals-check
+gemma-examples-check
+
+Acceptance criteria:
+- All 8 quality gates documented
+- Validation methods explicit
+- Pass/fail criteria clear
+- No production promotion in this phase
+- Validators pass
+
+Final response:
+- files created
+- gates defined
+- promotion criteria
+- boundaries preserved
+- validators run
+- readiness decision

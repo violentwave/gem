@@ -1,0 +1,63 @@
+Phase 5D: RuVector Assessment Prompt
+
+Context:
+You are working on the Bazzite Local AI Operations Stack. Phase 5A is complete. You are now in Phase 5D.
+
+Goal:
+Assess RuVector architecture and local-only feasibility before any installation.
+
+Prerequisites:
+- Read docs/integrations/ruvector/RUVECTOR_ASSESSMENT_PLAN.md
+- Read docs/integrations/ruvector/RUVECTOR_INTEGRATION_PLAN.md
+
+Tasks:
+1. Research RuVector:
+   - Find official repository (likely GitHub)
+   - Review README and documentation
+   - Identify architecture components
+   - List dependencies (Rust, npm, system libs)
+
+2. Assess local-only operation:
+   - Can it run without external services?
+   - Does it require a daemon/service?
+   - Can it use local embedding models?
+   - What are the data persistence options?
+
+3. Assess self-learning:
+   - What does self-learning mean in RuVector?
+   - Can it be disabled?
+   - Can it be scoped to specific data?
+   - Is there manual-only mode?
+
+4. Identify integration options:
+   - Library integration (Rust API)
+   - Service integration (HTTP/IPC)
+   - Container integration
+
+5. Check compatibility:
+   - Bazzite/Fedora Atomic compatibility
+   - Available in package managers?
+   - Build-from-source requirements
+
+6. Write assessment report to:
+   - docs/integrations/ruvector/RUVECTOR_ASSESSMENT_REPORT.md
+
+7. Update integration plan with findings:
+   - docs/integrations/ruvector/RUVECTOR_INTEGRATION_PLAN.md
+
+Constraints:
+- Research only - do not clone repo
+- Do not install Rust/npm dependencies
+- Do not build or run RuVector
+- Read-only documentation review
+- No system changes
+
+Decision Points:
+- If RuVector requires external services → document as blocker
+- If self-learning cannot be disabled → document as blocker
+- If not compatible with Atomic → document as blocker
+
+Validation:
+- Assessment report exists
+- Blockers clearly documented
+- Integration plan updated with findings

@@ -1,0 +1,53 @@
+Phase 5C: Agent Zero Inventory Prompt
+
+Context:
+You are working on the Bazzite Local AI Operations Stack. Phase 5A (repo bootstrap) is complete. You are now in Phase 5C.
+
+Goal:
+Assess the current state of Agent Zero installation and integration options.
+
+Prerequisites:
+- Read docs/integrations/agent-zero/AGENT_ZERO_INTEGRATION_PLAN.md
+- Read docs/integrations/agent-zero/A0_CLI_CONNECTOR_PLAN.md
+- Review the inventory at inventory/live-paths/tool-availability.md
+
+Tasks:
+1. Verify Agent Zero installation:
+   - Check common install paths: ~/AgentZero, ~/agent-zero, /opt/agent-zero
+   - Check for agent-zero or a0 binaries in PATH
+   - Check for Docker/Podman containers running Agent Zero
+   - Check for A0 CLI binary
+
+2. If Agent Zero is found:
+   - Identify install path
+   - Check version
+   - Identify UI endpoint if running
+   - Identify config directory
+   - Identify skills/plugins directory
+   - Check if A0 CLI connector exists
+   - Document API endpoints
+
+3. If Agent Zero is not found:
+   - Document that installation is needed
+   - Note assessment that installation is required before integration
+   - Do not install in this phase
+
+4. Write assessment report to:
+   - inventory/live-paths/agent-zero-state.md
+
+5. Update integration plans based on findings:
+   - docs/integrations/agent-zero/AGENT_ZERO_INTEGRATION_PLAN.md
+   - docs/integrations/agent-zero/A0_CLI_CONNECTOR_PLAN.md
+
+Constraints:
+- Read-only assessment
+- No installation
+- No starting services
+- No modifying config
+- No sudo
+- Document only
+
+Validation:
+- Check that agent-zero-state.md exists
+- Verify assessment is accurate
+- Do not proceed to Phase 6A if installation is required but not done

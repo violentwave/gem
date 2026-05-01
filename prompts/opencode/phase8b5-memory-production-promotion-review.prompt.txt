@@ -1,0 +1,135 @@
+Phase 8B.5: Memory Production Promotion Review
+
+You are working on Logan's Bazzite Local AI Operations Stack repo:
+
+~/projects/gem
+
+Goal:
+Define and review the production promotion gate for RuVector semantic prototype after all 8 quality gates pass.
+
+Current state:
+- Phase 8B.3: Quality validation workflow defined (documentation-only)
+- Phase 8B.4: Quality dry-run completed (if run)
+- RuVector semantic prototype: 398 chunks (348 approved-doc + 50 Stage 3A)
+- Embedding model: nomic-embed-text:latest (768 dims)
+- All 8 quality gates must pass before any promotion can be proposed
+- Stage 3A deterministic retrieval remains the canonical fallback
+- Production promotion has NOT occurred yet
+- Existing validators pass:
+  - gemma-evals-status
+  - gemma-evals-check
+  - gemma-examples-check
+
+Component roles:
+- Human: ONLY authority for production promotion decisions
+- RuVector: prototype-only until ALL 8 gates pass AND human approves promotion
+- Stage 3A: canonical fallback — remains available even after any future promotion
+- Stage 4 validators: must all PASS before promotion can be proposed
+- Gemma wrappers: advisory only
+- OpenCode: implementation work, repo edits
+- Agent Zero/A0: future supervised workflow orchestration only
+- Space Agent: manual UI/workspace layer only
+
+Hard boundaries:
+- Do not use sudo.
+- Do not install packages.
+- Do not download models.
+- Do not pull new Ollama models.
+- Do not modify Ollama config or model config.
+- Do not start Agent Zero.
+- Do not run A0 connector tasks.
+- Do not spawn Agent Zero agents.
+- Do not run Space Agent autonomous tasks.
+- Do not let Space Agent edit ~/projects/gem.
+- Do not create or edit ~/conf/onscreen-agent.yaml.
+- Do not modify system/security/package/model/OpenCode/Agent Zero/Space Agent config.
+- Do not ingest new memory in this phase.
+- Do not promote RuVector to production memory UNLESS all 8 gates pass AND human explicitly requests promotion review.
+- Do not allow autonomous memory ingestion.
+- Do not ingest secrets, .env files, raw logs, browser data, private code, unredacted transcripts, cookies, Local Storage, Session Storage, Trust Tokens, or provider state.
+- Do not index broad roots such as ~/projects, ~/offload/security-reports, ~/.cache, ~/.config, or ~/.local/share broadly.
+- Do not write runtime logs/reports/state into unrelated project roots.
+
+Tasks:
+
+1. Read promotion review docs:
+   - docs/workflows/memory/MEMORY_QUALITY_GATES.md (read-only, do not modify)
+   - docs/workflows/memory/WORKFLOW_8B3_MEMORY_QUALITY_VALIDATION.md (read-only)
+   - docs/roadmap/ROADMAP.md (read-only)
+   - docs/workflows/memory/WORKFLOW_8B1_MEMORY_QUERY.md (reference only)
+
+2. Create promotion review document (documentation-only, no promotion executed):
+   docs/workflows/memory/WORKFLOW_8B5_PROMOTION_REVIEW.md
+
+   Include:
+   - Workflow name: Memory Production Promotion Review
+   - Purpose: Define the gate that promotes RuVector from prototype to production memory
+   - When to use: ONLY after all 8 quality gates pass AND human explicitly requests promotion
+   - Inputs: all 8 gate results (PASS/FAIL), human promotion request
+   - Production promotion checklist (all 8 gates must PASS)
+   - Stage 3A fallback preservation (required even after promotion)
+   - Explicit statement: Phase 8B.5 does NOT execute promotion — documentation-only
+   - Human approval points: promotion decision is SOLELY human authority
+   - Stop conditions: any gate FAIL, human does not request, Stage 3A unavailable
+   - Fallback path: Stage 3A always available, even after promotion
+
+3. Define promotion checklist (reference from MEMORY_QUALITY_GATES.md):
+   - [ ] Gate 1: Stage 3A comparison passing (≥70% overlap)
+   - [ ] Gate 2: Stage 4 validators all PASS
+   - [ ] Gate 3: Semantic quality evaluated (precision ≥ Stage 3A)
+   - [ ] Gate 4: Source spot-check passing (8/10 relevant in top 3)
+   - [ ] Gate 5: Answer quality validated (no degradation)
+   - [ ] Gate 6: All indexes have manifests (all fields present)
+   - [ ] Gate 7: Rollback plans documented (exists, testable)
+   - [ ] Gate 8: Stale memory review exists (documented, last date recorded)
+   - [ ] Human explicitly requests promotion review
+   - [ ] Stage 3A fallback confirmed available post-promotion
+
+4. Explicitly document:
+   - Phase 8B.5 is documentation-only — no promotion executed
+   - Promotion requires SEPARATE future phase with explicit human approval
+   - Stage 3A remains canonical fallback even after any future promotion
+   - No autonomous promotion is ever allowed
+   - If any gate fails: promotion BLOCKED, RuVector stays prototype
+
+5. Update docs/roadmap/ROADMAP.md:
+   Add or update Phase 8B.5:
+   - status: defined (documentation-only, promotion NOT executed)
+   - deliverables: WORKFLOW_8B5_PROMOTION_REVIEW.md
+   - note: all 8 gates must pass; human approval required; Stage 3A fallback preserved
+
+Validation:
+Run from ~/projects/gem:
+
+test -f docs/workflows/memory/WORKFLOW_8B5_PROMOTION_REVIEW.md
+gemma-evals-status
+gemma-evals-check
+gemma-examples-check
+git status --short
+git diff -- docs/workflows docs/roadmap/ROADMAP.md
+
+Acceptance criteria:
+- WORKFLOW_8B5_PROMOTION_REVIEW.md exists
+- Promotion checklist explicit (all 10 items)
+- Stage 3A fallback preservation required (documented)
+- Human approval is SOLELY authority for promotion
+- Phase 8B.5 is documentation-only (no promotion executed)
+- No production memory promotion occurred
+- No memory ingestion occurred
+- No RuVector indexing run
+- No broad filesystem access granted
+- No system/security/package/model/OpenCode/Agent Zero/Space Agent config changes
+- Existing validators pass
+- Roadmap reflects Phase 8B.5 completion
+
+Final response format:
+- files created
+- files modified
+- promotion checklist (10 items)
+- stage 3A fallback (preserved yes/no)
+- human approval (sole authority yes/no)
+- promotion executed (yes/no — must be NO)
+- validators run
+- pass/fail results
+- readiness decision
+- recommended next prompt

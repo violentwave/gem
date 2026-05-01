@@ -1,0 +1,111 @@
+Phase 8A: Agent Zero Workflow Library Prompt
+
+You are working on Logan's Bazzite Local AI Operations Stack repo:
+
+~/projects/gem
+
+Goal:
+Build a documentation-only Agent Zero workflow library for future supervised use. Workflows must be bounded, explicit, reversible where possible, and routed through the existing component responsibilities.
+
+Current state:
+- Phase 7A connector works with A0 CLI v1.5.
+- Phase 7D smoke test passed; Agent Zero was stopped at the end.
+- Phase 7E.1 Space Agent provider finalization is complete.
+- OpenRouter works in Space Agent.
+- Local Gemma/Ollama works in Space Agent with:
+  - Endpoint: http://127.0.0.1:11434/v1/chat/completions
+  - Model: gemma4-e4b-bazzite:latest
+  - API key placeholder: ollama
+- Gemini remains optional unresolved retry.
+- RuVector semantic retrieval remains prototype-only.
+- Stage 3A deterministic retrieval remains the canonical fallback.
+
+Component roles:
+- OpenCode: implementation work, repo edits, validated patches.
+- Agent Zero: future supervised workflow orchestration only; no autonomous production use in this phase.
+- Gemma wrappers: advisory, RAG, bounded command review, policy reminders.
+- RuVector: scoped semantic prototype for memory lookup only; no production memory promotion.
+- Space Agent: manual UI/workspace layer only; no repo editing or autonomous host tasks.
+- Human: approval authority for workflow execution and all system changes.
+
+Hard boundaries:
+- Do not use sudo.
+- Do not install packages.
+- Do not download models.
+- Do not start Agent Zero unless a future prompt explicitly authorizes a bounded metadata check.
+- Do not run Agent Zero autonomous tasks.
+- Do not grant broad host or filesystem access.
+- Do not modify system/security/package/model/OpenCode/Agent Zero/Space Agent config.
+- Do not allow autonomous repo edits.
+- Do not let Space Agent edit ~/projects/gem.
+- Do not create or edit ~/conf/onscreen-agent.yaml.
+- Do not ingest secrets, .env files, raw logs, browser data, private code, or unredacted transcripts.
+- Do not promote RuVector semantic prototype to production memory.
+
+Tasks:
+1. Read current Phase 7 reports and routing docs:
+   - docs/integrations/agent-zero/AGENT_ZERO_PHASE7A3_SMOKE_TEST.md
+   - docs/integrations/PHASE7D_UNIFIED_SMOKE_TEST.md
+   - docs/integrations/space-agent/SPACE_AGENT_PHASE7E1_PROVIDER_FINALIZATION.md
+   - docs/architecture/COMPONENT_ROUTING_MATRIX.md
+   - docs/architecture/UNIFIED_OPERATOR_LAYER.md
+   - docs/roadmap/ROADMAP.md
+
+2. Create:
+   docs/workflows/agent-zero/AGENT_ZERO_WORKFLOW_LIBRARY.md
+
+3. Define safe Agent Zero workflow categories, including at minimum:
+   - read-only repo briefing
+   - validation orchestration
+   - report triage and summarization
+   - handoff generation
+   - advisory command-review workflow
+   - memory-assisted context lookup using RuVector prototype plus Stage 3A fallback
+   - Space Agent manual workspace handoff
+
+4. For each workflow, document:
+   - purpose
+   - inputs
+   - allowed components/tools
+   - forbidden actions
+   - approval point
+   - expected outputs
+   - validators
+   - fallback path
+   - stop conditions
+
+5. Include routing rules:
+   - OpenCode performs implementation and repo edits.
+   - Gemma handles advisory/RAG/command review only.
+   - RuVector is memory lookup prototype only and must be compared with Stage 3A when used.
+   - Space Agent is manual UI/workspace only.
+   - Agent Zero does not receive broad filesystem access or unsupervised task authority.
+
+6. Update roadmap/docs if useful, keeping changes concise.
+
+Validation:
+Run from ~/projects/gem:
+
+test -f docs/workflows/agent-zero/AGENT_ZERO_WORKFLOW_LIBRARY.md
+gemma-evals-status
+gemma-evals-check
+gemma-examples-check
+git status --short
+git diff -- docs/workflows docs/architecture docs/roadmap prompts/opencode/phase8a-agent-zero-workflow-library.prompt.txt
+
+Acceptance criteria:
+- Workflow library is documentation-only.
+- Workflows are bounded and explicit.
+- No Agent Zero autonomous tasks are run.
+- No broad host access is granted.
+- No system/security/package/model/OpenCode/Agent Zero/Space Agent config changes are made.
+- No autonomous repo edits are allowed.
+- Component routing matches the Phase 7E.1 state.
+- Existing validators pass.
+
+Final response format:
+- files created/modified
+- workflows defined
+- boundaries preserved
+- validators run
+- readiness decision

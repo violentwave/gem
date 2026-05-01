@@ -1,0 +1,75 @@
+Phase 6D: Integration Smoke Test Prompt
+
+Context:
+You are working on the Bazzite Local AI Operations Stack at ~/projects/gem. Phases 6A, 6B, 6C are complete. Phase 6D verifies components can coexist.
+
+Purpose:
+Verify Agent Zero, RuVector, and Space Agent can coexist without:
+- Port conflicts
+- Path conflicts
+- Capability interference
+
+Prerequisites:
+- Phase 6A (Agent Zero sandbox) complete
+- Phase 6B (RuVector sandbox) complete
+- Phase 6C (Space Agent sandbox) complete
+
+Hard Boundaries:
+- Do NOT enable full operator mode
+- Do NOT leave components running
+- Do NOT make system changes
+- Do NOT grant additional permissions
+- Do NOT modify configs
+
+Allowed Actions:
+1. Verify Phase 6A/6B/6C reports exist (don't check deleted temp files)
+2. Check component status from REPORTS, not running instances
+3. Verify no port conflicts
+4. Verify no path conflicts
+5. Confirm fallback chain still works
+6. Create smoke test report
+
+Validation Commands:
+```bash
+# STEP 1: Verify Phase 6 reports exist (DO NOT check temp files - they're deleted)
+echo "=== Phase 6 Reports ==="
+ls -la docs/integrations/agent-zero/AGENT_ZERO_SANDBOX_REPORT.md
+ls -la docs/integrations/ruvector/RUVECTOR_SANDBOX_REPORT.md
+ls -la docs/integrations/space-agent/SPACE_AGENT_SANDBOX_REPORT.md
+
+# STEP 2: Read findings from reports (don't re-check temp files)
+echo "=== Agent Zero findings from report ==="
+grep -E "Status|Ready|Issues" docs/integrations/agent-zero/AGENT_ZERO_SANDBOX_REPORT.md | head -5
+
+echo "=== RuVector findings from report ==="
+grep -E "Status|Ready|Issues" docs/integrations/ruvector/RUVECTOR_SANDBOX_REPORT.md | head -5
+
+echo "=== Space Agent findings from report ==="
+grep -E "Status|Ready|Issues" docs/integrations/space-agent/SPACE_AGENT_SANDBOX_REPORT.md | head -5
+
+# STEP 3: Check potential port conflicts (if any components were running)
+ss -tlnp | grep -E "5080|8080|3000" || echo "No port conflicts"
+
+# STEP 4: Verify no path conflicts (these paths don't exist yet - check they won't collide)
+echo "Planned paths:"
+echo "  A0: ~/.local/share/agent-zero/"
+echo "  RV: ~/.local/share/bazzite-security/ruvector/"
+echo "  SA: ~/.local/share/space-agent/"
+
+# STEP 5: Verify fallback chain (Stage 3A and OpenCode still work)
+gemma-evals-status
+which opencode
+```
+
+Output Format:
+Create docs/integrations/INTEGRATION_SMOKE_REPORT.md with:
+- Component coexistence confirmation
+- Port conflict check
+- Path conflict check
+- Fallback chain verification
+- Decision: Proceed to Phase 7 / Do not proceed
+
+Final Response:
+- Confirm all checks performed
+- Report any conflicts found
+- State whether ready for Phase 7 integration

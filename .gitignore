@@ -1,0 +1,122 @@
+# .gitignore for Bazzite Local AI Operations Stack
+
+# Secrets and environment files
+.env
+.env.*
+.env.local
+.env.production
+.env.development
+*.env
+secrets*
+*secret*
+*token*
+*key*
+*.pem
+*.key
+*.crt
+*.p12
+*.pfx
+config/local*
+config/private*
+
+# Raw logs and transcripts
+*.log
+logs/
+logs-*/
+*.transcript
+raw-logs/
+unredacted/
+
+# Cache and temporary files
+.cache/
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.Python
+*.so
+*.egg
+*.egg-info/
+dist/
+build/
+*.tgz
+*.tar.gz
+*.zip
+
+# Generated reports (large)
+reports/
+*.pdf
+*.html
+*.docx
+
+# Private artifacts
+artifacts/private/
+inventory/raw/
+
+# Node.js
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+package-lock.json
+yarn.lock
+
+# Track the repo-local RuVector prototype lockfile for reproducibility
+!prototypes/ruvector-memory/package-lock.json
+
+# Python
+venv/
+env/
+ENV/
+.venv/
+*.manifest
+*.spec
+pip-log.txt
+pip-delete-this-directory.txt
+
+# IDEs and editors
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+Thumbs.db
+
+# Git
+.git-credentials
+.gitconfig.local
+
+# Database and index files
+*.db
+*.sqlite
+*.sqlite3
+*.index
+*.hnsw
+
+# Model files
+*.gguf
+*.bin
+*.onnx
+*.pt
+*.pth
+*.safetensors
+
+# Docker
+.dockerignore
+Dockerfile.local
+docker-compose.override.yml
+
+# Testing
+.coverage
+.pytest_cache/
+htmlcov/
+.tox/
+.nox/
+
+# Misc
+*.bak
+*.backup
+*.old
+*.orig
+*.rej
