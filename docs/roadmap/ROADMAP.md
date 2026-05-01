@@ -818,6 +818,41 @@
 
 **Depends on:** 8B.6A
 
+### Phase 8B.7: Supervised RuVector RAG Integration ✅ Completed
+**Goal:** Create a new supervised RAG helper that uses RuVector retrieval as the primary context source, Stage 3A as fallback/comparison baseline, and local Gemma only for bounded answer generation.
+
+**Tasks:**
+- Create `~/.local/bin/gemma-memory-rag` Python helper (stdlib only)
+- Use `gemma-memory-search` logic for retrieval and answerability calibration
+- Use RuVector context as primary only when recommendation and confidence support it
+- Use Stage 3A context as fallback
+- Call local Ollama HTTP API (`gemma4-e4b-bazzite:latest`)
+- Write reports to `~/offload/security-reports/manual/`
+- Preserve existing wrappers and Stage 3A as global fallback
+- Validate with 5 test queries
+
+**Deliverables:**
+- Helper: `~/.local/bin/gemma-memory-rag` (executable, Python 3 stdlib)
+- Summary: `docs/integrations/ruvector/RUVECTOR_PHASE8B7_SUPERVISED_RAG_SUMMARY.md`
+- Workflow: `docs/workflows/memory/WORKFLOW_8B7_SUPERVISED_RUVECTOR_RAG.md`
+- Reports: `~/offload/security-reports/manual/gemma-memory-rag-*.md`
+- Logs: `~/.local/state/bazzite-security/logs/gemma-memory-rag-*.log`
+
+**Results:**
+- Syntax check: ✅ PASS
+- Test queries (5/5): ✅ PASS
+- gemma-evals-check: ✅ PASS
+- gemma-evals-status: ✅ PASS
+- gemma-examples-check: ✅ PASS
+
+**Key Decisions:**
+- RuVector is primary for supervised RAG when explicitly invoked.
+- Stage 3A remains the deterministic fallback/comparison baseline.
+- Existing wrapper behavior unchanged.
+- No autonomous memory/learning enabled.
+
+**Depends on:** 8B.6B
+
 ### Phase 8C: Space Agent Workspace Workflow Library ✅ Completed
 **Goal:** Define L7 manual UI/workspace layer workflows for Space Agent.
 
