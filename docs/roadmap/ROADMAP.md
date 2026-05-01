@@ -853,6 +853,20 @@
 
 **Depends on:** 8B.6B
 
+### Phase 8B.7A: RAG Context Extraction Fix ⏳ Upcoming
+**Goal:** Fix `gemma-memory-rag` so Ollama receives full excerpts (not truncated table excerpts) from `gemma-memory-search` reports.
+
+**Tasks:**
+- Fix `extract_tables_from_report()` to extract full excerpts from report sections (not markdown table)
+- Alternatively, have `gemma-memory-search` output a parseable machine-readable context block
+- Alternatively, pass `gemma-memory-search` stdout (full excerpts) directly to Ollama prompt
+- Validate fix with "What paths are approved for Gemma knowledge docs?" query
+- Expect: answer includes `~/.local/share/bazzite-security/gemma-knowledge/docs/`
+- Update `docs/integrations/ruvector/RUVECTOR_PHASE8B7_SUPERVISED_RAG_SUMMARY.md`
+- Update `docs/workflows/memory/WORKFLOW_8B7_SUPERVISED_RUVECTOR_RAG.md`
+
+**Depends on:** 8B.7
+
 ### Phase 8C: Space Agent Workspace Workflow Library ✅ Completed
 **Goal:** Define L7 manual UI/workspace layer workflows for Space Agent.
 
@@ -991,6 +1005,35 @@
 - No runtime outputs, secrets, logs, reports, `~/.local`, `~/.config`, or `~/offload` content committed
 
 **Depends on:** 8D.2
+
+### Phase 8E: Final Closeout, Remote Verification & 8B.7 Regression Review ✅ Completed
+**Goal:** Verify GitHub remote, confirm Phase 8B.7 helper state, review known RAG regression, and create final Phase 8 closeout report.
+
+**Tasks:**
+- Verify local Git and remote state (branch, HEAD, visibility)
+- Confirm Phase 8B.7 commit `3f10165` exists locally and remotely
+- Verify `gemma-memory-rag` compiles and is executable
+- Run lightweight helper checks (firewall query, path query)
+- Investigate known 8B.7 regression ("What paths are approved for Gemma knowledge docs?" → MISSING EVIDENCE)
+- Run Stage 4 validators (gemma-evals-status, gemma-evals-check, gemma-examples-check)
+- Create final closeout report: `~/offload/security-reports/manual/phase8-final-closeout-*.md`
+- Create repo-local summary: `docs/PHASE8_FINAL_CLOSEOUT.md`
+- Update roadmap with 8E and 8B.7A
+
+**Deliverables:**
+- Closeout report: `~/offload/security-reports/manual/phase8-final-closeout-20260501-*.md`
+- Repo-local summary: `docs/PHASE8_FINAL_CLOSEOUT.md`
+- Updated roadmap: `docs/roadmap/ROADMAP.md` (8E added, 8B.7A noted)
+
+**Results:**
+- GitHub remote verified: `violentwave/gem`, private, `main` branch, local HEAD = remote HEAD = `3f10165`
+- Phase 8B.7 helper: compiles ✅, executable ✅
+- Known regression root cause: `extract_tables_from_report()` extracts truncated table excerpts (~553 chars), not full excerpts from report sections
+- Issue type: **Generation issue** (not retrieval or context selection)
+- Validators: all PASS (gemma-evals-status, gemma-evals-check, gemma-examples-check)
+- Phase 8 status: **Mostly closed**, pending 8B.7A fix
+
+**Depends on:** 8B.7
 
 ## Phase 9: Memory & Training Loop
 
