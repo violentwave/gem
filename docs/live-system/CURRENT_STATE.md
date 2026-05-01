@@ -170,23 +170,59 @@
 
 ### Current Capability Level
 - **Gemma wrappers:** L1 advisory, L2 report writing, RAG queries
+- **gemma-memory-search:** Supervised RuVector semantic search with Stage 3A fallback
+- **gemma-memory-rag:** Supervised RAG using RuVector context + local Ollama generation
 - **OpenCode/Codex:** Implementation work, repo operations, config editing
 - **Agent Zero:** Not yet integrated (assessment phase)
-- **RuVector:** Not yet integrated (assessment phase)
-- **Space Agent:** Not yet integrated (assessment phase)
+- **RuVector:** Supervised prototype only (L6), NOT production default
+- **Space Agent:** Manual UI only (L7), not autonomous
 
-### Security Boundaries
+### Security Boundaries (Updated 2026-05-01)
 - No unattended Gemma implementation
 - No sudo without explicit authorization
 - No system config changes without review
 - No secrets in coordination repo
+- RuVector is supervised only — Stage 3A remains canonical fallback
+- gemma-memory-search/rag are helpers, NOT wrapper defaults
+
+## Phase 8 Completion (2026-05-01)
+
+### Completed Sub-Phases
+- ✅ Phase 8A: Agent Zero Workflow Library (L5) — defined, not executed
+- ✅ Phase 8B.1-8B.3: Memory Workflow Library (L6) — defined, not executed
+- ✅ Phase 8B.4-8B.5: Memory Quality Validation & Production Review
+- ✅ Phase 8B.6: Supervised RuVector Search (gemma-memory-search)
+- ✅ Phase 8B.6A: Source-Family Classification
+- ✅ Phase 8B.6B: Answerability Calibration
+- ✅ Phase 8B.7: Supervised RuVector RAG Integration (gemma-memory-rag)
+- ✅ Phase 8B.7A: Context Extraction Fix (TOP_N=4, CHARS_PER_CHUNK=1800)
+- ✅ Phase 8C: Space Agent Workspace Workflow Library (L7, manual only)
+- ✅ Phase 8D.1-8D.3: Workflow Index, Repo Baseline, GitHub Remote Setup
+- ✅ Phase 8E: Final Closeout and Regression Review
+
+### New Helpers Added (2026-05-01)
+```
+~/.local/bin/
+├── gemma-memory-search    # Supervised RuVector semantic search
+├── gemma-memory-rag       # Supervised RAG with RuVector + Ollama
+```
+
+### RuVector Status
+- **Status:** Supervised prototype (not production)
+- **Index:** `~/.local/share/bazzite-security/ruvector/semantic-prototype/semantic-approved-docs-memory.json`
+- **Model:** nomic-embed-text:latest (768d)
+- **Chunks:** 398
+- **Usage:** gemma-memory-search/rag only — NOT global default
+
+### GitHub Remote
+- **Repo:** https://github.com/violentwave/gem (PRIVATE)
+- **Latest Commit:** b557c37 (Phase 8B.7A fix)
 
 ## Next Phase
 
-**Phase 5A:** Repo bootstrap (this work)
-- Create coordination repo at `~/projects/gem`
-- Document architecture and roadmap
-- Create inventory and planning artifacts
+**Phase 9:** Planning (Memory & Training Loop)
+- After Phase 8B.7A verification
+- Focus on learning integration (not autonomous)
 
 ## Validation
 

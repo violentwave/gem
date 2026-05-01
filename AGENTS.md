@@ -45,8 +45,11 @@ Live files remain in place. This repo coordinates, does not replace:
 
 ### Model Roles
 - **Gemma:** Advisory only through wrappers. Not unattended implementation agent.
+- **gemma-memory-search:** Supervised semantic search using RuVector. Primary when evidence supports it.
+- **gemma-memory-rag:** Supervised RAG using RuVector context + local Ollama. NOT a wrapper default.
 - **OpenCode/Codex:** Implementation work. Use GPT-5.4-class models.
 - **Agent Zero:** Assessment phase. Not yet integrated.
+- **RuVector:** Supervised prototype only. NOT production default. Stage 3A remains canonical fallback.
 
 ### Package Installation
 - Do not install packages unless explicitly authorized
@@ -80,6 +83,17 @@ Live files remain in place. This repo coordinates, does not replace:
 4. Update relevant docs if needed
 
 ## Phase-Specific Rules
+
+### Phase 8 (Workflow Libraries - Completed 2026-05-01)
+- Phase 8A: Agent Zero workflow library defined (L5), NOT executed
+- Phase 8B: Memory workflow library defined (L6), RuVector remains supervised prototype
+- Phase 8B.6: gemma-memory-search helper created — supervised semantic search
+- Phase 8B.7: gemma-memory-rag helper created — supervised RAG with Ollama
+- Phase 8B.7A: Context extraction fix (TOP_N=4, CHARS_PER_CHUNK=1800)
+- Phase 8C: Space Agent workspace workflows defined (L7, manual only)
+- Phase 8D: Workflow index, repo baseline, GitHub remote completed
+- **Important:** RuVector is NOT the default — Stage 3A remains fallback
+- **Important:** No autonomous memory/learning loops enabled
 
 ### Phase 5A (Repo Bootstrap)
 - Create coordination repo structure
