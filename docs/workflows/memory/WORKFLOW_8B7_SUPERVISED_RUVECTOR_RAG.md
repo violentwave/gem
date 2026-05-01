@@ -1,15 +1,28 @@
 # Workflow 8B.7: Supervised RuVector RAG Integration
 
 **Workflow ID:** WORKFLOW_8B7
-**Phase:** 8B.7
+**Phase:** 8B.7 + 8B.7A (fix)
 **Status:** Active
-**Date:** 2026-04-30
+**Date:** 2026-05-01
 
 ---
 
 ## Purpose
 
 Define the supervised workflow for using `gemma-memory-rag` — a helper that generates answers using `gemma4-e4b-bazzite:latest` based on context retrieved primarily from RuVector and falling back to Stage 3A.
+
+---
+
+## 8B.7A Fix (2026-05-01)
+
+**Issue:** Context extraction was pulling truncated table excerpts (~553 chars), causing "MISSING EVIDENCE" responses.
+
+**Fix:**
+- Increased `TOP_N` from 3 to 4
+- Increased `CHARS_PER_CHUNK` from 1400 to 1800
+
+**Result:** "What paths are approved for Gemma knowledge docs?" now returns:
+- `Approved docs are read from ~/.local/share/bazzite-security/gemma-knowledge/docs/`
 
 ---
 

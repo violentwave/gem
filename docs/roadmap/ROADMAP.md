@@ -867,6 +867,29 @@
 
 **Depends on:** 8B.7
 
+### Phase 8B.7A: RAG Context Extraction Fix ✅ Completed
+**Goal:** Fix `gemma-memory-rag` so Ollama receives full excerpts (not truncated table excerpts) from `gemma-memory-search` reports.
+
+**Tasks:**
+- Fix `extract_tables_from_report()` to extract full excerpts from report sections (not markdown table)
+- Alternatively, have `gemma-memory-search` output a parseable machine-readable context block
+- Alternatively, pass `gemma-memory-search` stdout (full excerpts) directly to Ollama prompt
+- Validate fix with "What paths are approved for Gemma knowledge docs?" query
+- Expect: answer includes `~/.local/share/bazzite-security/gemma-knowledge/docs/`
+- Update `docs/integrations/ruvector/RUVECTOR_PHASE8B7_SUPERVISED_RAG_SUMMARY.md`
+- Update `docs/workflows/memory/WORKFLOW_8B7_SUPERVISED_RUVECTOR_RAG.md`
+
+**Deliverables:**
+- Fixed helper: `~/.local/bin/gemma-memory-rag` (TOP_N=4, CHARS_PER_CHUNK=1800)
+- Updated docs: RUVECTOR_PHASE8B7_SUPERVISED_RAG_SUMMARY.md, WORKFLOW_8B7_SUPERVISED_RUVECTOR_RAG.md
+
+**Results:**
+- Query "What paths are approved for Gemma knowledge docs?" -> Answer: `~/.local/share/bazzite-security/gemma-knowledge/docs/` ✅
+- Query "What firewall tool does Bazzite use?" -> Answer: `firewalld` ✅
+- Validators: all PASS
+
+**Depends on:** 8B.7
+
 ### Phase 8C: Space Agent Workspace Workflow Library ✅ Completed
 **Goal:** Define L7 manual UI/workspace layer workflows for Space Agent.
 

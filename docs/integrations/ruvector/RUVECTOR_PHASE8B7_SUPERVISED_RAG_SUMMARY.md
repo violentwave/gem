@@ -1,8 +1,8 @@
 # RuVector Phase 8B.7 Supervised RAG Summary
 
-**Phase:** 8B.7
+**Phase:** 8B.7 + 8B.7A (fix)
 **Status:** Completed
-**Date:** 2026-04-30
+**Date:** 2026-05-01
 
 ---
 
@@ -15,6 +15,20 @@ Created `~/.local/bin/gemma-memory-rag` — a supervised RAG helper that:
 3. Uses Stage 3A context as fallback when RuVector is weak, generic, insufficient, or contradictory.
 4. Generates answers using `gemma4-e4b-bazzite:latest` via local Ollama.
 5. Writes reports to `~/offload/security-reports/manual/`.
+
+---
+
+## Phase 8B.7A Fix (2026-05-01)
+
+**Issue:** Context extraction was pulling truncated table excerpts (~553 chars), causing "MISSING EVIDENCE" responses even with relevant context.
+
+**Fix:**
+- Increased `TOP_N` from 3 to 4 (more excerpts for context)
+- Increased `CHARS_PER_CHUNK` from 1400 to 1800 (more context allowed)
+- Kept extraction from markdown table (contains relevant source info)
+
+**Result:** Query "What paths are approved for Gemma knowledge docs?" now returns:
+- `Approved docs are read from ~/.local/share/bazzite-security/gemma-knowledge/docs/.`
 
 ---
 
@@ -42,11 +56,11 @@ Created `~/.local/bin/gemma-memory-rag` — a supervised RAG helper that:
 
 - **Syntax Check:** `python3 -m py_compile ~/.local/bin/gemma-memory-rag` passed.
 - **Test Questions (5/5 PASSED):**
-  - "What firewall tool does Bazzite use?" -> `use_ruvector_context`
+  - "What firewall tool does Bazzite use?" -> `use_ruvector_context` -> Answer: `firewalld`
   - "Where should generated reports and logs go?" -> `use_ruvector_context`
   - "Should local Gemma do unattended OpenCode implementation?" -> `use_ruvector_context`
-  - "What paths are approved for Gemma knowledge docs?" -> `use_ruvector_context` (MISSING EVIDENCE correctly handled)
-  - "What is RuVector's current production status?" -> `insufficient_evidence` -> falls back to Stage 3A or MISSING EVIDENCE.
+  - "What paths are approved for Gemma knowledge docs?" -> `use_ruvector_context` -> Answer: `~/.local/share/bazzite-security/gemma-knowledge/docs/` ✅ FIXED
+  - "What is RuVector's current production status?" -> `insufficient_evidence` -> falls back to Stage 3A
 
 - **gemma-evals-check:** PASS
 - **gemma-evals-status:** PASS
