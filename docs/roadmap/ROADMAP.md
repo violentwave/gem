@@ -1058,38 +1058,96 @@
 
 **Depends on:** 8B.7
 
-## Phase 9: Memory & Training Loop
+## Phase 9: Controlled Memory / Training Loop Planning ✅ Planned
 
-### Phase 9A: Learning Integration
-**Goal:** Self-improving capabilities
+**Phase 9 is planning-only in the current state.** No autonomous learning, ingestion, promotion, daemonization, or wrapper-default changes are authorized here.
 
-**Tasks:**
-- Integrate learning loop
-- Define feedback mechanisms
-- Test improvement cycles
-- Validate scoping
-
-**Deliverables:**
-- Learning system operational
-- Feedback mechanisms working
-- Improvement cycles documented
-
-**Depends on:** 8A-C
-
-### Phase 9B: Full Stack Validation
-**Goal:** Validate complete L0-L9 stack
+### Phase 9A: Helper Source Reproducibility ✅ Planned
+**Goal:** Plan sanitized repo-tracked source templates and user-local install/check flows for `gemma-memory-search` and `gemma-memory-rag`.
 
 **Tasks:**
-- End-to-end testing
-- Security audit
-- Performance validation
-- Documentation completion
+- define reviewed helper template paths under `helpers/`
+- define user-local installer/checker behavior
+- require dry-run, checksum comparison, overwrite confirmation
+- preserve `~/.local/bin/` as live canonical destination
 
 **Deliverables:**
-- Full stack operational
-- Security audit passed
-- Performance validated
-- Documentation complete
+- `docs/phase9/HELPER_REPRODUCIBILITY_PLAN.md`
+- future repo paths: `helpers/gemma-memory-search`, `helpers/gemma-memory-rag`
+- future scripts: `scripts/install-gemma-memory-helpers.sh`, `scripts/check-gemma-memory-helpers.sh`
+
+### Phase 9B: Controlled Memory Ingestion Loop ✅ Planned
+**Goal:** Plan a human-approved, manifest-backed ingestion loop without enabling ingestion.
+
+**Tasks:**
+- define source proposal workflow
+- preserve A/B/C/D source classification
+- require denied-data scanning before approval
+- require rollback/reset plan before ingestion
+- preserve Stage 3A fallback and supervised RuVector scope
+
+**Deliverables:**
+- `docs/phase9/CONTROLLED_MEMORY_INGESTION_LOOP.md`
+- `docs/phase9/MEMORY_SOURCE_PROPOSAL_SCHEMA.md`
+- `docs/phase9/MEMORY_DENIED_DATA_SCAN_RULES.md`
+- `docs/phase9/MEMORY_MANIFEST_SCHEMA.md`
+- `docs/phase9/MEMORY_ROLLBACK_AND_RESET_PLAN.md`
+
+### Phase 9C: Eval Expansion ✅ Planned
+**Goal:** Plan additional regression coverage for supervised memory helpers.
+
+**Tasks:**
+- expand known-answer coverage for `gemma-memory-search`
+- expand known-answer coverage for `gemma-memory-rag`
+- cover canonical facts: docs path, firewalld, report/log paths, local-Gemma boundaries, RuVector supervised/prototype status, Stage 3A fallback
+
+**Deliverables:**
+- `docs/phase9/EVAL_EXPANSION_PLAN.md`
+- recommended fixture path: `tests/fixtures/memory-known-answer-queries.jsonl`
+
+### Phase 9D: RAG Quality Monitoring ✅ Planned
+**Goal:** Plan a manual-only quality checker for supervised RAG.
+
+**Tasks:**
+- define `gemma-memory-quality-check` scope
+- require lightweight query set and Stage 3A comparison
+- define PASS/WARN/FAIL reporting
+- keep output/report/log paths canonical
+
+**Deliverables:**
+- `docs/phase9/RAG_QUALITY_MONITORING_PLAN.md`
+
+### Phase 9E: Future Learning Loop Policy ✅ Planned
+**Goal:** Document the policy boundary for any future learning/training phase.
+
+**Tasks:**
+- reject autonomous self-training
+- reject raw/private data as training input
+- require curated examples and RAG/evals first
+- document GTX 1060 6GB practicality limits for local LoRA training
+
+**Deliverables:**
+- `docs/phase9/FUTURE_LEARNING_LOOP_POLICY.md`
+
+### Phase 9F: Agent Zero / Space Agent Guardrails ✅ Planned
+**Goal:** Preserve supervised/manual-only orchestration boundaries around Agent Zero and Space Agent.
+
+**Tasks:**
+- keep Agent Zero supervised only
+- keep Space Agent manual UI only
+- reject broad host authority and default write authority
+- reject autonomous security remediation and connector promotion without explicit high-risk review
+
+**Deliverables:**
+- `docs/phase9/AGENT_ZERO_SPACE_AGENT_PHASE9_GUARDRAILS.md`
+
+**Depends on:** Phase 8 post-8B.7A state, Stage 3A fallback preservation, current validator PASS baseline
+
+**Boundary notes:**
+- RuVector remains supervised/prototype/secondary
+- Stage 3A remains canonical fallback
+- `gemma-memory-search` and `gemma-memory-rag` remain explicit helpers, not wrapper defaults
+- all future Phase 9 prompts remain planning/bounded unless implementation is explicitly approved
 
 ## Maintenance Phases
 

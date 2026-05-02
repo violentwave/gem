@@ -1,0 +1,27 @@
+Phase 9F: Agent Zero / Space Agent Guardrails Planning
+
+Goal:
+Document Phase 9 guardrails for Agent Zero and Space Agent.
+
+This is planning-only.
+
+Rules to preserve:
+- Agent Zero supervised only
+- Space Agent manual UI only
+- no broad host authority
+- no local machine write authority by default
+- no autonomous security remediation
+- no connector promotion without explicit high-risk review
+
+Outputs:
+- `docs/phase9/AGENT_ZERO_SPACE_AGENT_PHASE9_GUARDRAILS.md`
+
+Validation:
+- `test -f docs/phase9/AGENT_ZERO_SPACE_AGENT_PHASE9_GUARDRAILS.md`
+
+Final response format:
+- files created
+- files modified
+- guardrails summary
+- supervised/manual-only preserved yes/no
+- readiness decision

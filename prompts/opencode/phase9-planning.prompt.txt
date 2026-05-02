@@ -1,142 +1,97 @@
-Phase 9: Memory & Training Loop Planning
+Phase 9: Controlled Memory / Training Loop Planning
 
 You are working on Logan's Bazzite Local AI Operations Stack repo:
 
 ~/projects/gem
 
 Goal:
-Plan Phase 9 (Memory & Training Loop) for future implementation.
+Research and plan Phase 9 after the verified Phase 8B.7A state.
 
-This is planning-only. Do not implement Phase 9, do not execute Agent Zero workflows, do not run RuVector queries/indexing/ingestion, do not run memory quality dry-run or promotion, and do not enable autonomy or production memory.
+This is planning/research only. Do not implement autonomous learning, do not run memory ingestion, do not promote RuVector, do not change wrapper defaults, and do not modify live system/security/model/OpenCode permissions.
 
-Current state:
-- Phase 8D closeout is complete (all workflow libraries defined, documentation-only).
-- Phase 8B.4 (memory quality dry-run) is upcoming — run that before Phase 9 implementation.
-- Phase 8B.5 (production promotion review) is upcoming — only if 8B.4 justifies it.
-- RuVector remains prototype-only.
-- Stage 3A remains canonical fallback.
+Current verified state:
+- Phase 8 is closed enough to begin Phase 9 research.
+- Phase 8B.7A commit exists on GitHub: `b557c37d4bd227c07a6535ceaf85d3360b1ee626`
+- `gemma-memory-search` is operational as supervised semantic search using RuVector.
+- `gemma-memory-rag` is operational as supervised RAG using RuVector context + local Ollama.
+- Stage 3A deterministic retrieval remains preserved and canonical fallback.
+- RuVector remains supervised/prototype/secondary, not global default.
+- Agent Zero workflows are defined but not autonomous/executed.
 - Space Agent remains manual UI only.
-- Agent Zero workflows are defined but not executed.
-- OpenCode remains the implementation surface.
-- Existing validators pass:
+- Existing validators should remain PASS:
   - gemma-evals-status
   - gemma-evals-check
   - gemma-examples-check
 
 Hard boundaries:
-- Do not use sudo.
-- Do not install packages.
-- Do not download models.
-- Do not modify Ollama config or model config.
-- Do not start Agent Zero or run A0 connector tasks.
-- Do not spawn Agent Zero agents.
-- Do not run Space Agent autonomous tasks.
-- Do not let Space Agent edit ~/projects/gem.
-- Do not create or edit ~/conf/onscreen-agent.yaml.
-- Do not run RuVector query, index, ingestion, quality dry-run, or promotion scripts.
-- Do not promote RuVector to production memory.
-- Do not enable autonomy or production memory.
-- Do not modify system/security/package/model/OpenCode/Agent Zero/Space Agent config.
-- Do not inspect or copy secrets, .env files, provider keys, raw logs, browser data, cookies, Local Storage, Session Storage, Trust Tokens, Agent Zero memory, or Space Agent state.
-- Do not write runtime logs/reports/state into unrelated project roots.
+- No sudo.
+- No package installs.
+- No model downloads.
+- No Ollama service or model config changes.
+- No OpenCode permission changes.
+- No firewall, USBGuard, ClamAV, Lynis, rpm-ostree, systemd timer, or host security changes.
+- No Agent Zero execution.
+- No Space Agent autonomous task execution.
+- No Space Agent editing of ~/projects/gem.
+- No RuVector ingestion/indexing unless explicitly scoped as a read-only inspection of existing files.
+- No production memory promotion.
+- No wrapper default changes.
+- No always-on daemon.
+- No timers for Phase 9 unless a future prompt explicitly approves a manual-reviewed timer.
+- No secrets, .env files, provider keys, raw logs, browser data, cookies, Local Storage, Session Storage, Trust Tokens, Agent Zero memory, Space Agent state, or unredacted OpenCode transcripts.
+- Do not broadly scan ~/.config, ~/.local/share, ~/projects, ~/.cache, or ~/offload/security-reports.
 
 Tasks:
 
-1. Read Phase 8 closeout and roadmap for context:
-   - docs/workflows/PHASE8_WORKFLOW_CLOSEOUT.md
-   - docs/roadmap/ROADMAP.md (Phase 9 section)
-   - docs/architecture/UNIFIED_OPERATOR_LAYER.md
-   - docs/integrations/INTEGRATION_DECISIONS.md
+1. Read current repo state and Phase 8 memory docs.
+2. Plan the following bounded Phase 9 outputs only:
+   - helper source reproducibility
+   - controlled memory ingestion loop
+   - eval expansion
+   - manual-only RAG quality monitoring
+   - future learning/training policy
+   - Agent Zero / Space Agent guardrails
+3. Update repo planning docs and prompts only.
+4. Keep all future prompts planning/bounded unless implementation is explicitly approved.
 
-2. Plan Phase 9 sub-phases (planning-only, no implementation):
-
-   Phase 9A: Learning Integration
-   - Define learning loop architecture (how Agent Zero learns from task execution)
-   - Define feedback mechanisms (human feedback, validator results, quality gates)
-   - Define improvement cycles (how learning translates to better performance)
-   - Define scoping (what the learning system can/cannot change)
-   - Planning docs only — no learning system implementation
-
-   Phase 9B: Memory Training Loop
-   - Define how RuVector learns from validated queries
-   - Define training data sources (validated queries, human-approved corrections)
-   - Define training triggers (after quality gates pass, human approval)
-   - Define training boundaries (no secret ingestion, no autonomous retraining)
-   - Planning docs only — no training implementation
-
-   Phase 9C: Self-Improvement Validation
-   - Define how to measure self-improvement
-   - Define metrics (task success rate, quality gate pass rate, human approval rate)
-   - Define validation gates (must pass before promoting improvements)
-   - Define rollback if self-improvement degrades performance
-   - Planning docs only — no validation implementation
-
-3. Create Phase 9 planning docs (planning-only):
-
-   docs/roadmap/PHASE9_PLANNING.md
-   - Phase 9A/9B/9C sub-phase breakdown
-   - Prerequisites (8B.4 dry-run, 8D closeout review)
-   - Dependencies (Agent Zero L5, RuVector L6, OpenCode L3)
-   - Boundaries (no autonomy enabled, no production memory)
-   - Human approval points (all learning/training/validation)
-
-4. Update roadmap Phase 9 section:
-   - docs/roadmap/ROADMAP.md
-   - Update Phase 9A/9B/9C with planning details
-   - Mark Phase 9 as "planning complete, implementation pending dry-runs"
-   - Add note: Phase 9 implementation requires 8B.4 dry-run + 8D closeout review
-
-5. Create future prompts (prompts only, do not execute):
-
-   prompts/opencode/phase9a-learning-integration.prompt.txt
-   - Planning-only prompt for Phase 9A implementation (when approved)
-   - Must NOT enable autonomy or production memory
-   - Must require human approval for all learning/training
-
-   prompts/opencode/phase9b-memory-training.prompt.txt
-   - Planning-only prompt for Phase 9B implementation (when approved)
-   - Must NOT run training (planning-only)
-   - Must require human approval for all training data/triggers
-
-   prompts/opencode/phase9c-self-improvement-validation.prompt.txt
-   - Planning-only prompt for Phase 9C implementation (when approved)
-   - Must NOT run validation (planning-only)
-   - Must require human approval for all promotions
+Required outputs:
+- `docs/phase9/HELPER_REPRODUCIBILITY_PLAN.md`
+- `docs/phase9/CONTROLLED_MEMORY_INGESTION_LOOP.md`
+- `docs/phase9/MEMORY_SOURCE_PROPOSAL_SCHEMA.md`
+- `docs/phase9/MEMORY_DENIED_DATA_SCAN_RULES.md`
+- `docs/phase9/MEMORY_MANIFEST_SCHEMA.md`
+- `docs/phase9/MEMORY_ROLLBACK_AND_RESET_PLAN.md`
+- `docs/phase9/EVAL_EXPANSION_PLAN.md`
+- `docs/phase9/RAG_QUALITY_MONITORING_PLAN.md`
+- `docs/phase9/FUTURE_LEARNING_LOOP_POLICY.md`
+- `docs/phase9/AGENT_ZERO_SPACE_AGENT_PHASE9_GUARDRAILS.md`
+- `docs/roadmap/ROADMAP.md`
+- `prompts/opencode/phase9*.prompt.txt`
 
 Validation:
-Run from ~/projects/gem:
-
-test -f docs/roadmap/PHASE9_PLANNING.md
-test -f prompts/opencode/phase9a-learning-integration.prompt.txt
-test -f prompts/opencode/phase9b-memory-training.prompt.txt
-test -f prompts/opencode/phase9c-self-improvement-validation.prompt.txt
-
-gemma-evals-status
-gemma-evals-check
-gemma-examples-check
-
-git status --short
-git diff -- docs/roadmap/ROADMAP.md docs/roadmap/PHASE9_PLANNING.md
+- ensure each required Phase 9 doc exists
+- ensure each Phase 9 prompt exists
+- run `gemma-evals-status`
+- run `gemma-evals-check`
+- run `gemma-examples-check`
+- review `git status --short`
+- review `git diff -- docs/phase9 docs/roadmap/ROADMAP.md prompts/opencode/phase9*.prompt.txt`
 
 Acceptance criteria:
-- Phase 9 planning doc exists with 9A/9B/9C breakdown.
-- Roadmap Phase 9 section updated with planning details.
-- 3 Phase 9 prompts created (planning-only, no autonomy/production memory).
-- All prompts respect boundaries (no sudo, no installs, no model downloads, no autonomy, no production memory).
-- No Phase 9 implementation executed.
-- No learning system implemented.
-- No training data ingested.
-- No RuVector queries/indexing/ingestion/quality tests run.
-- No Agent Zero tasks run.
-- No Space Agent autonomous tasks.
-- Existing validators pass.
+- stale pre-8B.7A assumptions are removed
+- helper reproducibility is planned without blindly committing `~/.local/bin`
+- controlled ingestion remains human-approved and manifest-backed
+- eval expansion covers memory-search, memory-rag, and known-answer regressions
+- RAG monitoring remains manual-only
+- learning policy rejects autonomous training and private/raw data
+- Agent Zero and Space Agent remain supervised/manual-only
+- validators pass
 
 Final response format:
-- planning docs created (list)
-- roadmap updated (Phase 9 section)
-- future prompts created (list)
-- boundaries preserved (no autonomy, no production memory)
-- validators run
-- pass/fail results
+- files created
+- files modified
+- stale prompt findings
+- boundaries preserved
+- validators run and results
 - readiness decision
-- recommended next prompt (should be 8B.4, NOT 9A yet)
+- recommended next prompt

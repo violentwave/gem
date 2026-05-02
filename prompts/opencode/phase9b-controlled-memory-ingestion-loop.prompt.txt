@@ -1,0 +1,48 @@
+Phase 9B: Controlled Memory Ingestion Loop Planning
+
+Goal:
+Plan a future human-approved ingestion loop without implementing ingestion.
+
+This is planning-only.
+
+Must create/update:
+- `docs/phase9/CONTROLLED_MEMORY_INGESTION_LOOP.md`
+- `docs/phase9/MEMORY_SOURCE_PROPOSAL_SCHEMA.md`
+- `docs/phase9/MEMORY_DENIED_DATA_SCAN_RULES.md`
+- `docs/phase9/MEMORY_MANIFEST_SCHEMA.md`
+- `docs/phase9/MEMORY_ROLLBACK_AND_RESET_PLAN.md`
+
+Requirements:
+- human-approved source proposals
+- A/B/C/D classification
+- Class D rejection with no override
+- denied-data scanning before approval
+- manifest-backed ingestion
+- rollback/reset path before ingestion
+- stale-memory review
+- Stage 3A fallback preserved
+- no autonomous ingestion
+
+Future helpers to plan only:
+- `gemma-memory-propose-source`
+- `gemma-memory-denied-data-check`
+- `gemma-memory-ingestion-plan`
+- `gemma-memory-rollback-plan`
+
+Hard boundaries:
+- no ingestion
+- no indexing
+- no promotion
+- no broad scans
+- no private/raw data
+
+Validation:
+- verify all five Phase 9B docs exist
+
+Final response format:
+- files created
+- files modified
+- loop design summary
+- denied-data rules summary
+- Stage 3A fallback preserved yes/no
+- readiness decision
