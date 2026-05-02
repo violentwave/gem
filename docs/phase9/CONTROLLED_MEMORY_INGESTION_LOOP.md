@@ -2,7 +2,10 @@
 
 ## Status
 
-Planning only. No ingestion, indexing, or promotion is performed in this phase.
+Implementation complete (2026-05-02). Helpers created and tested.
+- `helpers/gemma-memory-propose-source` ✓
+- `helpers/gemma-memory-denied-data-check` ✓
+- `scripts/check-memory-ingestion-proposal.sh` ✓
 
 ## Goal
 

@@ -2,7 +2,9 @@
 
 ## Status
 
-Planning rules only.
+Implementation complete (2026-05-02). Helper created.
+
+See `docs/phase9/CONTROLLED_MEMORY_INGESTION_IMPLEMENTATION.md`.
 
 ## Goal
 
