@@ -1236,8 +1236,17 @@
 - Validators: PASS
 - No live eval store modifications
 
-**Phase 11D:** RAG Answer Comparison Dry-Run ⏳ Future
-**Phase 11E:** Stale-Memory Review Packet ⏳ Future
+**Phase 11D:** RAG Answer Comparison Dry-Run ✅ Complete (2026-05-02)
+- 7 query comparisons, helper provides source recommendations
+- Safe for manual use confirmed
+- Stage 3A fallback preserved
+
+**Phase 11E:** Stale-Memory Review Packet ✅ Complete (2026-05-02)
+- Inventory complete: 6 knowledge docs, 234 Stage 3A chunks, 5 RuVector files
+- Findings: 11 KEEP, 3 REVIEW, 1 CANDIDATE_FOR_MANUAL_CLEANUP
+- No mutations performed
+
+**Phase 11 Macro:** ✅ COMPLETE (2026-05-02) — Memory Quality Operations
 
 **Next Phase Options:**
 - Phase 11D: RAG Answer Comparison Dry-Run ⏳ Future
