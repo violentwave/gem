@@ -28,10 +28,17 @@ checksum_of() {
   sha256sum "$1" | awk '{print $1}'
 }
 
-compile_if_python() {
+syntax_check() {
   local file="$1"
   if is_python_helper "$file"; then
-    python3 -m py_compile "$file"
+    python3 - "$file" <<'PY'
+import ast
+import pathlib
+import sys
+
+path = pathlib.Path(sys.argv[1])
+ast.parse(path.read_text(encoding="utf-8"), filename=str(path))
+PY
   fi
 }
 
@@ -56,7 +63,7 @@ for helper in "${HELPERS[@]}"; do
 
   [ -x "$repo_file" ] && repo_exec='yes'
 
-  compile_if_python "$repo_file"
+  syntax_check "$repo_file"
 
   if [ ! -e "$live_file" ]; then
     printf '%s MISSING repo_exec=%s live_exec=%s\n' "$helper" "$repo_exec" "$live_exec"
@@ -69,7 +76,7 @@ for helper in "${HELPERS[@]}"; do
   }
 
   [ -x "$live_file" ] && live_exec='yes'
-  compile_if_python "$live_file"
+  syntax_check "$live_file"
 
   repo_sum="$(checksum_of "$repo_file")"
   live_sum="$(checksum_of "$live_file")"

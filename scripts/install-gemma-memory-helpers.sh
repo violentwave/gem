@@ -39,10 +39,17 @@ checksum_of() {
   sha256sum "$1" | awk '{print $1}'
 }
 
-compile_if_python() {
+syntax_check() {
   local file="$1"
   if is_python_helper "$file"; then
-    python3 -m py_compile "$file"
+    python3 - "$file" <<'PY'
+import ast
+import pathlib
+import sys
+
+path = pathlib.Path(sys.argv[1])
+ast.parse(path.read_text(encoding="utf-8"), filename=str(path))
+PY
   fi
 }
 
@@ -90,7 +97,7 @@ for helper in "${HELPERS[@]}"; do
     printf 'ERROR: missing repo template: %s\n' "$src" >&2
     exit 1
   }
-  compile_if_python "$src"
+  syntax_check "$src"
 done
 
 case "$LIVE_DIR" in

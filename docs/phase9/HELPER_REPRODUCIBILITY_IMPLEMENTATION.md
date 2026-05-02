@@ -69,8 +69,6 @@ Recommended checks:
 
 ```bash
 chmod +x scripts/check-gemma-memory-helpers.sh scripts/install-gemma-memory-helpers.sh helpers/gemma-memory-search helpers/gemma-memory-rag
-python3 -m py_compile helpers/gemma-memory-search
-python3 -m py_compile helpers/gemma-memory-rag
 ./scripts/check-gemma-memory-helpers.sh
 ./scripts/install-gemma-memory-helpers.sh --dry-run
 ```
@@ -80,6 +78,51 @@ If available:
 ```bash
 shellcheck scripts/check-gemma-memory-helpers.sh scripts/install-gemma-memory-helpers.sh
 ```
+
+## Phase 9A.2 Non-Mutating Syntax Check
+
+**Commit:** `ca4ed43` → follow-up
+**Date:** 2026-05-01
+
+### Change
+
+Replaced `python3 -m py_compile` with non-mutating AST-based syntax check:
+
+```bash
+python3 - "$file" <<'PY'
+import ast
+import pathlib
+import sys
+
+path = pathlib.Path(sys.argv[1])
+ast.parse(path.read_text(encoding="utf-8"), filename=str(path))
+PY
+```
+
+### Rationale
+
+- `py_compile` creates `.pyc` bytecode files in `__pycache__` directories
+- AST parsing reads and validates Python syntax without writing cache files
+- Both `check-gemma-memory-helpers.sh` and `install-gemma-memory-helpers.sh --dry-run` are now truly non-mutating
+
+### Verification Results
+
+| Check | Result |
+|-------|--------|
+| Bash syntax (`bash -n`) | PASS |
+| Helper drift checker | DRIFT (expected) |
+| Install dry-run | WOULD_OVERWRITE |
+| ShellCheck | PASS |
+| __pycache__ created | none after check/dry-run |
+| gemma-evals-status | PASS |
+| gemma-evals-check | PASS |
+| gemma-examples-check | PASS |
+
+### Notes
+
+- No `.pyc` or `__pycache__` created when running checker or dry-run
+- Repo-local `__pycache__` removed during this update
+- Validator section updated to remove `py_compile` examples (AST syntax check is internal)
 
 ## Phase 9A.1 Post-Push Verification
 
