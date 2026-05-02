@@ -849,6 +849,16 @@
 - **M5:** Backup / Restore / Release Snapshot Cycle — Planned
 - **M6:** Quarterly Model / Hardware / Architecture Review — Planned
 
+## M1 — Weekly Health / Drift Operating Cycle (2026-05-02) — COMPLETE
+
+- **Daily Monitor:** PASS (11/11)
+- **Drift Monitor:** WARN (6/8 PASS, 2 WARN)
+- **Drift Analysis:** Helper count 30/22 — expected drift from Phases 19-24 implementation
+- **New Helpers:** 8 (monitors, index, crossref, release, rollback, recovery)
+- **Action Required:** None — drift is acceptable
+- **Report:** ~/offload/security-reports/manual/m1-weekly-health-drift-2026-05-02.md
+- **Next M1:** 2026-05-09
+
 ---
 
 ## Validation
