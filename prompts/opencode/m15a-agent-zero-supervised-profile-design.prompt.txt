@@ -1,0 +1,78 @@
+Prompt: M15A — Agent Zero Supervised Local Profile Design
+
+Purpose:
+Design a supervised, read-only, chat-only Agent Zero profile that could theoretically work with local Gemma/Ollama, while acknowledging that Agent Zero v1.9 does not currently support such a profile. This prompt is for design and documentation only. No Agent Zero config changes.
+
+Context:
+- Agent Zero v1.9 default profile is "hacker" (autonomous tool-calling).
+- Agent Zero expects LLM responses in JSON with: tool_name, tool_args, thoughts, headline.
+- Local Gemma returns plain text.
+- This causes: "Tool request must have a tool_args (type dictionary) field."
+- Space Agent works with local Gemma because it is a plain-text chat UI.
+- Direct Ollama API calls work because they do not impose a tool protocol.
+- The goal is to define what a supervised local profile WOULD look like, even if Agent Zero cannot currently use it.
+
+Design Requirements:
+
+1. Profile Name
+   - Suggest a name (e.g., "local_chat", "supervised", "readonly_local").
+   - Must not be "hacker" or imply autonomy.
+
+2. Profile Behavior Definition
+   - Disable agent-loop tool calling.
+   - Disable autonomous file system access.
+   - Disable web search / code execution.
+   - Enable plain-text response mode.
+   - Require human approval for any action.
+
+3. System Prompt Design
+   - Write a system prompt that tells Gemma to respond in plain text only.
+   - Must NOT instruct Gemma to emit JSON tool requests.
+   - Must include Bazzite/Fedora Atomic context (firewalld, rpm-ostree, Flatpak).
+   - Must include safety boundaries (no sudo, no system changes).
+
+4. Agent Zero Config Mapping (Theoretical)
+   - Map the profile to Agent Zero config fields:
+     - agent_profile: <profile_name>
+     - chat_model.provider: ollama or other
+     - chat_model.name: gemma4-e4b-bazzite:latest
+     - chat_model.api_base: http://10.0.2.2:11434
+     - Any hypothetical fields that would disable tools
+   - Note: Agent Zero v1.9 may not have these fields.
+
+5. Failure Mode Analysis
+   - List why this profile would still fail with Agent Zero v1.9:
+     - Agent Zero backend still expects JSON tool format regardless of profile.
+     - No plain-text response mode exists in Agent Zero.
+     - Profile is cosmetic (system prompt only); does not change parsing logic.
+   - Conclusion: Profile design is a future-oriented document, not a fix.
+
+6. Comparison with Space Agent
+   - Document why Space Agent succeeds where Agent Zero fails:
+     - Space Agent is a chat UI, not an agent loop.
+     - Space Agent sends/receives plain text via OpenAI-compatible API.
+     - Space Agent does not parse tool requests.
+
+7. Migration Path (If Ever Supported)
+   - If Agent Zero adds a "chat-only" or "no-tools" mode in a future version:
+     - This profile design could be adopted.
+     - The config patch would be minimal (change agent_profile + system prompt).
+     - No system changes required.
+     - No external API key required.
+
+Boundaries:
+- Do NOT modify Agent Zero settings.json.
+- Do NOT modify Agent Zero model config.
+- Do NOT create files under ~/.local/share/agent-zero/.
+- Do NOT start Agent Zero.
+- Do NOT pull models.
+- This is design-only output to be saved in docs/ and prompts/.
+
+Output Format:
+- Save the design document to: docs/maintenance/AGENT_ZERO_SUPERVISED_PROFILE_DESIGN.md
+- Include the profile name, system prompt, config mapping, failure analysis, and migration path.
+- Keep all secrets redacted.
+- Keep the tone factual and conservative.
+
+Note:
+This prompt produces a design artifact, not an implementation. The supervised profile does not currently exist and cannot be enabled without Agent Zero upstream changes or a custom backend modification.

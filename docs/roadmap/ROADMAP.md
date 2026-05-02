@@ -27,6 +27,38 @@
 - 4F: Draft promotion
 - 4G: Final closeout
 
+## Maintenance Phases
+
+### M15: Agent Zero Local Gemma Compatibility Review ✅ Completed
+**Goal:** Review Agent Zero's compatibility with local Gemma/Ollama
+
+**Tasks:**
+- Verify direct Ollama route from Agent Zero container
+- Document OpenCode bridge as optional/experimental
+- Document tool-protocol incompatibility (plain text vs JSON tool format)
+- Confirm no chat-only/local profile exists
+- Confirm current `hacker` profile is autonomous-oriented
+- Recommend Space Agent as local Gemma dashboard
+- Create supervised profile design artifact (future-oriented)
+
+**Deliverables:**
+- `docs/maintenance/M15_AGENT_ZERO_LOCAL_GEMMA_COMPATIBILITY_REVIEW.md`
+- `docs/maintenance/AGENT_ZERO_LOCAL_GEMMA_LIMITATIONS.md`
+- `docs/maintenance/AGENT_ZERO_SUPERVISED_PROFILE_DESIGN.md`
+- `prompts/opencode/m15a-agent-zero-supervised-profile-design.prompt.txt`
+
+**Result:** Direct local Gemma route works. Agent Zero tool-protocol incompatibility documented. Space Agent confirmed as recommended local Gemma dashboard. Agent Zero remains supervised/experimental.
+
+**Depends on:** Phase 12B3, Phase 12L
+
+**Do Not:**
+- Modify Agent Zero config
+- Install packages
+- Pull models
+- Enable autonomy
+
+---
+
 ## Phase 5: Coordination & Integration Planning
 
 ### Phase 5A: Repo Bootstrap ✅ Completed

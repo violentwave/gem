@@ -966,6 +966,24 @@
 - **Training:** NO-GO (M7 blockers)
 - **Artifact:** `docs/maintenance/M14_AUTONOMOUS_INTEGRATION_READINESS_CLOSEOUT.md`
 
+## M15 — Agent Zero Local Gemma Compatibility Review (2026-05-02) — COMPLETE
+
+- **Direct Ollama Route:** PASS (container → 10.0.2.2:11434 works for both gemma4-e4b-bazzite and gemma4:e4b)
+- **OpenCode Bridge Route:** Optional/experimental (not local Gemma; routes through external provider)
+- **Agent Zero Tool-Protocol Failure:** DOCUMENTED — Gemma returns plain text, Agent Zero expects JSON tool format (`tool_args` error)
+- **Chat-Only/Local Profile:** DOES NOT EXIST
+- **Current Profile:** `hacker` (autonomous-oriented, unsafe for local Gemma)
+- **Space Agent Recommendation:** CONFIRMED — remains the recommended local Gemma dashboard
+- **Agent Zero Status:** Supervised/experimental only
+- **Artifacts:**
+  - `docs/maintenance/M15_AGENT_ZERO_LOCAL_GEMMA_COMPATIBILITY_REVIEW.md`
+  - `docs/maintenance/AGENT_ZERO_LOCAL_GEMMA_LIMITATIONS.md`
+  - `docs/maintenance/AGENT_ZERO_SUPERVISED_PROFILE_DESIGN.md`
+  - `prompts/opencode/m15a-agent-zero-supervised-profile-design.prompt.txt`
+- **No config modified**
+- **No secrets exposed**
+- **Boundary compliance:** PASS
+
 ---
 
 ## Validation
