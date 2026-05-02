@@ -81,6 +81,31 @@ If available:
 shellcheck scripts/check-gemma-memory-helpers.sh scripts/install-gemma-memory-helpers.sh
 ```
 
+## Phase 9A.1 Post-Push Verification
+
+**Commit:** `92150ee` ("feat: add phase 9A memory helper reproducibility")
+**Date:** 2026-05-01
+
+### Verification Results
+
+| Check | Result |
+|-------|--------|
+| Python compile (`python3 -m py_compile`) | PASS |
+| Helper drift checker | DRIFT (expected: repo templates differ from live `~/.local/bin/`) |
+| Install dry-run | WOULD_OVERWRITE (correct behavior) |
+| ShellCheck | PASS |
+| gemma-evals-status | PASS (19 cases, 22 examples) |
+| gemma-evals-check | PASS |
+| gemma-examples-check | PASS (22 reviewed) |
+| Secret pattern scan | none found |
+
+### Notes
+
+- Both helpers show DRIFT because repo templates are sanitized versions of the live `~/.local/bin/` helpers.
+- Install dry-run correctly reports WOULD_OVERWRITE without writing.
+- No secrets, API keys, or tokens found in `helpers/`, `scripts/`, or docs.
+- All Gemma evals passing.
+
 ## Rollback Note
 
 If a live helper needs to be restored, recover the previous `~/.local/bin/` helper from a backup if available, or restore the repo template version with git and reinstall:
