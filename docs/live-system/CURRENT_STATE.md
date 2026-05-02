@@ -218,33 +218,35 @@
 - **Repo:** https://github.com/violentwave/gem (PRIVATE)
 - **Latest Commit:** b557c37 (Phase 8B.7A fix)
 
-## Next Phase
+## Phase 11D Closeout (2026-05-02)
 
-**Phase 10:** Complete (2026-05-02)
-- Phase 10A: Dry-run planning docs + prompts
-- Phase 10B: Dry-run smoke (classification WARN, boundaries PRESERVED)
-- Phase 10C: Closeout with WARN documented
-- Phase 10D: Classification WARN disposition complete
-- No ingestion execution
-- Stage 3A fallback confirmed
-- Classification drift: source_class expected A, got C (docs/phase10/*) — ACCEPTED as conservative
+**Phase 11D:** RAG Answer Comparison Dry-Run
+- Static validators: PASS (19 cases)
+- Query comparisons: PASS (7/7 queries)
+- Exact agreement: 1/7 (expected, helper provides recommendations)
+- Partial/divergent: 3/7 (expected)
+- Insufficient: 2/7 (needs future policy update)
+- Safe for manual use: YES
+- Stage 3A fallback: PRESERVED
+- Helper recommendations: YES (use_ruvector_context, use_stage3a_context, insufficient_evidence)
 
-**Phase 11:** Planning (Memory Quality Operations)
-- Phase 11A: Planning docs + prompts created
-- Phase 11B: Static memory quality check expansion (16 cases)
-- Phase 11C: Known-answer fixture coverage audit (19 cases)
-- Phase 11C-RV: RuVector official docs alignment audit
-- Phase 11D-E: Future (requires explicit prompts)
-- No helper modifications
-- No automation added
+**Query Results:**
+| # | Query | Agreement | Recommended |
+|---|-------|-----------|---------------|
+| 1 | Safe operating model | exact | either |
+| 2 | Reports path | partial | Stage 3A |
+| 3 | Firewall tool | divergent | RuVector |
+| 4 | RuVector fallback | insufficient | needs review |
+| 5 | Denied data | insufficient | needs review |
+| 6 | Gemma/OpenCode boundary | partial | Stage 3A |
+| 7 | Cache path | partial | Stage 3A |
 
-### RuVector Status
-- **Prototype:** Supervised-secondary semantic prototype
-- **Implementation:** JSON + cosine similarity (not production VectorDB)
-- **Embedding:** nomic-embed-text:latest (768d)
-- **Storage:** ~/.local/share/bazzite-security/ruvector/semantic-prototype/
-- **Fallback:** Stage 3A canonical fallback preserved
-- **Learning:** No autonomous learning; future controlled learning roadmap-only
+**Helper Outputs:** Reports saved to ~/offload/security-reports/manual/gemma-memory-search-*.md
+**Closeout Doc:** docs/phase11/PHASE11D_RAG_ANSWER_COMPARISON_DRY_RUN.md
+
+**Phase 11E:** Stale-Memory Review Packet (future, requires explicit prompt)
+
+---
 
 ## Validation
 
@@ -252,6 +254,6 @@ Run these to verify current state:
 ```bash
 gemma-examples-check  # Should PASS
 gemma-evals-check     # Should PASS
-gemma-evals-status    # Should PASS
+gemma-evals-status   # Should PASS
 gemma-examples-review-drafts  # Should PASS
 ```
