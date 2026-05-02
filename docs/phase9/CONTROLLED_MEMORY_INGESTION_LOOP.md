@@ -2,10 +2,11 @@
 
 ## Status
 
-Implementation complete (2026-05-02). Helpers created and tested.
+9B.1 and 9B.2 planning helpers implemented; ingestion still not implemented.
 - `helpers/gemma-memory-propose-source` ✓
 - `helpers/gemma-memory-denied-data-check` ✓
-- `scripts/check-memory-ingestion-proposal.sh` ✓
+- `helpers/gemma-memory-ingestion-plan` ✓
+- `helpers/gemma-memory-rollback-plan` ✓
 
 ## Goal
 

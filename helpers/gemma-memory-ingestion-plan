@@ -1,0 +1,278 @@
+#!/usr/bin/env python3
+"""Repo-local memory ingestion plan helper.
+
+Creates manifest-shaped ingestion plan from proposal JSON and denied-data check JSON.
+
+Manual-run only. No ingestion, no indexing, no RuVector mutation.
+
+Usage:
+    gemma-memory-ingestion-plan --proposal-json PATH --denied-check-json PATH
+    gemma-memory-ingestion-plan --proposal-json PATH --denied-check-json PATH --write-report
+"""
+
+from __future__ import annotations
+
+import argparse
+import datetime as dt
+import json
+import sys
+from pathlib import Path
+from typing import Any
+
+
+HOME = Path.home()
+TIMESTAMP = dt.datetime.now().strftime("%Y%m%d-%H%M%S")
+REPORT_DIR = HOME / "offload/security-reports/manual"
+REPORT_PATH = REPORT_DIR / f"gemma-memory-ingestion-plan-{TIMESTAMP}.md"
+
+DEFAULT_STORAGE_PATH = "~/.local/share/bazzite-security/ruvector/semantic-prototype/"
+DEFAULT_EMBEDDING_MODEL = "nomic-embed-text:latest"
+DEFAULT_EMBEDDING_DIMENSIONS = 768
+
+
+def create_manifest_plan(
+    proposal_json: dict[str, Any],
+    denied_check_json: dict[str, Any],
+    manifest_id: str | None = None,
+    approved_by: str = "pending-human",
+    rollback_plan_id: str | None = None,
+    write_report: bool = False,
+) -> dict[str, Any]:
+    """Create manifest-shaped ingestion plan."""
+    
+    now = dt.datetime.now().isoformat()
+    manifest_id = manifest_id or f"manifest-{TIMESTAMP}"
+    
+    # Determine blockers
+    blockers: list[str] = []
+    plan_status = "READY"
+    executable = False
+    
+    # Check source class
+    source_class = proposal_json.get("source_class", "unknown")
+    if source_class == "D":
+        blockers.append("source_class_D")
+        plan_status = "BLOCKED_DENIED_SOURCE"
+        executable = False
+    
+    # Check human approval status
+    human_approval = proposal_json.get("human_approval_status", "pending")
+    if human_approval != "approved":
+        blockers.append("pending_human_approval")
+        plan_status = "BLOCKED_PENDING_APPROVAL"
+        executable = False
+    
+    # Check denied-data status
+    denied_status = denied_check_json.get("status", "UNKNOWN")
+    denied_class = denied_check_json.get("class_recommendation", "unknown")
+    if denied_status == "REJECT":
+        blockers.append("denied_data_scan_failed")
+        plan_status = "BLOCKED_DENIED_DATA"
+        executable = False
+    elif denied_class == "D":
+        blockers.append("denied_class_recommendation")
+        plan_status = "BLOCKED_DENIED_CLASS"
+        executable = False
+    
+    # Set status based on blockers
+    if blockers:
+        plan_status = "BLOCKED"
+        executable = False
+    
+    # Build manifest plan
+    manifest = {
+        "manifest_id": manifest_id,
+        "proposal_id": proposal_json.get("proposal_id", "unknown"),
+        "input_source": proposal_json.get("source_path", "unknown"),
+        "source_class": source_class,
+        "approved_by": approved_by if human_approval == "approved" else "pending-human",
+        "approved_at": now if human_approval == "approved" else None,
+        "file_count": denied_check_json.get("included_file_count", 0),
+        "chunk_count": None,
+        "excluded_paths": denied_check_json.get("matched_deny_rules", []),
+        "storage_path": DEFAULT_STORAGE_PATH,
+        "embedding_model": DEFAULT_EMBEDDING_MODEL,
+        "embedding_dimensions": DEFAULT_EMBEDDING_DIMENSIONS,
+        "fallback_status": "Stage 3A deterministic retrieval preserved as canonical fallback",
+        "rollback_plan_id": rollback_plan_id or f"rollback-{manifest_id}",
+        "validation_commands": [
+            "./scripts/check-memory-known-answers.sh",
+            "./scripts/check-gemma-memory-quality.sh",
+            "gemma-evals-status",
+            "gemma-evals-check",
+            "gemma-examples-check",
+        ],
+        "stale_review_due": "before repeated ingestion cycles",
+        "plan_status": plan_status,
+        "executable": executable,
+        "blockers": blockers,
+        "notes": "",
+    }
+    
+    # Add explanation to notes
+    if blockers:
+        manifest["notes"] = f"Plan blocked: {', '.join(blockers)}. Human approval required before execution."
+    else:
+        manifest["notes"] = "Draft plan ready for human review. Approval required before execution."
+    
+    if write_report:
+        write_plan_report(manifest, proposal_json, denied_check_json)
+    
+    return manifest
+
+
+def write_plan_report(
+    manifest: dict[str, Any],
+    proposal: dict[str, Any],
+    denied_check: dict[str, Any],
+) -> None:
+    """Write manifest plan as markdown report."""
+    REPORT_DIR.mkdir(parents=True, exist_ok=True)
+    
+    lines = [
+        "# Memory Ingestion Plan",
+        "",
+        f"**Generated:** {dt.datetime.now().isoformat()}",
+        f"**Manifest ID:** {manifest['manifest_id']}",
+        f"**Proposal ID:** {manifest['proposal_id']}",
+        "",
+        "---",
+        "",
+        "## Source",
+        "",
+        f"- **Path:** `{manifest['input_source']}`",
+        f"- **Class:** `{manifest['source_class']}`",
+        f"- **File Count:** {manifest['file_count']}",
+        "",
+        "## Approval",
+        "",
+        f"- **Status:** `{manifest['plan_status']}`",
+        f"- **Approved By:** `{manifest['approved_by']}`",
+        f"- **Approved At:** `{manifest['approved_at'] or 'N/A'}`",
+        "",
+        "## Storage",
+        "",
+        f"- **Path:** `{manifest['storage_path']}`",
+        f"- **Model:** `{manifest['embedding_model']}`",
+        f"- **Dimensions:** `{manifest['embedding_dimensions']}`",
+        "",
+        "## Fallback & Validation",
+        "",
+        f"- **Fallback:** {manifest['fallback_status']}",
+        f"- **Stale Review Due:** `{manifest['stale_review_due']}`",
+        "",
+        "## Validation Commands",
+        "",
+    ]
+    for cmd in manifest["validation_commands"]:
+        lines.append(f"- `{cmd}`")
+    
+    lines.extend([
+        "",
+        "## Executable",
+        "",
+        f"`{manifest['executable']}`",
+        "",
+        "## Blockers",
+        "",
+    ])
+    
+    if manifest["blockers"]:
+        for blocker in manifest["blockers"]:
+            lines.append(f"- {blocker}")
+    else:
+        lines.append("None")
+    
+    lines.extend([
+        "",
+        "## Notes",
+        "",
+        manifest["notes"],
+        "",
+        f"*Report: {REPORT_PATH}*",
+    ])
+    
+    with REPORT_PATH.open("w", encoding="utf-8") as f:
+        f.write("\n".join(lines))
+    
+    print(f"Report written to: {REPORT_PATH}")
+
+
+def main() -> int:
+    parser = argparse.ArgumentParser(
+        description="Memory ingestion plan helper (no ingestion)",
+    )
+    parser.add_argument(
+        "--proposal-json", required=True,
+        help="Path to proposal JSON file",
+    )
+    parser.add_argument(
+        "--denied-check-json", required=True,
+        help="Path to denied-data check JSON file",
+    )
+    parser.add_argument(
+        "--manifest-id",
+        help="Optional manifest ID",
+    )
+    parser.add_argument(
+        "--approved-by",
+        default="pending-human",
+        help="Approver identity",
+    )
+    parser.add_argument(
+        "--rollback-plan-id",
+        help="Rollback plan ID",
+    )
+    parser.add_argument(
+        "--write-report",
+        action="store_true",
+        help="Write plan report to ~/offload/security-reports/manual/",
+    )
+    
+    args = parser.parse_args()
+    
+    # Load proposal JSON
+    proposal_path = Path(args.proposal_json)
+    if not proposal_path.exists():
+        print(f"ERROR: proposal JSON not found: {proposal_path}", file=sys.stderr)
+        return 1
+    
+    try:
+        proposal = json.loads(proposal_path.read_text(encoding="utf-8"))
+    except json.JSONDecodeError as e:
+        print(f"ERROR: invalid proposal JSON: {e}", file=sys.stderr)
+        return 1
+    
+    # Load denied-data check JSON
+    denied_path = Path(args.denied_check_json)
+    if not denied_path.exists():
+        print(f"ERROR: denied-check JSON not found: {denied_path}", file=sys.stderr)
+        return 1
+    
+    try:
+        denied_check = json.loads(denied_path.read_text(encoding="utf-8"))
+    except json.JSONDecodeError as e:
+        print(f"ERROR: invalid denied-check JSON: {e}", file=sys.stderr)
+        return 1
+    
+    # Create manifest plan
+    manifest = create_manifest_plan(
+        proposal_json=proposal,
+        denied_check_json=denied_check,
+        manifest_id=args.manifest_id,
+        approved_by=args.approved_by,
+        rollback_plan_id=args.rollback_plan_id,
+        write_report=args.write_report,
+    )
+    
+    print(json.dumps(manifest, indent=2))
+    
+    # Return error if blocked
+    if not manifest["executable"]:
+        return 1
+    
+    return 0
+
+
+if __name__ == "__main__":
+    sys.exit(main())
