@@ -1436,8 +1436,49 @@
 - RAG status: CONFIRMED as preferred approach
 - All safety boundaries: MAINTAINED
 
+**Phase 15A:** Manifest Schema and Helper Rollout Plan ✅ Complete (2026-05-02)
+- Closeout: `docs/phase15/PHASE15A_MANIFEST_SCHEMA_AND_HELPER_ROLLOUT_PLAN.md`
+- 22 helpers inventoried across 8 categories
+- Unified manifest schema defined
+- 6-phase rollout plan documented
+
+**Phase 15B:** Repo-Local Drift and Safety Validators ✅ Complete (2026-05-02)
+- Closeout: `docs/phase15/PHASE15B_REPO_LOCAL_DRIFT_AND_SAFETY_VALIDATORS.md`
+- 7 validators documented
+- 10 drift detection criteria defined
+- Safety framework with exit codes and output format
+
+**Phase 15C:** Release Process and Rollback Bundle Policy ✅ Complete (2026-05-02)
+- Closeout: `docs/phase15/PHASE15C_RELEASE_PROCESS_AND_ROLLBACK_BUNDLE_POLICY.md`
+- 6-step release process defined
+- Semantic versioning convention adopted
+- Rollback bundle policy with 5 items
+
+**Phase 15D:** Smoke Test Matrix ✅ Complete (2026-05-02)
+- Closeout: `docs/phase15/PHASE15D_SMOKE_TEST_MATRIX.md`
+- 10-component test matrix
+- 30 test definitions
+- Critical coverage: 100%
+
+**Phase 15E:** Operator Runbook Refresh ✅ Complete (2026-05-02)
+- Closeout: `docs/phase15/PHASE15E_OPERATOR_RUNBOOK_REFRESH.md`
+- Daily/weekly operations documented
+- 4 incident response procedures
+- 6 maintenance windows defined
+
+**Phase 15F:** Agent-Task Dry-Run-Only Design ✅ Complete (2026-05-02)
+- Closeout: `docs/phase15/PHASE15F_AGENT_TASK_DRY_RUN_ONLY_DESIGN.md`
+- Dry-run framework designed
+- 8 forbidden actions, 5 approval points
+- Implementation deferred (design-only)
+
+**Phase 15 Macro:** Production Hardening / Release Discipline ✅ COMPLETE (2026-05-02)
+- Closeout: `docs/phase15/PHASE15_MACRO_CLOSEOUT.md`
+- Production readiness: CONFIRMED for personal use
+- All safety boundaries: MAINTAINED
+
 **Next Major Phase:**
-- Phase 15 — Production Hardening / Prompt Engineering / Release Discipline ⏳ Upcoming
+- Phase 16 — Automated Monitoring / Knowledge Expansion ⏳ Upcoming
 
 ## Maintenance Phases
 
