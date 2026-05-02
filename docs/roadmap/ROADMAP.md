@@ -1223,12 +1223,24 @@
 - No helper modifications
 - No live eval store changes
 
-**Phase 11C:** Known-Answer Fixture Expansion ⏳ Future
+**Phase 11C:** Known-Answer Fixture Coverage Audit ✅ Complete (2026-05-02)
+**Goal:** Audit fixture coverage, add minimal high-signal cases for real gaps.
+
+**Tasks:**
+- Coverage matrix audit of 16 cases
+- Add cache path, denied data, boundary cases (3 new, 16 → 19 total)
+- Create closeout doc
+
+**Results:**
+- Static cases: 19 total
+- Validators: PASS
+- No live eval store modifications
+
 **Phase 11D:** RAG Answer Comparison Dry-Run ⏳ Future
 **Phase 11E:** Stale-Memory Review Packet ⏳ Future
 
 **Next Phase Options:**
-- Phase 11C: Known-Answer Fixture Expansion ⏳ Future
+- Phase 11D: RAG Answer Comparison Dry-Run ⏳ Future
 - Phase 12 — Supervised Agent Zero / Space Agent Bridge
 
 ## Maintenance Phases
