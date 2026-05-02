@@ -1,0 +1,24 @@
+# Phase 25A — Advanced Model Work Review
+
+**Context:** Phase 14 assessed LoRA feasibility and deferred it. Phase 25 reviews broader model options.
+
+**Goal:** Review advanced model options for future consideration.
+
+**Tasks:**
+1. Compare Gemma vs alternatives (Llama, Mistral, Phi)
+2. Assess hardware upgrade options
+3. Evaluate cloud vs local tradeoffs
+4. Review quantization options
+5. Assess context window needs
+6. Document findings
+7. Make recommendations
+
+**Boundaries:**
+- No model downloads
+- No training
+- No hardware purchases
+- Research only
+
+**Depends on:** Phase 24 complete (release discipline)
+
+**Output:** docs/phase25/ADVANCED_MODEL_WORK_REVIEW.md

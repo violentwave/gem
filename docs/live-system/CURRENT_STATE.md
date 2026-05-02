@@ -625,6 +625,13 @@
 - Total implementation effort: ~16.5 hours
 - All safety boundaries: MAINTAINED
 
+**Phase 17F:** Space Agent Dashboard Roadmap Reframe (2026-05-02) — COMPLETE
+- Closeout: docs/phase17/PHASE17F_SPACE_AGENT_DASHBOARD_ROADMAP_REFRAME.md
+- Correction: Space Agent = dashboard, scripts = data providers
+- No separate dashboard app planned
+- Monitoring scripts feed Space Agent, not standalone UI
+- Next: Phase 18 (Space Agent Operator Dashboard Integration)
+
 ---
 
 ## Validation

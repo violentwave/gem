@@ -1,0 +1,20 @@
+# Phase 18A — Space Agent Dashboard Requirements and Source Inventory
+
+**Context:** Phase 17F reframed Space Agent as the operator dashboard. Phase 18A is the first step in defining what Space Agent should display.
+
+**Goal:** Inventory all data sources that could feed the Space Agent dashboard and define dashboard requirements.
+
+**Tasks:**
+1. List all report generators (gemma-* scripts)
+2. Identify which reports are suitable for dashboard display
+3. Define dashboard categories (health, status, reports, actions)
+4. Inventory Space Agent UI capabilities (manual UI only)
+5. Document data flow from scripts → reports → Space Agent
+
+**Boundaries:**
+- Do not start Space Agent
+- Do not modify Space Agent config
+- Do not build custom dashboard
+- Read-only inventory only
+
+**Output:** docs/phase18/PHASE18A_SPACE_AGENT_DASHBOARD_REQUIREMENTS.md

@@ -1,0 +1,24 @@
+# Phase 24A — Release / Recovery / Migration Discipline
+
+**Context:** Phase 15C defined release process and rollback policy. Phase 24 implements them.
+
+**Goal:** Implement release tagging, rollback bundle creation, and recovery testing.
+
+**Tasks:**
+1. Create release tagging workflow
+2. Implement rollback bundle creation script
+3. Test bundle creation
+4. Document recovery procedure
+5. Test recovery from bundle
+6. Verify manifest completeness
+7. Update runbook with release steps
+
+**Boundaries:**
+- No destructive operations
+- Test in safe environment
+- Verify before applying
+- No system changes
+
+**Depends on:** Phase 23 complete (learning loop designed)
+
+**Output:** ~/.local/bin/gemma-rollback-bundle-create

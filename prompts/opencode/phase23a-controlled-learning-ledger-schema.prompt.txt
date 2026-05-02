@@ -1,0 +1,24 @@
+# Phase 23A — Controlled Learning Loop v1
+
+**Context:** Phase 14 deferred LoRA training. Phase 23 explores supervised learning without model training.
+
+**Goal:** Design v1 of a controlled learning loop using curated examples and eval feedback.
+
+**Tasks:**
+1. Design learning ledger schema
+2. Define example approval workflow
+3. Create eval-driven feedback loop
+4. Document human approval points
+5. Define stop conditions
+6. Assess hardware feasibility
+7. Create safety boundaries
+
+**Boundaries:**
+- No model training
+- No autonomous learning
+- Human approval required for all changes
+- No RuVector mutations
+
+**Depends on:** Phase 22 complete (workflow catalog)
+
+**Output:** docs/phase23/CONTROLLED_LEARNING_LOOP_V1.md

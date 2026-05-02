@@ -1,0 +1,24 @@
+# Phase 22A — Agent Zero + Space Agent Operator Workflow Catalog
+
+**Context:** Phase 17F reframed Space Agent as dashboard and Agent Zero as supervised orchestration.
+
+**Goal:** Document all manual workflows for the operator using Space Agent and Agent Zero.
+
+**Tasks:**
+1. Catalog all manual workflows (health check, report generation, troubleshooting)
+2. Define workflow trigger conditions
+3. Create workflow decision tree
+4. Document Space Agent manual actions
+5. Document Agent Zero supervised actions
+6. Define forbidden autonomous actions
+7. Create operator quick-reference card
+
+**Boundaries:**
+- No autonomous workflows
+- No Agent Zero execution
+- No Space Agent config changes
+- Documentation only
+
+**Depends on:** Phase 21 complete (retrieval quality upgraded)
+
+**Output:** docs/phase22/OPERATOR_WORKFLOW_CATALOG.md
