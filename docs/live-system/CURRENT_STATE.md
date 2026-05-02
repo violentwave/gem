@@ -595,6 +595,36 @@
 - Security posture: LOW-MEDIUM risk, all localhost-only
 - All safety boundaries: MAINTAINED
 
+**Phase 17A:** Monitoring Script Implementation Plan (2026-05-02) — COMPLETE
+- Closeout: docs/phase17/PHASE17A_MONITORING_SCRIPT_IMPLEMENTATION_PLAN.md
+- 4 scripts planned: daily (9 checks), weekly (16 checks), drift (5 checks), library
+- Implementation: 6 steps
+- Safety: All read-only, bounded timeouts
+
+**Phase 17B:** Knowledge Doc Creation Plan (2026-05-02) — COMPLETE
+- Closeout: docs/phase17/PHASE17B_KNOWLEDGE_DOC_CREATION_PLAN.md
+- 4 high-priority docs: Notion sync, Agent Zero boundaries, rollback, troubleshooting
+- Workflow: 5 steps, 6 quality gates
+- Schedule: 7 hours
+
+**Phase 17C:** Eval Regression Baseline Plan (2026-05-02) — COMPLETE
+- Closeout: docs/phase17/PHASE17C_EVAL_REGRESSION_BASELINE_PLAN.md
+- JSON baseline format defined
+- 7 test suites, 7 drift rules
+- Report format: Markdown
+
+**Phase 17D:** Security Hardening Plan (2026-05-02) — COMPLETE
+- Closeout: docs/phase17/PHASE17D_SECURITY_HARDENING_PLAN.md
+- 6 recommendations prioritized
+- High priority: Already done (localhost binding)
+- Medium priority: Agent Zero checklist, secret scanning
+- Low priority: Deferred (bridge API key, pre-commit hook)
+
+**Phase 17 Macro:** Implementation Planning (2026-05-02) — COMPLETE
+- Closeout: docs/phase17/PHASE17_MACRO_CLOSEOUT.md
+- Total implementation effort: ~16.5 hours
+- All safety boundaries: MAINTAINED
+
 ---
 
 ## Validation
