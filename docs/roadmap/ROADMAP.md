@@ -1340,6 +1340,18 @@
 - Space Agent: blocked (not installed)
 - Future optional prompts created for timeout patch and Space Agent install
 
+**Phase 12I:** Notion Phase Tracker Access and Drift Audit ✅ Complete (2026-05-02)
+- Closeout: `docs/phase12/PHASE12I_NOTION_PHASE_TRACKER_ACCESS_AND_DRIFT_AUDIT.md`
+- Notion database documented, schema mapped, drift risks identified
+- Phase 13 dependency gap resolved (12I-12M inserted before Phase 13)
+
+**Phase 12J:** OpenCode Notion Read-Only Sync Design ✅ Complete (2026-05-02)
+- Closeout: `docs/phase12/PHASE12J_OPENCODE_NOTION_READONLY_SYNC_DESIGN.md`
+- Update packets created (Markdown + JSON)
+- Direct Notion API updates applied (7 operations: 2 updates, 5 creates)
+- Token used ephemerally, NOT stored in repo
+- Future prompts created for 12K, 12L, 12M
+
 **Phase 12 Macro:** ✅ COMPLETE (2026-05-02)
 
 **Future Optional Work:**
@@ -1348,7 +1360,10 @@
 - Phase 11RV: Official VectorDB API Prototype Review ⏳ Future (optional)
 
 **Next Major Phase:**
-- Phase 13 — Curated Learning Examples Expansion (future controlled learning feasibility)
+- Phase 12K — Space Agent Installation Readiness Assessment ⏳ Upcoming
+- Phase 12L — Space Agent Install and Manual UI Provider Dry-Run ⏳ Blocked pending 12K + explicit approval
+- Phase 12M — Final Readiness Closeout ⏳ Planned
+- Phase 13A — Curated Learning Examples Intake Planning ⏳ Deferred until 12M complete
 - Phase 14 — Fine-tuning / LoRA Feasibility Review
 
 ## Maintenance Phases
