@@ -2,7 +2,7 @@
 
 ## Status
 
-Planning only.
+Phase 9D implemented. Future polish if needed.
 
 ## Goal
 

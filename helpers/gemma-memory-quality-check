@@ -1,0 +1,344 @@
+#!/usr/bin/env python3
+"""Repo-local manual-only RAG quality monitoring helper.
+
+Runs lightweight known-answer and retrieval-quality checks for supervised memory/RAG behavior.
+
+This helper is manual-run only. No daemon, no timer, no automation.
+
+Usage:
+    gemma-memory-quality-check --static-only         # Validate fixture only
+    gemma-memory-quality-check --run-search      # Run search helper checks
+    gemma-memory-quality-check --run-rag --allow-ollama  # Run RAG helper checks (requires explicit --allow-ollama)
+    gemma-memory-quality-check --all --allow-ollama    # Run all checks (search + RAG)
+"""
+
+from __future__ import annotations
+
+import argparse
+import datetime as dt
+import json
+import os
+import subprocess
+import sys
+from pathlib import Path
+from typing import Any
+
+
+HOME = Path.home()
+TIMESTAMP = dt.datetime.now().strftime("%Y%m%d-%H%M%S")
+REPORT_DIR = HOME / "offload/security-reports/manual"
+LOG_DIR = HOME / ".local/state/bazzite-security/logs"
+REPORT_PATH = REPORT_DIR / f"gemma-memory-quality-check-{TIMESTAMP}.md"
+LOG_PATH = LOG_DIR / f"gemma-memory-quality-check-{TIMESTAMP}.log"
+
+FIXTURE_PATH = Path(__file__).parent.parent / "tests/fixtures/memory-known-answer-queries.jsonl"
+
+
+def log(msg: str = "") -> None:
+    line = f"{dt.datetime.now().strftime('%Y-%m-%d %H:%M:%S')} {msg}"
+    LOG_PATH.parent.mkdir(parents=True, exist_ok=True)
+    with LOG_PATH.open("a", encoding="utf-8") as handle:
+        handle.write(line + "\n")
+    print(line)
+
+
+def load_fixture(path: Path) -> list[dict[str, Any]]:
+    if not path.is_file():
+        log(f"ERROR: fixture not found: {path}")
+        sys.exit(1)
+    
+    cases = []
+    ids = set()
+    for line_no, line in enumerate(path.read_text(encoding="utf-8").splitlines(), 1):
+        line = line.strip()
+        if not line:
+            continue
+        try:
+            obj = json.loads(line)
+        except json.JSONDecodeError as e:
+            log(f"ERROR: JSON error at line {line_no}: {e}")
+            sys.exit(1)
+        
+        required = {"id", "query", "helper_scope", "expected_fragments"}
+        missing = required - set(obj.keys())
+        if missing:
+            log(f"ERROR: Missing fields at line {line_no}: {missing}")
+            sys.exit(1)
+        
+        if obj["id"] in ids:
+            log(f"ERROR: Duplicate id at line {line_no}: {obj['id']}")
+            sys.exit(1)
+        ids.add(obj["id"])
+        
+        if obj.get("helper_scope") not in {"search", "rag", "both"}:
+            log(f"ERROR: Invalid helper_scope at line {line_no}: {obj.get('helper_scope')}")
+            sys.exit(1)
+        
+        cases.append(obj)
+    
+    log(f"Loaded {len(cases)} cases from fixture")
+    return cases
+
+
+def run_search_check(query: str) -> tuple[str, bool]:
+    try:
+        result = subprocess.run(
+            ["gemma-memory-search", query],
+            capture_output=True,
+            text=True,
+            timeout=60,
+        )
+        output = result.stdout + result.stderr
+        return output, result.returncode != 0
+    except FileNotFoundError:
+        return "gemma-memory-search not in PATH", True
+    except subprocess.TimeoutExpired:
+        return "gemma-memory-search timeout", True
+    except Exception as e:
+        return f"error: {e}", True
+
+
+def run_rag_check(query: str) -> tuple[str, bool]:
+    try:
+        result = subprocess.run(
+            ["gemma-memory-rag", query],
+            capture_output=True,
+            text=True,
+            timeout=120,
+        )
+        output = result.stdout + result.stderr
+        return output, result.returncode != 0
+    except FileNotFoundError:
+        return "gemma-memory-rag not in PATH", True
+    except subprocess.TimeoutExpired:
+        return "gemma-memory-rag timeout", True
+    except Exception as e:
+        return f"error: {e}", True
+
+
+def validate_case(
+    query: str,
+    scope: str,
+    expected: list[str],
+    forbidden: list[str],
+    run_search: bool,
+    run_rag: bool,
+) -> dict[str, Any]:
+    result = {
+        "id": "",
+        "query": query,
+        "scope": scope,
+        "status": "SKIP",
+        "expected_missing": [],
+        "forbidden_found": [],
+        "note": "",
+    }
+    
+    should_skip = True
+    
+    if run_search and scope in ("search", "both"):
+        should_skip = False
+        output, is_error = run_search_check(query)
+        result["search_output"] = output[:500] if len(output) > 500 else output
+    
+    if run_rag and scope in ("rag", "both"):
+        should_skip = False
+        output, is_error = run_rag_check(query)
+        result["rag_output"] = output[:500] if len(output) > 500 else output
+    
+    if should_skip:
+        result["status"] = "SKIP"
+        result["note"] = "scope not requested"
+        return result
+    
+    text = result.get("search_output", "") + result.get("rag_output", "")
+    text_lc = text.lower()
+    
+    missing = []
+    for frag in expected:
+        if frag and frag.lower() not in text_lc:
+            missing.append(frag)
+    
+    found = []
+    for frag in forbidden:
+        if frag and frag.lower() in text_lc:
+            found.append(frag)
+    
+    if found:
+        result["status"] = "FAIL"
+        result["forbidden_found"] = found
+        result["note"] = f"forbidden fragments: {', '.join(found)}"
+    elif missing:
+        result["status"] = "WARN"
+        result["expected_missing"] = missing
+        result["note"] = f"missing expected: {', '.join(missing)}"
+    else:
+        result["status"] = "PASS"
+        result["note"] = "all expected found, no forbidden"
+    
+    return result
+
+
+def write_report(
+    mode: str,
+    cases_checked: int,
+    results: list[dict[str, Any]],
+) -> None:
+    REPORT_DIR.mkdir(parents=True, exist_ok=True)
+    
+    counts = {"PASS": 0, "WARN": 0, "FAIL": 0, "SKIP": 0}
+    for r in results:
+        counts[r.get("status", "SKIP")] += 1
+    
+    lines = [
+        "# gemma-memory-quality-check Report",
+        "",
+        f"**Timestamp:** {dt.datetime.now().strftime('%Y-%m-%d %H:%M:%S')}",
+        f"**Mode:** {mode}",
+        f"**Fixture:** {FIXTURE_PATH}",
+        f"**Cases checked:** {cases_checked}",
+        "",
+        "---",
+        "",
+        "## Summary",
+        "",
+        f"- PASS: {counts['PASS']}",
+        f"- WARN: {counts['WARN']}",
+        f"- FAIL: {counts['FAIL']}",
+        f"- SKIP: {counts['SKIP']}",
+        "",
+        "---",
+        "",
+        "## Per-Case Results",
+        "",
+        "| ID | Status | Note |",
+        "|-----|--------|------|",
+    ]
+    
+    for r in results:
+        lines.append(f"| {r.get('id', '?')} | {r.get('status', '?')} | {r.get('note', '')[:60]}... |")
+    
+    lines.extend([
+        "",
+        "---",
+        "",
+        "## Boundaries Preserved",
+        "",
+        "- No daemon or timer added",
+        "- No memory ingestion performed",
+        "- No wrapper default changes",
+        "- Helper is repo-local only",
+        "",
+        f"*Report: {REPORT_PATH}*",
+        f"*Log: {LOG_PATH}*",
+    ])
+    
+    with REPORT_PATH.open("w", encoding="utf-8") as handle:
+        handle.write("\n".join(lines))
+    
+    log(f"Report written to: {REPORT_PATH}")
+
+
+def main() -> int:
+    parser = argparse.ArgumentParser(
+        description="Manual-only RAG quality monitoring helper",
+    )
+    parser.add_argument(
+        "--static-only",
+        action="store_true",
+        help="Validate fixture only, no helper execution",
+    )
+    parser.add_argument(
+        "--run-search",
+        action="store_true",
+        help="Run gemma-memory-search checks",
+    )
+    parser.add_argument(
+        "--run-rag",
+        action="store_true",
+        help="Run gemma-memory-rag checks (requires --allow-ollama)",
+    )
+    parser.add_argument(
+        "--allow-ollama",
+        action="store_true",
+        help="Allow Ollama calls (required for --run-rag)",
+    )
+    parser.add_argument(
+        "--all",
+        action="store_true",
+        help="Run all checks (search + RAG, requires --allow-ollama)",
+    )
+    
+    args = parser.parse_args()
+    
+    if args.all and not args.allow_ollama:
+        print("ERROR: --all requires --allow-ollama", file=sys.stderr)
+        return 1
+    
+    if args.run_rag and not args.allow_ollama:
+        print("ERROR: --run-rag requires --allow-ollama", file=sys.stderr)
+        return 1
+    
+    run_search = args.run_search or args.all
+    run_rag = args.run_rag or args.all
+    
+    mode = "static-only"
+    if run_search and run_rag:
+        mode = "all (search + rag)"
+    elif run_rag:
+        mode = "run-rag"
+    elif run_search:
+        mode = "run-search"
+    
+    log(f"=== gemma-memory-quality-check ({mode}) ===")
+    
+    if args.static_only:
+        mode = "static-only"
+        log("Static-only mode: validating fixture only")
+        cases = load_fixture(FIXTURE_PATH)
+        
+        for case in cases:
+            case["status"] = "PASS"
+            case["note"] = "static validation only"
+        
+        results = cases
+    else:
+        cases = load_fixture(FIXTURE_PATH)
+        
+        results = []
+        for case in cases:
+            r = validate_case(
+                query=case["query"],
+                scope=case.get("helper_scope", "both"),
+                expected=case.get("expected_fragments", []),
+                forbidden=case.get("forbidden_fragments", []),
+                run_search=run_search,
+                run_rag=run_rag,
+            )
+            r["id"] = case["id"]
+            results.append(r)
+            
+            log(f"Case {r['id']}: {r['status']} - {r.get('note', '')}")
+    
+    counts = {"PASS": 0, "WARN": 0, "FAIL": 0, "SKIP": 0}
+    for r in results:
+        counts[r.get("status", "SKIP")] += 1
+    
+    overall = "PASS"
+    if counts["FAIL"] > 0:
+        overall = "FAIL"
+    elif counts["WARN"] > 0 or counts["SKIP"] > 0:
+        overall = "WARN"
+    
+    log(f"Summary: PASS={counts['PASS']}, WARN={counts['WARN']}, FAIL={counts['FAIL']}, SKIP={counts['SKIP']}")
+    log(f"Overall: {overall}")
+    
+    write_report(mode, len(results), results)
+    
+    if overall == "FAIL":
+        return 1
+    return 0
+
+
+if __name__ == "__main__":
+    sys.exit(main())

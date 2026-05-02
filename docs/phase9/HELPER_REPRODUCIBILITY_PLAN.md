@@ -80,3 +80,13 @@ Make `gemma-memory-search` and `gemma-memory-rag` reproducible from sanitized re
 - Overwrite confirmation behavior is explicit
 - Validation behavior is documented
 - Live helper state remains separate from repo metadata
+
+## Future Helper: gemma-memory-quality-check
+
+**Phase 9D** added a quality monitoring helper:
+
+- `helpers/gemma-memory-quality-check` is currently **repo-local only**
+- Not installed to `~/.local/bin`
+- Future install integration requires explicit approval
+- Default mode: `--static-only` (validates fixture without helper execution)
+- Run with `--run-search` or `--run-rag --allow-ollama` for live checks
