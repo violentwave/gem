@@ -743,7 +743,22 @@
 
 **Phase 21D:** Phase 21 Closeout (2026-05-02) — COMPLETE
 - Closeout: docs/phase21/PHASE21_RETRIEVAL_QUALITY_UPGRADE.md
-- Next: Phase 22 (Agent Zero + Space Agent Operator Workflow Catalog)
+
+**Phase 22A:** Catalog All Manual Workflows (2026-05-02) — COMPLETE
+- Doc: ~/.config/bazzite-security/OPERATOR_WORKFLOW_CATALOG.md
+- Workflows: 20 cataloged with steps, triggers, durations, artifacts
+
+**Phase 22B:** Define Workflow Trigger Conditions (2026-05-02) — COMPLETE
+- Doc: ~/.config/bazzite-security/WORKFLOW_TRIGGER_CONDITIONS.md
+- Categories: Daily, Weekly, Event-Based, Conditional, Preventive, Emergency
+
+**Phase 22C:** Create Workflow Decision Tree (2026-05-02) — COMPLETE
+- Doc: ~/.config/bazzite-security/WORKFLOW_DECISION_TREE.md
+- Branches: Health, Knowledge, Changes, Troubleshooting, Reports, Tools
+
+**Phase 22D:** Phase 22 Closeout (2026-05-02) — COMPLETE
+- Closeout: docs/phase22/PHASE22_AGENT_ZERO_SPACE_AGENT_WORKFLOW_CATALOG.md
+- Next: Phase 23 (Controlled Learning Loop v1)
 
 ---
 
