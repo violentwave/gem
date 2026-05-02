@@ -914,6 +914,58 @@
 - **M8A Prompt:** `prompts/opencode/m8a-huggingface-dataset-sample-review.prompt.txt`
 - **Next M8 Trigger:** Human provides dataset candidates or approves M8A execution
 
+## M9 — RuVector Retrieval Integration and Promotion Readiness (2026-05-02) — COMPLETE
+
+- **RuVector Status:** `approved_secondary_retrieval_source` (UNCHANGED)
+- **Stage 3A:** Canonical fallback (UNCHANGED)
+- **Promotion Decision:** NO PROMOTION
+- **Gate 1 Pass Rate:** 75% (needs 90%+ for promotion)
+- **Integration Pattern:** Supervised-only (`gemma-memory-search`, `gemma-memory-rag`)
+- **Wrapper Defaults:** UNCHANGED
+- **Artifact:** `docs/maintenance/M9_RUVECTOR_RETRIEVAL_INTEGRATION_AND_PROMOTION_READINESS.md`
+
+## M10 — Space Agent Dashboard Packet Integration (2026-05-02) — COMPLETE
+
+- **Space Agent Version:** v0.66.0 (installed, manual UI)
+- **Consumption Pattern:** MANUAL ONLY (copy/paste)
+- **Autonomous Ingestion:** REJECTED
+- **Packet Types:** 6 defined (daily, weekly, drift, RuVector quality, RAG answer, snapshot)
+- **Artifact:** `docs/maintenance/M10_SPACE_AGENT_RUVECTOR_DASHBOARD_PACKET_INTEGRATION.md`
+
+## M11 — Supervised Autonomy Workflow Catalog (2026-05-02) — COMPLETE
+
+- **Workflows Defined:** 5 (briefing, routing, command review, memory query, eval expansion)
+- **Core Principle:** Agents SUGGEST, humans DECIDE
+- **Autonomy:** NONE — all workflows require human approval
+- **Artifact:** `docs/maintenance/M11_AGENT_ZERO_SPACE_AGENT_SUPERVISED_AUTONOMY_WORKFLOW_CATALOG.md`
+
+## M12 — Dry-Run Action Proposal and Approval Loop (2026-05-02) — COMPLETE
+
+- **Proposal Format:** JSON schema defined
+- **Approval Loop:** 6 states (PROPOSED → DRY-RUN → PENDING → APPROVED/REJECTED/CANCELLED → EXECUTE → VERIFY)
+- **Auto-Rejection:** 6 policy violations (sudo, firewall, packages, secrets, autonomy, model changes)
+- **Artifact:** `docs/maintenance/M12_DRY_RUN_ACTION_PROPOSAL_AND_HUMAN_APPROVAL_PACKET_LOOP.md`
+
+## M13 — Controlled Learning Event Ledger (2026-05-02) — COMPLETE
+
+- **Event Types:** 6 defined
+- **Event Schema:** JSON schema defined
+- **Ledger Storage:** `~/.local/share/bazzite-security/learning-ledger/` (JSONL)
+- **Critical Rule:** Events are CANDIDATES for review, NOT training data
+- **Artifact:** `docs/maintenance/M13_CONTROLLED_LEARNING_EVENT_LEDGER_INTEGRATION.md`
+
+## M14 — Autonomous Integration Readiness Closeout (2026-05-02) — COMPLETE
+
+- **M9–M13 Macro:** COMPLETE
+- **Autonomous Integration:** NO-GO
+- **Supervised Assistance:** GO
+- **RuVector Promotion:** NO-GO
+- **Space Agent Automation:** NO-GO
+- **Agent Zero Full Integration:** NO-GO (accepted limitations)
+- **Learning Events:** GO (manual logging)
+- **Training:** NO-GO (M7 blockers)
+- **Artifact:** `docs/maintenance/M14_AUTONOMOUS_INTEGRATION_READINESS_CLOSEOUT.md`
+
 ---
 
 ## Validation

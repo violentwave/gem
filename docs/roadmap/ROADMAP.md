@@ -1777,16 +1777,47 @@ All implementation phases complete. System is in maintenance mode with periodic 
   - `prompts/opencode/m8a-huggingface-dataset-sample-review.prompt.txt`
 - **Next M8 Trigger:** Human provides dataset candidates or approves M8A execution
 
-### M9: RAG Quality and Retrieval Tuning Cycle ⏳ Planned (Optional)
-- **Purpose:** Improve RAG retrieval quality, expand eval coverage, document RAG failure cases
-- **Status:** PLANNED
-- **Scope:**
-  - Formal RAG accuracy baseline measurement
-  - Document 10+ RAG failure cases
-  - Expand eval cases toward 50 minimum
-  - Improve chunking or indexing if needed
-- **Trigger:** Human approves M9 execution or M7 gates show progress
-- **Note:** M9 is optional. Regular maintenance (M1/M2) continues on schedule.
+### M9: RuVector Retrieval Integration and Promotion Readiness ✅ Complete (2026-05-02)
+- **Purpose:** Review RuVector status, compare with Stage 3A, determine promotion readiness
+- **Status:** COMPLETE
+- **Decision:** NO PROMOTION — RuVector remains `approved_secondary`
+- **Gate 1 Pass Rate:** 75% (needs 90%+ for promotion)
+- **Integration Pattern:** Supervised-only (`gemma-memory-search`, `gemma-memory-rag`)
+- **Artifact:** `docs/maintenance/M9_RUVECTOR_RETRIEVAL_INTEGRATION_AND_PROMOTION_READINESS.md`
+
+### M10: Space Agent RuVector Dashboard Packet Integration ✅ Complete (2026-05-02)
+- **Purpose:** Design Space Agent consumption of RuVector/Stage 3A/Gemma dashboard packets
+- **Status:** COMPLETE
+- **Decision:** MANUAL consumption only — no autonomous ingestion
+- **Packet Types:** 6 defined
+- **Artifact:** `docs/maintenance/M10_SPACE_AGENT_RUVECTOR_DASHBOARD_PACKET_INTEGRATION.md`
+
+### M11: Agent Zero + Space Agent Supervised Autonomy Workflow Catalog ✅ Complete (2026-05-02)
+- **Purpose:** Define safe supervised workflows (suggest only, never execute without approval)
+- **Status:** COMPLETE
+- **Workflows:** 5 defined (briefing, routing, command review, memory query, eval expansion)
+- **Core Principle:** Agents SUGGEST, humans DECIDE
+- **Artifact:** `docs/maintenance/M11_AGENT_ZERO_SPACE_AGENT_SUPERVISED_AUTONOMY_WORKFLOW_CATALOG.md`
+
+### M12: Dry-Run Action Proposal and Human Approval Packet Loop ✅ Complete (2026-05-02)
+- **Purpose:** Define proposal → dry-run → review → approve → execute loop
+- **Status:** COMPLETE
+- **Auto-Rejection:** 6 policies (sudo, firewall, packages, secrets, autonomy, model changes)
+- **Artifact:** `docs/maintenance/M12_DRY_RUN_ACTION_PROPOSAL_AND_HUMAN_APPROVAL_PACKET_LOOP.md`
+
+### M13: Controlled Learning Event Ledger Integration ✅ Complete (2026-05-02)
+- **Purpose:** Design learning event logging (candidates for review, NOT training data)
+- **Status:** COMPLETE
+- **Event Types:** 6 defined
+- **Critical Rule:** Events are CANDIDATES, not automatically training data
+- **Artifact:** `docs/maintenance/M13_CONTROLLED_LEARNING_EVENT_LEDGER_INTEGRATION.md`
+
+### M14: Autonomous Integration Readiness Closeout ✅ Complete (2026-05-02)
+- **Purpose:** Final closeout for M9–M13
+- **Status:** COMPLETE
+- **Autonomous Integration:** NO-GO
+- **Supervised Assistance:** GO
+- **Artifact:** `docs/maintenance/M14_AUTONOMOUS_INTEGRATION_READINESS_CLOSEOUT.md`
 
 ---
 
