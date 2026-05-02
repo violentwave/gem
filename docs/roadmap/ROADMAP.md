@@ -1373,8 +1373,30 @@
 - Phase 12G1: Bridge Timeout Patch Review ⏳ Optional (requires explicit human approval)
 - Phase 11RV: Official VectorDB API Prototype Review ⏳ Future (optional)
 
+**Phase 13A:** Curated Learning Examples Intake Planning ✅ Complete (2026-05-02)
+- Closeout: `docs/phase13/PHASE13A_CURATED_LEARNING_EXAMPLES_INTAKE_PLAN.md`
+- Gap analysis complete, intake workflow defined
+
+**Phase 13B:** Curated Learning Examples Expansion ✅ Complete (2026-05-02)
+- 10 synthetic examples added covering RuVector, Agent Zero, Space Agent, Notion, cache paths
+- Total examples: 32
+
+**Phase 13C:** Eval Coverage Expansion ✅ Complete (2026-05-02)
+- 6 eval cases added
+- Total cases: 25
+
+**Phase 13D:** Bad Output to Corrected Output Review Packet ✅ Complete (2026-05-02)
+- Closeout: `docs/phase13/PHASE13D_BAD_OUTPUT_CORRECTED_REVIEW_PACKET.md`
+- 4 patterns reviewed, 2 bad-to-corrected examples added
+
+**Phase 13E:** Phase 13 Closeout ✅ Complete (2026-05-02)
+- Closeout: `docs/phase13/PHASE13E_PHASE13_CLOSEOUT.md`
+- All validators pass, Phase 13 macro complete
+
+**Phase 13 Macro:** ✅ COMPLETE (2026-05-02)
+
 **Next Major Phase:**
-- Phase 13A — Curated Learning Examples Intake Planning ✅ Ready (gate open)
+- Phase 14A — Base Model Identity and Adapter Compatibility ⏳ Upcoming
 
 ## Maintenance Phases
 
