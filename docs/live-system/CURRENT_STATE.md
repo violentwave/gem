@@ -568,6 +568,33 @@
 - Production readiness: CONFIRMED for personal use
 - All safety boundaries: MAINTAINED
 
+**Phase 16A:** Automated Monitoring (2026-05-02) — COMPLETE
+- Closeout: docs/phase16/PHASE16A_AUTOMATED_MONITORING.md
+- 3 monitors designed: daily (6 checks), weekly (8 checks), drift (4 checks)
+- Common library: 5 shared functions
+- Scheduling guide: systemd timers, cron, at
+
+**Phase 16B:** Knowledge Pack Expansion (2026-05-02) — COMPLETE
+- Closeout: docs/phase16/PHASE16B_KNOWLEDGE_PACK_EXPANSION.md
+- 10 gaps identified, 12 docs planned across 3 phases
+- Chunking strategy improved: 6 parameters revised
+
+**Phase 16C:** Eval Automation (2026-05-02) — COMPLETE
+- Closeout: docs/phase16/PHASE16C_EVAL_AUTOMATION.md
+- 7 test suites defined, baseline JSON format
+- 7 drift rules, 5 trend metrics
+
+**Phase 16D:** Security Audit (2026-05-02) — COMPLETE
+- Closeout: docs/phase16/PHASE16D_SECURITY_AUDIT.md
+- 10 components audited
+- 0 critical risks, 0 high risks, 3 medium risks
+- 6 security recommendations
+
+**Phase 16 Macro:** Automated Monitoring / Knowledge Expansion / Security Hardening (2026-05-02) — COMPLETE
+- Closeout: docs/phase16/PHASE16_MACRO_CLOSEOUT.md
+- Security posture: LOW-MEDIUM risk, all localhost-only
+- All safety boundaries: MAINTAINED
+
 ---
 
 ## Validation
