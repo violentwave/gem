@@ -2,16 +2,64 @@
 #
 # gemma-dashboard-build
 # Static dashboard generator for the Bazzite Local Gemma Agent stack
-# Usage: gemma-dashboard-build [--open]
+# Usage: gemma-dashboard-build [--open|--help]
 # Output: ~/.local/share/bazzite-security/dashboard/index.html
 # Report: ~/offload/security-reports/manual/gemma-dashboard-YYYYMMDD-HHMMSS.md
 # Log:    ~/.local/state/bazzite-security/logs/gemma-dashboard-YYYYMMDD-HHMMSS.log
 
 set -euo pipefail
 
+show_help() {
+    cat << 'EOF'
+gemma-dashboard-build — Static dashboard generator for the Bazzite Local Gemma Agent stack
+
+USAGE:
+    gemma-dashboard-build [OPTION]
+
+OPTIONS:
+    --open    Open the generated dashboard in the default browser after generation.
+    --help    Show this help message and exit.
+
+DEFAULT BEHAVIOR:
+    Generates the dashboard HTML, a Markdown report, and a log file without
+    opening a browser or modifying any system state.
+
+OUTPUT PATHS:
+    HTML dashboard : ~/.local/share/bazzite-security/dashboard/index.html
+    Markdown report: ~/offload/security-reports/manual/gemma-dashboard-YYYYMMDD-HHMMSS.md
+    Build log      : ~/.local/state/bazzite-security/logs/gemma-dashboard-YYYYMMDD-HHMMSS.log
+
+PANELS:
+    1. Stack Summary      6. Knowledge / RAG
+    2. Space Agent        7. Evals / Examples
+    3. Ollama / Gemma     8. Recent Reports
+    4. Agent Zero         9. Guardrails / No-Go Items
+    5. OpenCode          10. Next Recommended Actions
+
+SAFETY:
+    - Read-only inspection only.
+    - No system state changes.
+    - No secrets exposed.
+    - No daemon or server started.
+    - Graceful degradation if optional tools are missing.
+
+EXAMPLES:
+    gemma-dashboard-build              # Generate dashboard only
+    gemma-dashboard-build --open       # Generate and open in browser
+    gemma-dashboard-build --help       # Show this help
+EOF
+}
+
 OPEN_BROWSER=false
 if [ "${1:-}" = "--open" ]; then
     OPEN_BROWSER=true
+elif [ "${1:-}" = "--help" ] || [ "${1:-}" = "-h" ]; then
+    show_help
+    exit 0
+elif [ -n "${1:-}" ]; then
+    echo "Error: unknown option '${1}'" >&2
+    echo "Run 'gemma-dashboard-build --help' for usage." >&2
+    exit 1
 fi
 
 TIMESTAMP=$(date +%Y%m%d-%H%M%S)

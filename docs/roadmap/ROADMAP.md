@@ -92,6 +92,35 @@
 
 ---
 
+### M17: Dashboard Usability and Operator Workflow ✅ Completed
+**Goal:** Make the dashboard easy to refresh and use without adding a daemon or system changes
+
+**Tasks:**
+- Create `docs/dashboard/DASHBOARD_OPERATOR_GUIDE.md` with full panel explanations
+- Add `--help` / `-h` to `scripts/gemma-dashboard-build`
+- Document optional `~/.local/bin/gemma-dashboard` symlink install
+- Preserve all safety boundaries
+
+**Deliverables:**
+- `docs/dashboard/DASHBOARD_OPERATOR_GUIDE.md`
+- `docs/maintenance/M17_DASHBOARD_OPERATOR_WORKFLOW.md`
+- Updated `scripts/gemma-dashboard-build`
+
+**Result:** Dashboard has clear operator guide, `--help` works, optional install is documented but not automatic. Dashboard remains static and manually refreshed.
+
+**Depends on:** M16
+
+**Do Not:**
+- Modify Agent Zero config
+- Modify Space Agent config
+- Install packages
+- Pull models
+- Enable autonomy
+- Start a daemon or server
+- Run automatic install
+
+---
+
 ## Phase 5: Coordination & Integration Planning
 
 ### Phase 5A: Repo Bootstrap ✅ Completed

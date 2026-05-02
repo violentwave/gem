@@ -1005,6 +1005,33 @@
 - **No secrets exposed**
 - **Boundary compliance:** PASS
 
+## M17 — Dashboard Usability and Operator Workflow (2026-05-02) — COMPLETE
+
+- **Operator Guide:** `docs/dashboard/DASHBOARD_OPERATOR_GUIDE.md` created
+  - What the dashboard is/is not
+  - How to refresh and open
+  - Panel-by-panel explanation
+  - Space Agent integration notes
+  - Agent Zero no-go rationale
+  - Troubleshooting and secret policy
+- **Script Improvements:** `scripts/gemma-dashboard-build`
+  - Added `--help` / `-h` flag
+  - Added unknown argument error handling
+  - Preserved `--open` flag
+  - Preserved all safety boundaries
+- **Optional Install:** Documented in operator guide (not performed automatically)
+  - `ln -sf /var/home/lch/projects/gem/scripts/gemma-dashboard-build ~/.local/bin/gemma-dashboard`
+- **Validation:** All PASS
+  - `bash -n`: PASS
+  - `shellcheck`: PASS
+  - `--help`: PASS
+  - Dashboard generation: PASS
+  - HTML output: PASS
+  - Report output: PASS
+- **No config modified**
+- **No secrets exposed**
+- **Boundary compliance:** PASS
+
 ---
 
 ## Validation
