@@ -1,0 +1,42 @@
+You are working in ~/projects/gem.
+
+Goal:
+Review Phase 10B dry-run outputs, create closeout documentation, update state/roadmap, and propose Phase 11 recommendations.
+
+Hard boundaries:
+- Do not execute ingestion
+- Do not index
+- Do not mutate RuVector
+- Do not promote memory
+- Do not modify live eval stores
+- Do not install helpers
+- Do not change wrapper defaults
+- No system/model/security/OpenCode permission changes
+
+Inputs:
+- Dry-run JSON artifacts from /tmp (proposal, denied-check, manifest, rollback)
+- Validation command results
+- Existing phase docs under docs/phase10/
+
+Required tasks:
+1) Verify dry-run artifacts are coherent and non-executable where required
+2) Summarize blockers and readiness decision
+3) Create/Update Phase 10 closeout doc
+4) Update docs/live-system/CURRENT_STATE.md minimally
+5) Update docs/roadmap/ROADMAP.md minimally with next recommendation
+6) Prepare Phase 11 recommendation options (planning only)
+
+Validation to rerun before finalizing:
+- ./scripts/check-memory-known-answers.sh
+- ./scripts/check-gemma-memory-quality.sh
+- gemma-evals-status
+- gemma-evals-check
+- gemma-examples-check
+
+Final response format:
+- files modified
+- validation summary
+- readiness decision
+- blockers
+- Phase 11 recommendation options
+- explicit boundary confirmation (no ingestion/indexing/mutation occurred)

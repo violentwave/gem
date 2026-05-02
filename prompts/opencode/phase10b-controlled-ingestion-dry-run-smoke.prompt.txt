@@ -1,0 +1,53 @@
+You are working in ~/projects/gem.
+
+Goal:
+Run one controlled dry-run-only smoke for ingestion planning using a single explicitly approved safe source.
+
+Hard boundaries:
+- No ingestion execution
+- No indexing
+- No RuVector mutation
+- No memory promotion
+- No wrapper default changes
+- No live eval store changes
+- No helper installation
+- No daemon/timer/background automation
+- No system/model/security/OpenCode permission changes
+- No sudo
+
+Allowed temp/report paths:
+- Temporary JSON artifacts: /tmp only
+- Optional reports (only when --write-report is explicitly used): ~/offload/security-reports/manual/
+
+Required sequence:
+1) proposal helper
+2) denied-data helper
+3) ingestion-plan helper
+4) rollback-plan helper
+5) known-answer checker
+6) quality checker
+7) Stage 3A fallback confirmation in manifest/rollback outputs
+
+Required smoke source:
+- Start with one safe source, e.g. docs/phase9/EVAL_EXPANSION_PLAN.md
+
+Required output validation:
+- proposal source_class should be A for approved docs path
+- denied-data status should be PASS for safe docs
+- manifest plan must remain executable=false unless all gates pass
+- rollback plan must be executable=false
+- Stage 3A fallback text present in manifest and rollback outputs
+
+Validation commands:
+- ./scripts/check-memory-known-answers.sh
+- ./scripts/check-gemma-memory-quality.sh
+- gemma-evals-status
+- gemma-evals-check
+- gemma-examples-check
+
+Final report format:
+- commands run
+- JSON artifact paths under /tmp
+- pass/warn/fail outcomes
+- blockers found
+- explicit boundary confirmation (no ingestion/indexing/mutation occurred)
