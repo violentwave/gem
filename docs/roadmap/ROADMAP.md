@@ -1331,10 +1331,23 @@
 - Agent Zero stopped after test
 - No secrets exposed
 
-**Future Phases:**
+**Phase 12H:** Phase 12 Bridge Readiness Closeout ✅ Complete (2026-05-02)
+- Closeout: `docs/phase12/PHASE12H_BRIDGE_READINESS_CLOSEOUT.md`
+- Runbook: `docs/phase12/BRIDGE_OPERATOR_RUNBOOK.md`
+- Phase 12 macro: COMPLETE
+- Agent Zero: operational (message_send timeout limitation accepted)
+- OpenCode bridge: operational (127.0.0.1:4141, local-only)
+- Space Agent: blocked (not installed)
+- Future optional prompts created for timeout patch and Space Agent install
+
+**Phase 12 Macro:** ✅ COMPLETE (2026-05-02)
+
+**Future Optional Work:**
 - Phase 12C1: Space Agent Manual UI Dry-Run ⏳ BLOCKED (requires Space Agent installation + explicit prompt)
-- Phase 12H: Phase 12 Bridge Readiness Closeout ⏳ Upcoming
+- Phase 12G1: Bridge Timeout Patch Review ⏳ Optional (requires explicit human approval)
 - Phase 11RV: Official VectorDB API Prototype Review ⏳ Future (optional)
+
+**Next Major Phase:**
 - Phase 13 — Curated Learning Examples Expansion (future controlled learning feasibility)
 - Phase 14 — Fine-tuning / LoRA Feasibility Review
 
