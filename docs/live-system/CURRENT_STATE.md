@@ -259,6 +259,17 @@
 - Phase 11D ✅
 - Phase 11E ✅
 
+**Phase 12A:** Supervised Agent Zero / Space Agent Bridge Planning (2026-05-02) — OPEN
+- Bridge plan: docs/phase12/PHASE12_SUPERVISED_BRIDGE_PLAN.md
+- Boundaries: docs/phase12/AGENT_ZERO_SPACE_AGENT_BRIDGE_BOUNDARIES.md
+- Workflow candidates: docs/phase12/BRIDGE_WORKFLOW_CANDIDATES.md
+- Phase 12B prompt: prompts/opencode/phase12b-agent-zero-readonly-bridge-review.prompt.txt
+- Phase 12C prompt: prompts/opencode/phase12c-space-agent-manual-ui-bridge-review.prompt.txt
+- Status: Planning complete, execution requires explicit prompt
+- No Agent Zero execution
+- No Space Agent execution
+- No authority granted
+
 ---
 
 ## Validation

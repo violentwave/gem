@@ -1,0 +1,48 @@
+Prompt: Phase 12B — Agent Zero Read-Only Bridge Dry-Run Review
+
+Purpose:
+Review whether Agent Zero can safely consume existing read-only reports/docs and produce a briefing without starting Agent Zero by default, modifying Agent Zero config, or granting write access.
+
+Context:
+- Agent Zero is available as a containerized service (Podman) but NOT currently running.
+- Agent Zero CLI is not installed in host PATH.
+- Previous startup (Phase 7A) was successful but required explicit trigger.
+- Agent Zero has memory/learning/browser automation features that are available but NOT enabled.
+- Current stack: OpenCode (primary implementation), Gemma (advisory), Stage 3A (canonical fallback), RuVector (supervised prototype).
+
+Hard Boundaries:
+- Do not start Agent Zero by default.
+- Do not modify Agent Zero config (~/.config/agent-zero/).
+- Do not grant repo write authority to Agent Zero.
+- Do not grant host write authority to Agent Zero.
+- Do not enable autonomous remediation.
+- Do not run OpenCode prompts autonomously.
+- Do not ingest, index, mutate, or promote memory.
+- Do not enable learning/training.
+- Do not use sudo.
+- Do not modify system/security configs.
+
+Safe Workflow:
+If explicitly authorized to start Agent Zero for a read-only dry-run:
+1. Start Agent Zero container with read-only constraints.
+2. Provide a single existing doc or report as input.
+3. Request a structured briefing as output.
+4. Review output for boundary compliance.
+5. Stop Agent Zero container after output received.
+6. Do not persist any state to Agent Zero memory.
+
+Stop Conditions:
+- Agent Zero requests file write access.
+- Agent Zero requests system commands.
+- Agent Zero requests memory mutation.
+- Agent Zero requests learning/training execution.
+- Output contains suspicious or out-of-bounds recommendations.
+- Human reviewer is not available.
+
+Expected Output:
+- Structured briefing (Markdown)
+- Boundary compliance confirmation
+- Human approval points documented
+
+Note:
+This prompt is for future explicit authorization only. Do not execute Agent Zero without explicit human approval.

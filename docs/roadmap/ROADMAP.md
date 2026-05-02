@@ -1248,10 +1248,17 @@
 
 **Phase 11 Macro:** ✅ COMPLETE (2026-05-02) — Memory Quality Operations
 
-**Next Phase Options:**
-- Phase 11D: RAG Answer Comparison Dry-Run ⏳ Future
+**Phase 12A:** Supervised Agent Zero / Space Agent Bridge Planning ✅ Open (2026-05-02)
+- Bridge plan, boundaries, and workflow candidates documented
+- Phase 12B/12C dry-run prompts created
+- Execution requires explicit future prompt
+- No Agent Zero/Space Agent execution
+- No authority granted
+
+**Future Phases:**
+- Phase 12B: Agent Zero Read-Only Bridge Dry-Run ⏳ Future (requires explicit prompt)
+- Phase 12C: Space Agent Manual UI Bridge Dry-Run ⏳ Future (requires explicit prompt)
 - Phase 11RV: Official VectorDB API Prototype Review ⏳ Future (optional)
-- Phase 12 — Supervised Agent Zero / Space Agent Bridge
 - Phase 13 — Curated Learning Examples Expansion (future controlled learning feasibility)
 - Phase 14 — Fine-tuning / LoRA Feasibility Review
 
