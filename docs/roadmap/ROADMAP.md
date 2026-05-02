@@ -1209,8 +1209,26 @@
 
 **Depends on:** Phase 10D complete
 
+### Phase 11B: Memory Quality Check Expansion ✅ Complete (2026-05-02)
+**Goal:** Expand static memory quality check coverage with small, reviewable known-answer cases.
+
+**Tasks:**
+- Add static known-answer cases (8 new, 8 → 16 total)
+- Categories: path_policy, knowledge_rag, forbidden_output
+- Create closeout doc
+
+**Results:**
+- Static cases: 16 total
+- Validators: PASS
+- No helper modifications
+- No live eval store changes
+
+**Phase 11C:** Known-Answer Fixture Expansion ⏳ Future
+**Phase 11D:** RAG Answer Comparison Dry-Run ⏳ Future
+**Phase 11E:** Stale-Memory Review Packet ⏳ Future
+
 **Next Phase Options:**
-- Phase 11B: Quality Check Expansion ⏳ Future (requires explicit prompt)
+- Phase 11C: Known-Answer Fixture Expansion ⏳ Future
 - Phase 12 — Supervised Agent Zero / Space Agent Bridge
 
 ## Maintenance Phases

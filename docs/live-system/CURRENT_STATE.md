@@ -231,6 +231,7 @@
 
 **Phase 11:** Planning (Memory Quality Operations)
 - Phase 11A: Planning docs + prompts created
+- Phase 11B: Static memory quality check expansion (16 cases)
 - Phase 11B-E: Future (requires explicit prompts)
 - No helper modifications
 - No automation added
