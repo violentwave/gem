@@ -758,7 +758,26 @@
 
 **Phase 22D:** Phase 22 Closeout (2026-05-02) — COMPLETE
 - Closeout: docs/phase22/PHASE22_AGENT_ZERO_SPACE_AGENT_WORKFLOW_CATALOG.md
-- Next: Phase 23 (Controlled Learning Loop v1)
+
+**Phase 23A:** Learning Ledger Schema (2026-05-02) — COMPLETE
+- Doc: ~/.config/bazzite-security/LEARNING_LEDGER_SCHEMA.md
+- Principles: Human approval, immutable, attributable, reversible, bounded
+- Entry types: 6 (example_approved, example_rejected, correction_applied, feedback_recorded, boundary_violation, policy_update)
+
+**Phase 23B:** Example Approval Workflow (2026-05-02) — COMPLETE
+- Doc: ~/.config/bazzite-security/EXAMPLE_APPROVAL_WORKFLOW.md
+- Steps: 6 (Generation, Validation, Review, Approval, Ledger, Verification)
+- Authority: Operator only (lch)
+
+**Phase 23C:** Eval-Driven Feedback Loop (2026-05-02) — COMPLETE
+- Doc: ~/.config/bazzite-security/EVAL_DRIVEN_FEEDBACK_LOOP.md
+- Loop: 9 steps (Run → Analyze → Identify → Propose → Review → Approve → Update → Re-run → Close)
+- Metrics: Pass rate, improvement rate, cycle time, recurrence rate
+
+**Phase 23D:** Phase 23 Closeout (2026-05-02) — COMPLETE
+- Closeout: docs/phase23/PHASE23_CONTROLLED_LEARNING_LOOP_V1.md
+- Status: DESIGNED (not enabled)
+- Next: Phase 24 (Release / Recovery / Migration Discipline)
 
 ---
 
