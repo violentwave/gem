@@ -1352,19 +1352,29 @@
 - Token used ephemerally, NOT stored in repo
 - Future prompts created for 12K, 12L, 12M
 
-**Phase 12 Macro:** ✅ COMPLETE (2026-05-02)
+**Phase 12K:** Space Agent Installation Readiness Assessment ✅ Complete (2026-05-02)
+- Closeout: `docs/phase12/PHASE12K_SPACE_AGENT_INSTALLATION_READINESS.md`
+- Official source verified: GitHub `agent0ai/space-agent`
+- AppImage method approved: no sudo, no rpm-ostree, user-local only
+
+**Phase 12L:** Space Agent Install and Manual UI Provider Dry-Run ✅ Complete (2026-05-02)
+- Closeout: `docs/phase12/PHASE12L_SPACE_AGENT_INSTALL_AND_MANUAL_UI_DRY_RUN.md`
+- AppImage downloaded and launched successfully (v0.66.0)
+- Previous Phase 7E.1 provider config (OpenRouter + local Ollama) remains valid
+
+**Phase 12M:** Final Readiness Closeout ✅ Complete (2026-05-02)
+- Closeout: `docs/phase12/PHASE12M_FINAL_READINESS_CLOSEOUT.md`
+- Gate: OPEN for Phase 13A
+
+**Phase 12 Macro:** ✅ COMPLETE (2026-05-02) — All sub-phases 12A through 12M done
 
 **Future Optional Work:**
-- Phase 12C1: Space Agent Manual UI Dry-Run ⏳ BLOCKED (requires Space Agent installation + explicit prompt)
+- Phase 12C1: Space Agent Manual UI Dry-Run ✅ COMPLETE (now part of 12L)
 - Phase 12G1: Bridge Timeout Patch Review ⏳ Optional (requires explicit human approval)
 - Phase 11RV: Official VectorDB API Prototype Review ⏳ Future (optional)
 
 **Next Major Phase:**
-- Phase 12K — Space Agent Installation Readiness Assessment ⏳ Upcoming
-- Phase 12L — Space Agent Install and Manual UI Provider Dry-Run ⏳ Blocked pending 12K + explicit approval
-- Phase 12M — Final Readiness Closeout ⏳ Planned
-- Phase 13A — Curated Learning Examples Intake Planning ⏳ Deferred until 12M complete
-- Phase 14 — Fine-tuning / LoRA Feasibility Review
+- Phase 13A — Curated Learning Examples Intake Planning ✅ Ready (gate open)
 
 ## Maintenance Phases
 
