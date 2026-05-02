@@ -1395,8 +1395,49 @@
 
 **Phase 13 Macro:** ✅ COMPLETE (2026-05-02)
 
+**Phase 14A:** Base Model Identity and Adapter Compatibility ✅ Complete (2026-05-02)
+- Closeout: `docs/phase14/PHASE14A_BASE_MODEL_IDENTITY_ADAPTER_COMPATIBILITY.md`
+- Base model: `gemma4:e4b` (4B params, 9.6GB)
+- Adapter compatibility: CONFIRMED (PEFT/LoRA compatible)
+- VRAM feasibility: FAIL (6GB insufficient for QLoRA on 4B model)
+
+**Phase 14B:** Dataset Schema and Eval Gates ✅ Complete (2026-05-02)
+- Closeout: `docs/phase14/PHASE14B_DATASET_SCHEMA_EVAL_GATES.md`
+- Dataset schema: Alpaca + ChatML formats documented
+- Current examples: 32 (insufficient for training; need 100+)
+- Eval gates: 7 gates defined
+
+**Phase 14C:** Training Scaffold Scripts ✅ Complete (2026-05-02)
+- Closeout: `docs/phase14/PHASE14C_TRAINING_SCAFFOLD_SCRIPTS.md`
+- Conceptual pipeline documented (7 steps, 8 tools)
+- Pseudocode provided for educational purposes
+- No scripts created or executed
+
+**Phase 14D:** Tiny SFT Smoke Test Decision ✅ Complete (2026-05-02)
+- Closeout: `docs/phase14/PHASE14D_TINY_SFT_SMOKE_TEST_DECISION.md`
+- Decision: DEFER
+- Gates met: 1/7
+- Blockers: Dataset size + hardware insufficient
+
+**Phase 14E:** Local Import Eval as Non-Default Profile ✅ Complete (2026-05-02)
+- Closeout: `docs/phase14/PHASE14E_LOCAL_IMPORT_EVAL_PROFILE.md`
+- Safe import path documented (6 steps)
+- Safety rules defined (5 rules)
+- No import performed
+
+**Phase 14F:** RAG-vs-LoRA Decision Memo ✅ Complete (2026-05-02)
+- Closeout: `docs/phase14/PHASE14F_RAG_VS_LORA_DECISION_MEMO.md`
+- Decision: RAG preferred, LoRA deferred indefinitely
+- Rationale: Hardware insufficient, dataset too small, marginal expected benefit
+
+**Phase 14 Macro:** LoRA / Fine-Tuning Feasibility Assessment ✅ COMPLETE (2026-05-02)
+- Closeout: `docs/phase14/PHASE14_MACRO_CLOSEOUT.md`
+- LoRA feasibility: NOT VIABLE locally
+- RAG status: CONFIRMED as preferred approach
+- All safety boundaries: MAINTAINED
+
 **Next Major Phase:**
-- Phase 14A — Base Model Identity and Adapter Compatibility ⏳ Upcoming
+- Phase 15 — Production Hardening / Prompt Engineering / Release Discipline ⏳ Upcoming
 
 ## Maintenance Phases
 

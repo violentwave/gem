@@ -52,22 +52,22 @@
 
 ### Stage 4A: Eval Scaffolding
 - Location: `~/.local/share/bazzite-security/gemma-evals/cases/`
-- 19 total cases:
-  - command_review: 8
-  - knowledge_rag: 5
-  - path_policy: 5
+- 25 total cases:
+  - command_review: 10
+  - knowledge_rag: 7
+  - path_policy: 7
   - forbidden_output: 1
 - Validator: `gemma-evals-check`
 - Status: PASS
 
 ### Stage 4B: Supervised Examples
 - Location: `~/.local/share/bazzite-security/gemma-evals/examples/`
-- 22 total examples:
-  - command_review_example: 8
-  - rag_answer_example: 5
-  - path_policy_example: 5
-  - bad_to_corrected_example: 4
-- Status: 22 reviewed, 0 draft, 0 deprecated
+- 32 total examples:
+  - command_review_example: 11
+  - rag_answer_example: 8
+  - path_policy_example: 7
+  - bad_to_corrected_example: 6
+- Status: 32 reviewed, 0 draft, 0 deprecated
 - Validator: `gemma-examples-check`
 - Status: PASS
 
@@ -483,6 +483,49 @@
 - Phase 13 macro: COMPLETE
 - Validators: ALL PASS
 - Next: Phase 14A (Base Model Identity and Adapter Compatibility)
+
+**Phase 14A:** Base Model Identity and Adapter Compatibility (2026-05-02) — COMPLETE
+- Closeout: docs/phase14/PHASE14A_BASE_MODEL_IDENTITY_ADAPTER_COMPATIBILITY.md
+- Base model: gemma4:e4b (4B params, 9.6GB)
+- Custom profile: gemma4-e4b-bazzite:latest (same weights, Modelfile system prompt)
+- Adapter compatibility: CONFIRMED (PEFT/LoRA compatible)
+- VRAM feasibility: FAIL (6GB insufficient for QLoRA on 4B model)
+
+**Phase 14B:** Dataset Schema and Eval Gates (2026-05-02) — COMPLETE
+- Closeout: docs/phase14/PHASE14B_DATASET_SCHEMA_EVAL_GATES.md
+- Dataset schema: Alpaca + ChatML formats documented
+- Current examples: 32 (insufficient for training; need 100+)
+- Eval gates: 7 gates defined
+
+**Phase 14C:** Training Scaffold Scripts (2026-05-02) — COMPLETE
+- Closeout: docs/phase14/PHASE14C_TRAINING_SCAFFOLD_SCRIPTS.md
+- Conceptual pipeline documented (7 steps, 8 tools)
+- Pseudocode provided for educational purposes
+- No scripts created or executed
+
+**Phase 14D:** Tiny SFT Smoke Test Decision (2026-05-02) — COMPLETE
+- Closeout: docs/phase14/PHASE14D_TINY_SFT_SMOKE_TEST_DECISION.md
+- Decision: DEFER
+- Gates met: 1/7
+- Blockers: Dataset size + hardware insufficient
+
+**Phase 14E:** Local Import Eval as Non-Default Profile (2026-05-02) — COMPLETE
+- Closeout: docs/phase14/PHASE14E_LOCAL_IMPORT_EVAL_PROFILE.md
+- Safe import path documented (6 steps)
+- Safety rules defined (5 rules)
+- No import performed
+
+**Phase 14F:** RAG-vs-LoRA Decision Memo (2026-05-02) — COMPLETE
+- Closeout: docs/phase14/PHASE14F_RAG_VS_LORA_DECISION_MEMO.md
+- Decision: RAG preferred, LoRA deferred indefinitely
+- Rationale: Hardware insufficient, dataset too small, marginal expected benefit
+- Conditions for reconsideration: Documented
+
+**Phase 14 Macro:** LoRA / Fine-Tuning Feasibility Assessment (2026-05-02) — COMPLETE
+- Closeout: docs/phase14/PHASE14_MACRO_CLOSEOUT.md
+- LoRA feasibility: NOT VIABLE locally
+- RAG status: CONFIRMED as preferred approach
+- All safety boundaries: MAINTAINED
 
 ---
 
