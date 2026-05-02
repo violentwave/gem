@@ -220,17 +220,18 @@
 
 ## Next Phase
 
-**Phase 9:** Complete (2026-05-02)
-- Repo-local helper additions (9A, 9B, 9C, 9D)
-- Controlled ingestion planning helpers
+**Phase 10:** Complete (2026-05-02)
+- Phase 10A: Dry-run planning docs + prompts
+- Phase 10B: Dry-run smoke (classification WARN, boundaries PRESERVED)
+- Phase 10C: Closeout with WARN documented
 - No ingestion execution
-- Stage 3A fallback preserved
-- RuVector supervised/prototype/secondary
+- Stage 3A fallback confirmed
+- Classification drift: source_class expected A, got C (docs/phase10/*)
 
-**Phase 10:** Recommended (Controlled Ingestion Dry-Run Planning)
-- Not ingestion execution by default
-- Dry-run manifest validation
-- Human approval workflow
+**Phase 11:** Recommended (Classification Fix)
+- Address helper classification drift
+- Expand approved roots policy
+- Or accept conservative behavior
 
 ## Validation
 

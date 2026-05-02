@@ -723,10 +723,9 @@
 - ❌ No replacement of Stage 3A
 
 **Next Phase Options:**
-- Phase 8B.6: Supervised RuVector Retrieval Helper ⏳ Upcoming
-- Phase 8D.1: Workflow Index Verification ⏳ Future
 - Phase 9: Planning ✅ Complete (2026-05-02)
-- Phase 10: Controlled Ingestion Dry-Run Planning ⏳ Recommended
+- Phase 10: Controlled Ingestion Dry-Run Planning ✅ Complete (2026-05-02)
+- Phase 11: Classification Fix ⏳ Recommended
 
 **Depends on:** 8B.4E (Gate 5 must pass)
 
@@ -765,7 +764,7 @@
 - Phase 8B.7: Supervised RAG Integration ⏳ Upcoming (optional)
 - Phase 8D.1: Workflow Index Verification ⏳ Future
 - Phase 9: Planning ✅ Complete (2026-05-02)
-- Phase 10: Controlled Ingestion Dry-Run Planning ⏳ Recommended
+- Phase 10: Controlled Ingestion Dry-Run Planning ✅ Complete (2026-05-02, WARN)
 
 **Depends on:** 8B.5
 
@@ -1150,6 +1149,46 @@
 - Stage 3A remains canonical fallback
 - `gemma-memory-search` and `gemma-memory-rag` remain explicit helpers, not wrapper defaults
 - all future Phase 9 prompts remain planning/bounded unless implementation is explicitly approved
+
+### Phase 10: Controlled Ingestion Dry-Run Planning ✅ Complete (2026-05-02)
+**Goal:** Run Phase 10B dry-run smoke with planning helpers, document results, and close out with WARN.
+
+**Tasks:**
+- Run helper proposal generation (`gemma-memory-propose-source`)
+- Run denied-data scan (`gemma-memory-denied-data-check`)
+- Run manifest generation (`gemma-memory-ingestion-plan`)
+- Run rollback plan generation (`gemma-memory-rollback-plan`)
+- Run validation commands (known-answers, quality, evals, examples)
+- Document classification drift (source_class expected A, got C)
+
+**Deliverables:**
+- `docs/phase10/PHASE10_CONTROLLED_INGESTION_DRY_RUN_PLAN.md`
+- `docs/phase10/PHASE10_CLOSEOUT.md`
+- Phase 10A: committed (2630102)
+- Phase 10B dry-run: completed with WARN
+- Phase 10C closeout: completed with WARN documented
+
+**Results:**
+- Proposal: generated with source_class=C (WARN)
+- Denied-data scan: PASS
+- Manifest: BLOCKED, executable=false
+- Rollback: executable=false
+- Stage 3A fallback: confirmed
+- All validators: PASS
+- Classification drift: documented for Phase 11
+
+**Classification WARN:**
+- Helper classified repo-relative docs/phase10 as Class C (requires explicit approval)
+- Expected: Class A (approved docs path)
+- Not dangerous: executable=false + pending_human_approval blocked execution
+
+**Next Phase Options:**
+- Phase 11: Classification Fix ⏳ Recommended
+- Option A: Fix helper classification (low priority)
+- Option B: Accept conservative behavior (recommended)
+- Option C: Expand approved roots (future)
+
+**Depends on:** Phase 9 complete
 
 ## Maintenance Phases
 
