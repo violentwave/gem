@@ -2,7 +2,7 @@
 
 ## Status
 
-Planning only. No helper sync or live-script replacement is performed in this phase.
+Implementation-ready and partially implemented in repo metadata. Sanitized helper templates and user-local install/check scripts now exist in the repo. No live helper replacement occurred automatically.
 
 ## Goal
 
@@ -16,12 +16,13 @@ Make `gemma-memory-search` and `gemma-memory-rag` reproducible from sanitized re
 - Plan user-local install/check helpers only.
 - Preserve live canonical path ownership under `~/.local/bin/`.
 
-## Proposed Repo Paths
+## Repo Paths
 
 - `helpers/gemma-memory-search`
 - `helpers/gemma-memory-rag`
 - `scripts/install-gemma-memory-helpers.sh`
 - `scripts/check-gemma-memory-helpers.sh`
+- `docs/phase9/HELPER_REPRODUCIBILITY_IMPLEMENTATION.md`
 
 ## Source Capture Rules
 
