@@ -691,7 +691,39 @@
 - Scripts: 3 monitors + 1 library
 - All syntax validated
 - All tests PASS
-- Next: Phase 20 (Knowledge Pack Expansion)
+
+**Phase 20A:** Write TROUBLESHOOTING.md (2026-05-02) — COMPLETE
+- Doc: ~/.config/bazzite-security/TROUBLESHOOTING.md
+- Sections: 10 (Ollama, OpenCode, Agent Zero, Space Agent, RuVector, Monitor, Git, System, Network, Getting Help)
+
+**Phase 20B:** Write ROLLBACK_PROCEDURES.md (2026-05-02) — COMPLETE
+- Doc: ~/.config/bazzite-security/ROLLBACK_PROCEDURES.md
+- Components: 10 (helpers, Ollama, knowledge pack, RuVector, Git, OpenCode, Agent Zero, Space Agent, full stack)
+- Preserve list: 5 items (models, system config, home data, repo, security tools)
+
+**Phase 20C:** Write AGENT_ZERO_BOUNDARIES.md (2026-05-02) — COMPLETE
+- Doc: ~/.config/bazzite-security/AGENT_ZERO_BOUNDARIES.md
+- Forbidden actions: 11
+- Authorized actions: 5 (with explicit prompt)
+- Network boundaries: localhost + container gateway only
+
+**Phase 20D:** Write NOTION_SYNC_GUIDE.md (2026-05-02) — COMPLETE
+- Doc: ~/.config/bazzite-security/NOTION_SYNC_GUIDE.md
+- Approach: Local snapshot (Option 2)
+- Snapshot types: 3 (phase status, component health, full dashboard)
+
+**Phase 20E:** Re-index Knowledge Pack (2026-05-02) — COMPLETE
+- Docs: 10 (was 6)
+- Chunks: 335 (was 234)
+- Improvements: code blocks atomic, tables atomic, lists atomic, chunk_type metadata
+- Distribution: 132 paragraph, 116 list, 87 code
+- Index SHA256: 7db4e66f010f844d136863f609b55171d08101713d2146389404d892797ecfc4
+
+**Phase 20F:** Phase 20 Closeout (2026-05-02) — COMPLETE
+- Closeout: docs/phase20/PHASE20_KNOWLEDGE_PACK_EXPANSION_IMPLEMENTATION.md
+- Knowledge pack: 10 docs, 335 chunks
+- All validators: PASS
+- Next: Phase 21 (Retrieval Quality Upgrade)
 
 ---
 
