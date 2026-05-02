@@ -2,7 +2,7 @@
 
 ## Status
 
-`2026-05-02` - Phase 9B.1 complete. Phase 9B.2 in progress.
+`2026-05-02` - Phase 9B.1 and 9B.2 complete. Phase 9B.3 cleanup/verification in progress.
 
 ## Goal
 
@@ -39,11 +39,20 @@ Implement repo-local helpers for controlled memory ingestion planning:
 ### Path Classification Logic
 
 ```
-Class A: approved now (docs/phase9/*, docs/workflows/memory/*, repo-relative)
+Class A: known approved docs paths (docs/phase9/*, docs/workflows/memory/*, gemma-knowledge/docs/*)
 Class B: prototype metadata only (not user-content)
-Class C: future approval required (narrow scope, requires explicit approval)
-Class D: denied (broad roots ~/.config, ~/.local/share, cache, offload)
+Class C: requires explicit approval (unknown repo-relative, absolute paths, narrow scope)
+Class D: denied (broad roots ~/.config, ~/.local/share, cache, offload, denied patterns)
 ```
+
+### Class A Narrow Paths
+
+Only these paths are Class A without explicit approval:
+- `docs/phase9/*`
+- `docs/workflows/memory/*`
+- `~/.local/share/bazzite-security/gemma-knowledge/docs/*`
+
+Unknown repo-relative paths default to Class C.
 
 ### Denied Broad Roots
 
@@ -143,58 +152,50 @@ Output:
 # → status: PASS, class_recommendation: A
 ```
 
-## Non-Goals (Future Phases)
+## Boundaries
 
-- Phase 9B.3: rollback helper (define prior state, revert procedure, fallback verification)
-- No wrapper promotion to `~/.local/bin`
-- No automatic execution or daemon
+- No ingestion performed
+- No indexing performed
 - No RuVector mutation
+- No live eval store modifications
+- Generated reports only to `~/offload/security-reports/manual/` with `--write-report`
+- Plans are non-executable by default until human approval
 
----
+## Phase 9B.3: Integration Validation
 
-# Phase 9B.2 Implementation: Manifest and Rollback Planning Helpers
+### Helper Behaviors Explicit
 
-## Goal
+- **propose-source**: Does NOT approve sources - produces Class A/C/D with pending/denied status
+- **denied-data-check**: Does NOT override Class D - produces PASS/REJECT
+- **ingestion-plan**: Produces non-executable blocked plans unless all gates pass
+- **rollback-plan**: Never executes rollback - always non-executable
 
-Implement repo-local helpers for manifest and rollback planning:
-- ingestion plan CLI
-- rollback plan CLI
+### Validation Matrix
 
-**No ingestion, no indexing, no RuVector mutation.**
+| Scenario | Expected Result |
+|----------|--------------|
+| docs/phase9/* | Class A, pending |
+| Unknown repo-relative (README.md) | Class C, pending |
+| ~/.config | Class D, denied |
+| Denied-data safe docs | PASS, A |
+| Denied-data broad root | REJECT, D |
+| Plan pending approval | executable=false |
+| Plan denied source | executable=false + blockers |
+| Rollback plan | executable=false |
 
-## Files Created
+### Boundaries Preserved
 
-### Helpers
+- No ingestion, indexing, or RuVector mutation
+- No live eval store modifications
+- Stage 3A fallback preserved
 
-- `helpers/gemma-memory-ingestion-plan` — CLI manifest planner
-  - Creates manifest-shaped ingestion plan from proposal + denied-data JSON
-  - Refuses to create executable plan without human approval
-  - Output: `{manifest_id, proposal_id, input_source, source_class, approved_by, storage_path, ...}`
+## Related Docs
 
-- `helpers/gemma-memory-rollback-plan` — CLI rollback planner
-  - Creates rollback/reset plan from manifest JSON
-  - Non-executable by default (planning artifact only)
-  - Output: `{rollback_plan_id, manifest_id, revert_steps, validation_after_reset, ...}`
-
-### Wrapper Updated
-
-- `scripts/check-memory-ingestion-proposal.sh`
-  - Added: `ingestion-plan` subcommand
-  - Added: `rollback-plan` subcommand
-  - Existing `propose`, `denied-check` preserved
-
-### Blocking Logic
-
-The ingestion-plan helper blocks execution when:
-- `source_class` is `D` → BLOCKED_DENIED_SOURCE
-- `human_approval_status` is not `approved` → BLOCKED_PENDING_APPROVAL
-- denied-data `status` is `REJECT` → BLOCKED_DENIED_DATA
-- denied-data `class_recommendation` is `D` → BLOCKED_DENIED_CLASS
-
-Default output for blocked plans:
-- `plan_status`: BLOCKED_PENDING_APPROVAL (or BLOCKED)
-- `executable`: false
-- `blockers`: list of blocking reasons
+- `docs/phase9/CONTROLLED_MEMORY_INGESTION_LOOP.md` — loop design (Phase 9B)
+- `docs/phase9/MEMORY_SOURCE_PROPOSAL_SCHEMA.md` — proposal schema (Phase 9B)
+- `docs/phase9/MEMORY_DENIED_DATA_SCAN_RULES.md` — denied scan rules (Phase 9B)
+- `docs/phase9/MEMORY_MANIFEST_SCHEMA.md` — manifest schema (Phase 9B.2)
+- `docs/phase9/MEMORY_ROLLBACK_AND_RESET_PLAN.md` — rollback plan (implemented)
 
 ### Manifest Defaults
 
@@ -290,4 +291,4 @@ Output:
 - `docs/phase9/MEMORY_SOURCE_PROPOSAL_SCHEMA.md` — proposal schema (Phase 9B)
 - `docs/phase9/MEMORY_DENIED_DATA_SCAN_RULES.md` — denied scan rules (Phase 9B)
 - `docs/phase9/MEMORY_MANIFEST_SCHEMA.md` — manifest schema (Phase 9B.2)
-- `docs/phase9/MEMORY_ROLLBACK_AND_RESET_PLAN.md` — rollback plan (Phase 9B.3)
+- `docs/phase9/MEMORY_ROLLBACK_AND_RESET_PLAN.md` — rollback plan (implemented)

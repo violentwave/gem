@@ -6,6 +6,9 @@ Implementation complete (2026-05-02). Helper created.
 
 See `docs/phase9/CONTROLLED_MEMORY_INGESTION_IMPLEMENTATION.md`.
 
+The `gemma-memory-rollback-plan` helper is planning-only and always non-executable in Phase 9B.2.
+It produces a rollback plan JSON but does not execute any revert operations.
+
 ## Goal
 
 Define rollback/reset requirements that must exist before any future ingestion is allowed.

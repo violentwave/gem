@@ -91,14 +91,16 @@ def classify_source(source: str, explicit_class: str | None = None) -> tuple[str
         if pattern.lower() in str(source).lower():
             return "D", f"contains denied pattern: {pattern}"
     
+    # Known approved paths are Class A
     if str(source).startswith("docs/phase9") or str(source).startswith("docs/workflows/memory"):
         return "A", "approved Phase 9 docs scope"
     
     if ".local/share/bazzite-security/gemma-knowledge/docs" in str(source):
         return "A", "approved knowledge docs path"
     
+    # Repo-relative but not in known approved list -> needs explicit approval (Class C)
     if not source_path.is_absolute() and not str(source).startswith("/"):
-        return "A", "repo-relative path, approved scope"
+        return "C", "repo-relative path, requires explicit approval"
     
     return "C", "narrow scope, requires approval"
 

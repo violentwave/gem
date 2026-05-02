@@ -6,6 +6,16 @@ Implementation complete (2026-05-02). Helper created.
 
 See `docs/phase9/CONTROLLED_MEMORY_INGESTION_IMPLEMENTATION.md`.
 
+## Blocked/Non-Executable Plan Behavior
+
+When the ingestion-plan helper produces a blocked plan:
+- `plan_status` will be e.g., `BLOCKED_PENDING_APPROVAL` or `BLOCKED_DENIED_SOURCE`
+- `executable` will be `false`
+- `blockers` will contain a list of blocking reasons
+
+The helper exits with code 1 when `executable=false` to signal the plan is not ready for execution.
+Valid planning JSON is still produced and can be parsed.
+
 ## Purpose
 
 Require a manifest-backed record for any future supervised ingestion.
