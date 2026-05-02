@@ -777,7 +777,26 @@
 **Phase 23D:** Phase 23 Closeout (2026-05-02) — COMPLETE
 - Closeout: docs/phase23/PHASE23_CONTROLLED_LEARNING_LOOP_V1.md
 - Status: DESIGNED (not enabled)
-- Next: Phase 24 (Release / Recovery / Migration Discipline)
+
+**Phase 24A:** Release Tagging Workflow (2026-05-02) — COMPLETE
+- Script: ~/.local/bin/gemma-release-tag
+- Features: SemVer tagging, eval validation, release notes, rollback bundle
+- Usage: gemma-release-tag [patch|minor|major]
+
+**Phase 24B:** Rollback Bundle Creation (2026-05-02) — COMPLETE
+- Script: ~/.local/bin/gemma-rollback-bundle
+- Bundle: 11M, 90 files
+- Includes: All helpers, configs, knowledge pack, RuVector
+- Latest symlink: ~/.local/share/bazzite-security/rollback-bundles/latest.tar.gz
+
+**Phase 24C:** Recovery Testing (2026-05-02) — COMPLETE
+- Script: ~/.local/bin/gemma-recovery-test
+- Tests: Bundle integrity, critical files, component tests
+- Result: ALL PASS
+
+**Phase 24D:** Phase 24 Closeout (2026-05-02) — COMPLETE
+- Closeout: docs/phase24/PHASE24_RELEASE_RECOVERY_MIGRATION_DISCIPLINE.md
+- Next: Phase 25 (Optional Advanced Model Work Review)
 
 ---
 
