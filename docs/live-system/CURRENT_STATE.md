@@ -229,13 +229,11 @@
 - Stage 3A fallback confirmed
 - Classification drift: source_class expected A, got C (docs/phase10/*) — ACCEPTED as conservative
 
-**Phase 11:** Recommended (Memory Quality Operations)
-- Mature manual memory quality operations
-- gemma-memory-quality-check expansion
-- Known-answer fixtures
-- RAG answer comparison
-- Stale-memory review packets
-- No daemon/timer automation unless reviewed
+**Phase 11:** Planning (Memory Quality Operations)
+- Phase 11A: Planning docs + prompts created
+- Phase 11B-E: Future (requires explicit prompts)
+- No helper modifications
+- No automation added
 
 ## Validation
 

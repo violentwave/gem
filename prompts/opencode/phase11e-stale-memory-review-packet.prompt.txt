@@ -1,0 +1,54 @@
+# Phase 11E: Stale-Memory Review Packet Prompt
+
+You are working in ~/projects/gem.
+
+## Goal
+
+Plan stale-memory review packet process in planning-only mode.
+
+## Hard Boundaries
+
+- Do NOT execute review yet
+- Do NOT modify helpers
+- Do NOT modify scripts
+- Do NOT run RAG generation
+- Do NOT write reports outside normal manual locations
+- Do NOT add automation, timers, or daemons
+
+## Context
+
+### Phase 11A Complete
+- Created planning docs: PHASE11_PLAN.md, RUNBOOK.md, RAG_COMPARISON_PLAN.md, STALE_MEMORY_REVIEW_PACKET_TEMPLATE.md
+- Created future prompts (11b-11e)
+
+### Review Scope
+- Knowledge pack entries
+- RuVector entries
+- No automatic deletion
+
+## Tasks
+
+### Review Planning
+
+Plan manual stale-memory review:
+
+1. **Define triggers**
+   - Human-initiated only
+   - Before ingestion cycles
+
+2. **Define manual process**
+   - List entries
+   - Identify age
+   - Flag stale
+   - Manual review
+   - Manual removal (if approved)
+
+3. **Document process**
+   - Follow STALE_MEMORY_REVIEW_PACKET_TEMPLATE.md
+   - Add to planning docs
+
+## Deliverables
+
+- Planning document update
+
+(End of file)

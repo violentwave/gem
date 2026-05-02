@@ -1207,24 +1207,18 @@
 - Phase 14 — Fine-tuning / LoRA Feasibility Review
 - Phase 15 — Production Hardening / Release Discipline
 
-**Depends on:** Phase 10C complete
+**Depends on:** Phase 10D complete
 
-### Phase 11: Memory Quality Operations ⏳ Recommended
+**Next Phase Options:**
+- Phase 11B: Quality Check Expansion ⏳ Future (requires explicit prompt)
+- Phase 12 — Supervised Agent Zero / Space Agent Bridge
+
+## Maintenance Phases
 
 ### Phase M1: Health Monitoring
 - Periodic `gemma-evals-status` runs
 - Validator checks
 - Drift detection
-
-### Phase M2: Expansion
-- Add new eval cases
-- Add new examples
-- Extend capabilities
-
-### Phase M3: Updates
-- Model updates
-- Wrapper updates
-- Security patches
 
 ## Decision Gates
 

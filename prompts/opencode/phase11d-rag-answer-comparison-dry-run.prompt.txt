@@ -1,0 +1,56 @@
+# Phase 11D: RAG Answer Comparison Dry-Run Prompt
+
+You are working in ~/projects/gem.
+
+## Goal
+
+Plan RAG answer comparison dry-run in planning-only mode.
+
+## Hard Boundaries
+
+- Do NOT execute comparison yet
+- Do NOT modify helpers
+- Do NOT modify scripts
+- Do NOT run RAG generation
+- Do NOT write reports outside normal manual locations
+- Do NOT add automation, timers, or daemons
+
+## Context
+
+### Phase 11A Complete
+- Created planning docs: PHASE11_PLAN.md, RUNBOOK.md, RAG_COMPARISON_PLAN.md, STALE_MEMORY_REVIEW_PACKET_TEMPLATE.md
+- Created future prompts (11b-11e)
+
+### Compare Targets
+- Stage 3A (deterministic fallback)
+- Supervised RAG (RuVector)
+
+## Tasks
+
+### Comparison Planning
+
+Plan dry-run for RAG answer comparison:
+
+1. **Select test queries**
+   - Path policy questions
+   - Firewalld questions
+   - Knowledge pack questions
+
+2. **Define manual process**
+   - Run gemma-knowledge-search manually
+   - Run gemma-memory-rag manually
+   - Compare outputs manually
+
+3. **Document process**
+   - Follow RAG_ANSWER_COMPARISON_PLAN.md
+   - Add to planning docs
+
+## Note
+
+Requires explicit `--allow-ollama` in future prompt to execute. This is plan-only.
+
+## Deliverables
+
+- Planning document update
+
+(End of file)
