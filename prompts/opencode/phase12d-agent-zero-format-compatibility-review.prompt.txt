@@ -1,0 +1,55 @@
+Prompt: Phase 12D — Agent Zero Format Compatibility Review
+
+Purpose:
+Review options for resolving Agent Zero's JSON tool-call format incompatibility with local Gemma/Ollama, without modifying Agent Zero code or configuring external API keys by default.
+
+Context:
+- Agent Zero v1.9 expects LLM responses in a specific JSON format with fields: tool_name, thoughts, headline, tool_args.
+- Local Gemma/Ollama returns plain text responses.
+- Agent Zero message_send API returns: {"error": "Tool request must have a tool_name (type string) field"} when Gemma responds with plain text.
+- Agent Zero works with OpenCode bridge (provider "other", base URL http://10.0.2.2:4141/v1) because OpenCode handles the format translation.
+- Direct Ollama from Agent Zero container works for non-Agent-Zero use cases.
+
+Options to Review:
+
+Option 1: OpenCode Bridge (Existing, Working)
+- Provider: "other"
+- Base URL: http://10.0.2.2:4141/v1
+- Status: Already configured and working in Agent Zero
+- Pros: No changes needed, format translation handled by OpenCode
+- Cons: Requires OpenCode to be running, adds dependency
+
+Option 2: External Tool-Calling API Provider
+- Providers: OpenAI, Anthropic, Google Gemini
+- Status: Not configured, requires API key
+- Pros: Native tool-call support, no format issues
+- Cons: Requires external API key, data sent to external service, cost
+- Recommendation: Fallback only, not primary
+
+Option 3: Gemma JSON/Tool-Call System Prompt
+- Approach: Add system prompt to Gemma that forces JSON tool-call format
+- Status: Not tested, may be unreliable
+- Pros: Keeps everything local, no external dependencies
+- Cons: Gemma may not consistently follow JSON format, requires prompt engineering
+- Recommendation: Worth testing in a future sandbox phase
+
+Option 4: Plain-Text Adapter
+- Approach: Modify Agent Zero to accept plain-text responses when no tool is needed
+- Status: Requires code changes to Agent Zero
+- Pros: Would work with any LLM
+- Cons: Modifies Agent Zero internals, may break other features
+- Recommendation: Not recommended without upstream support
+
+Recommendation:
+- **Primary:** Continue using OpenCode bridge (Option 1) for Agent Zero integration
+- **Secondary:** Test Option 3 (Gemma system prompt) in a future sandbox phase
+- **Fallback:** Use Option 2 (external API) only if local options fail and user explicitly approves
+
+Boundaries:
+- Do not modify Agent Zero code in this phase.
+- Do not configure external API keys.
+- Do not expose secrets.
+- This is planning-only. No implementation in this phase.
+
+Note:
+This prompt is for future planning only. Do not make any changes to Agent Zero or configure API keys in this phase.

@@ -1,0 +1,70 @@
+Prompt: Phase 12C1 — Space Agent Manual UI Dry-Run
+
+Purpose:
+Run an explicit, human-approved Space Agent manual UI dry-run. Space Agent may be opened ONLY if it is already installed and the human explicitly approves in this prompt. It must use one approved read-only source document or checklist, produce one manual UI display, not save autonomous tasks, not modify config, not grant repo/host write access, not run OpenCode, not use sudo, not mutate memory, not enable learning/training.
+
+Prerequisites (ALL must be true):
+- [ ] Space Agent is installed (binary, container, or Flatpak)
+- [ ] Space Agent starts successfully
+- [ ] Human has read docs/phase12/PHASE12C_SPACE_AGENT_MANUAL_UI_BRIDGE_REVIEW.md
+- [ ] Human has read docs/phase12/AGENT_ZERO_SPACE_AGENT_BRIDGE_BOUNDARIES.md
+- [ ] Human has read docs/phase12/SPACE_AGENT_MANUAL_UI_PACKET_TEMPLATE.md
+- [ ] Human explicitly approves opening Space Agent in this prompt
+- [ ] Single read-only source document or checklist is identified
+- [ ] Human is available to review output
+- [ ] Human understands stop conditions
+
+Hard Boundaries:
+- Open Space Agent ONLY if it is installed and human explicitly checks the approval box below.
+- Use exactly ONE read-only source document or checklist.
+- Do not modify Space Agent config.
+- Do not edit ~/conf/onscreen-agent.yaml.
+- Do not grant repo write authority.
+- Do not grant host write authority.
+- Do not enable autonomous tasks.
+- Do not run OpenCode prompts autonomously.
+- Do not ingest, index, mutate, or promote memory.
+- Do not enable learning/training.
+- Do not use sudo.
+- Do not modify system/security configs.
+- Do not save any workflow as autonomous task.
+
+Installation Check:
+Before proceeding, verify Space Agent is installed:
+- command -v space-agent
+- command -v onscreen-agent
+- podman ps -a | grep space-agent
+- flatpak list | grep space-agent
+
+If Space Agent is NOT installed, STOP. Do not proceed. Create a closeout doc documenting the blocker.
+
+Manual UI Workflow:
+1. If installed and approved, open Space Agent UI manually (human action).
+2. Load the single approved read-only source document or checklist.
+3. Review the display for boundary compliance.
+4. Capture a summary of what was displayed.
+5. Close Space Agent.
+6. Document results.
+
+Stop Conditions:
+- Space Agent requests file write access.
+- Space Agent requests system commands.
+- Space Agent requests network access.
+- Space Agent requests memory mutation.
+- Space Agent requests learning/training execution.
+- Space Agent attempts to run OpenCode prompts.
+- Output contains suspicious or out-of-bounds recommendations.
+- Human reviewer is not available.
+
+Expected Output:
+- Display summary
+- Boundary compliance table
+- Human review section with reviewer signature
+- Explicit "no execution authorized" section
+- Report saved to ~/offload/security-reports/manual/
+
+Human Approval:
+To proceed, the human must explicitly state: "I approve opening Space Agent for a manual UI dry-run displaying [source document]."
+
+Note:
+This prompt requires explicit human authorization AND Space Agent installation. Do not open Space Agent if it is not installed or without the explicit approval statement above.
