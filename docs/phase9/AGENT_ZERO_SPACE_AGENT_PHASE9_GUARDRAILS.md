@@ -2,7 +2,7 @@
 
 ## Status
 
-Planning-only guardrails.
+Guardrails reviewed (2026-05-02). Agent Zero/Space Agent autonomy remains blocked.
 
 ## Core Rules
 

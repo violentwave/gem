@@ -725,7 +725,8 @@
 **Next Phase Options:**
 - Phase 8B.6: Supervised RuVector Retrieval Helper ⏳ Upcoming
 - Phase 8D.1: Workflow Index Verification ⏳ Future
-- Phase 9: Planning ⏳ Future
+- Phase 9: Planning ✅ Complete (2026-05-02)
+- Phase 10: Controlled Ingestion Dry-Run Planning ⏳ Recommended
 
 **Depends on:** 8B.4E (Gate 5 must pass)
 
@@ -763,7 +764,8 @@
 **Next Phase Options:**
 - Phase 8B.7: Supervised RAG Integration ⏳ Upcoming (optional)
 - Phase 8D.1: Workflow Index Verification ⏳ Future
-- Phase 9: Planning ⏳ Future
+- Phase 9: Planning ✅ Complete (2026-05-02)
+- Phase 10: Controlled Ingestion Dry-Run Planning ⏳ Recommended
 
 **Depends on:** 8B.5
 
@@ -1058,9 +1060,9 @@
 
 **Depends on:** 8B.7
 
-## Phase 9: Controlled Memory / Training Loop Planning ✅ Planned
+## Phase 9: Controlled Memory / Training Loop Planning ✅ Complete
 
-**Phase 9 is planning-only in the current state.** No autonomous learning, ingestion, promotion, daemonization, or wrapper-default changes are authorized here.
+**Phase 9 is complete as of 2026-05-02.** No autonomous learning, ingestion, promotion, daemonization, or wrapper-default changes were implemented.
 
 ### Phase 9A: Helper Source Reproducibility ✅ Planned
 **Goal:** Plan sanitized repo-tracked source templates and user-local install/check flows for `gemma-memory-search` and `gemma-memory-rag`.

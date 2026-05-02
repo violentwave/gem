@@ -220,9 +220,17 @@
 
 ## Next Phase
 
-**Phase 9:** Planning (Memory & Training Loop)
-- After Phase 8B.7A verification
-- Focus on learning integration (not autonomous)
+**Phase 9:** Complete (2026-05-02)
+- Repo-local helper additions (9A, 9B, 9C, 9D)
+- Controlled ingestion planning helpers
+- No ingestion execution
+- Stage 3A fallback preserved
+- RuVector supervised/prototype/secondary
+
+**Phase 10:** Recommended (Controlled Ingestion Dry-Run Planning)
+- Not ingestion execution by default
+- Dry-run manifest validation
+- Human approval workflow
 
 ## Validation
 

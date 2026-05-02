@@ -2,7 +2,7 @@
 
 ## Status
 
-Planning policy only.
+Policy review complete (2026-05-02). Autonomous training remains blocked.
 
 ## Policy Statements
 
