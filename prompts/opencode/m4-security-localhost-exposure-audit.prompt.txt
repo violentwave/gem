@@ -1,0 +1,90 @@
+# M4 — Security Review + Localhost Exposure Audit
+
+## Purpose
+
+Verify security posture and confirm localhost-only exposure monthly.
+
+## Boundaries
+
+- Do not modify firewall rules.
+- Do not change service configs without explicit approval.
+- Do not expose services on LAN.
+- Do not use sudo.
+
+## Steps
+
+1. Run monitors (includes security checks):
+   ```bash
+   gemma-monitor-daily
+   ```
+2. Verify Ollama binding:
+   ```bash
+   ss -tlnp | grep 11434
+   # Expected: 127.0.0.1:11434 only
+   ```
+3. Verify OpenCode bridge binding:
+   ```bash
+   ss -tlnp | grep 4141
+   # Expected: 127.0.0.1:4141 only
+   ```
+4. Check for unexpected listening ports:
+   ```bash
+   ss -tlnp | grep -v 127.0.0.1
+   # Expected: minimal or empty
+   ```
+5. Review Agent Zero boundaries:
+   - Check AGENT_ZERO_BOUNDARIES.md is current
+   - Verify container not running unless needed
+   ```bash
+   podman ps -a | grep agent-zero
+   ```
+6. Check for large logs:
+   ```bash
+   find ~/.local/state/bazzite-security/logs/ -type f -size +100M
+   ```
+7. Review CURRENT_STATE.md security section
+8. Document findings
+9. Update Notion tracker
+
+## Expected Output
+
+- All services bound to localhost
+- No unexpected exposed ports
+- Logs under control
+- Documented findings
+
+## Report Format
+
+```markdown
+## M4 Security Review — YYYY-MM-DD
+
+### Service Bindings
+- Ollama: [binding]
+- OpenCode Bridge: [binding]
+- Other: [list or "none"]
+
+### Exposure Audit
+- LAN exposure: YES/NO
+- Details: [if any]
+
+### Agent Zero
+- Container status: [running/stopped]
+- Boundaries: [current review status]
+
+### Logs
+- Large files: [count]
+
+### Findings
+- [list]
+
+### Next Review
+- Date: [next month]
+```
+
+## Stop Conditions
+
+Stop and escalate if:
+- Any service exposed on LAN
+- Unauthorized ports open
+- Agent Zero running unexpectedly
+- Security boundary violation detected

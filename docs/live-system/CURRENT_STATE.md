@@ -815,7 +815,39 @@
 **Phase 25D:** Phase 25 Closeout (2026-05-02) — COMPLETE
 - Closeout: docs/phase25/PHASE25_OPTIONAL_ADVANCED_MODEL_WORK_REVIEW.md
 - Recommendation: NO CHANGES — current setup is optimal
-- Next: Maintenance phases (M1, M2, ...)
+
+## Maintenance Mode Declaration (2026-05-02)
+
+**Status:** ENTERING MAINTENANCE MODE
+**M0:** Maintenance Roadmap + Tracker Normalization — COMPLETE
+- Closeout: docs/maintenance/M0_MAINTENANCE_ROADMAP_TRACKER_NORMALIZATION.md
+
+### What This Means
+
+- All planned implementation phases (19–25) are complete
+- System is stable and validated
+- No new implementation phases
+- No autonomous operation enabled
+- No timers enabled
+- Periodic manual reviews only (M1–M6)
+
+### Architecture Layers (Unchanged)
+
+| Layer | Role | Status |
+|-------|------|--------|
+| Space Agent | Manual dashboard / UI | Unchanged |
+| Agent Zero | Supervised orchestration / context | Unchanged |
+| OpenCode | Implementation / coding | Unchanged |
+| Gemma / Ollama | Local advisory / RAG | Unchanged |
+
+### Next Maintenance Phase
+
+- **M1:** Weekly Health / Drift Operating Cycle — Ready
+- **M2:** Space Agent Dashboard Operating Cycle — Planned
+- **M3:** Knowledge + Eval Refresh Cycle — Planned
+- **M4:** Security Review + Localhost Exposure Audit — Planned
+- **M5:** Backup / Restore / Release Snapshot Cycle — Planned
+- **M6:** Quarterly Model / Hardware / Architecture Review — Planned
 
 ---
 

@@ -1,0 +1,76 @@
+# M5 — Backup / Restore / Release Snapshot Cycle
+
+## Purpose
+
+Create versioned snapshots and test recovery procedures.
+
+## Boundaries
+
+- Do not delete old bundles without approval.
+- Do not restore bundles to production without testing.
+- Do not expose bundles or logs.
+
+## Steps
+
+1. Create rollback bundle:
+   ```bash
+   gemma-rollback-bundle monthly-$(date +%Y-%m)
+   ```
+2. Test bundle integrity:
+   ```bash
+   gemma-recovery-test
+   ```
+3. Verify latest symlink:
+   ```bash
+   ls -la ~/.local/share/bazzite-security/rollback-bundles/latest.tar.gz
+   ```
+4. Check bundle size:
+   ```bash
+   du -h ~/.local/share/bazzite-security/rollback-bundles/latest.tar.gz
+   ```
+5. If releasing:
+   - Run `gemma-release-tag patch`
+   - Verify evals PASS before tagging
+   - Push tag to origin
+6. Document snapshot:
+   - Date
+   - Bundle path
+   - Size
+   - Test result
+7. Update Notion tracker
+
+## Expected Output
+
+- Rollback bundle file
+- Manifest file
+- Recovery test PASS
+- Release tag (if releasing)
+
+## Report Format
+
+```markdown
+## M5 Backup / Snapshot — YYYY-MM-DD
+
+### Bundle
+- Path: [path]
+- Size: [size]
+- Files: [count]
+
+### Recovery Test
+- Result: PASS/FAIL
+- Details: [if fail]
+
+### Release Tag
+- Tag: [tag or "none"]
+- Commit: [sha]
+
+### Next Snapshot
+- Date: [next month or next release]
+```
+
+## Stop Conditions
+
+Stop if:
+- Recovery test FAILs
+- Bundle corrupted
+- Cannot create bundle

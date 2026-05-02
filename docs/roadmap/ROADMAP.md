@@ -1562,72 +1562,140 @@
 - Dashboard type: Conversational status interface
 - All safety boundaries: MAINTAINED
 
-## Phase 19 — Monitoring / Eval / Security Implementation ⏳ Upcoming
+## Phase 19 — Monitoring / Eval / Security Implementation ✅ COMPLETE
 **Goal:** Create the scripts that generate data for Space Agent.
 
-- **19A:** Create gemma-monitor-daily
-- **19B:** Create gemma-monitor-weekly
-- **19C:** Create gemma-monitor-drift
-- **19D:** Create shared monitor library
-- **19E:** Generate first Space Agent dashboard packet
-- **19F:** Phase 19 closeout
+- **19A:** Create gemma-monitor-daily ✅
+- **19B:** Create gemma-monitor-weekly ✅
+- **19C:** Create gemma-monitor-drift ✅
+- **19D:** Create shared monitor library ✅
+- **19E:** Generate first Space Agent dashboard packet ✅
+- **19F:** Phase 19 closeout ✅
 
-## Phase 20 — Knowledge Pack Expansion Implementation ⏳ Upcoming
+## Phase 20 — Knowledge Pack Expansion Implementation ✅ COMPLETE
 **Goal:** Add new knowledge docs and re-index.
 
-- **20A:** Write TROUBLESHOOTING.md
-- **20B:** Write ROLLBACK_PROCEDURES.md
-- **20C:** Write AGENT_ZERO_BOUNDARIES.md
-- **20D:** Write NOTION_SYNC_GUIDE.md
-- **20E:** Re-index knowledge pack with improved chunking
-- **20F:** Phase 20 closeout
+- **20A:** Write TROUBLESHOOTING.md ✅
+- **20B:** Write ROLLBACK_PROCEDURES.md ✅
+- **20C:** Write AGENT_ZERO_BOUNDARIES.md ✅
+- **20D:** Write NOTION_SYNC_GUIDE.md ✅
+- **20E:** Re-index knowledge pack with improved chunking ✅
+- **20F:** Phase 20 closeout ✅
 
-## Phase 21 — Retrieval Quality Upgrade ⏳ Upcoming
+## Phase 21 — Retrieval Quality Upgrade ✅ COMPLETE
 **Goal:** Improve Stage 3A and RuVector retrieval quality.
 
-- **21A:** Implement improved chunking strategy
-- **21B:** Add cross-reference metadata
-- **21C:** Evaluate retrieval quality against baseline
-- **21D:** Phase 21 closeout
+- **21A:** Implement improved chunking strategy ✅
+- **21B:** Add cross-reference metadata ✅
+- **21C:** Evaluate retrieval quality against baseline ✅
+- **21D:** Phase 21 closeout ✅
 
-## Phase 22 — Agent Zero + Space Agent Operator Workflow Catalog ⏳ Upcoming
+## Phase 22 — Agent Zero + Space Agent Operator Workflow Catalog ✅ COMPLETE
 **Goal:** Document all manual workflows for the operator.
 
-- **22A:** Catalog all manual workflows
-- **22B:** Define workflow trigger conditions
-- **22C:** Create workflow decision tree
-- **22D:** Phase 22 closeout
+- **22A:** Catalog all manual workflows ✅
+- **22B:** Define workflow trigger conditions ✅
+- **22C:** Create workflow decision tree ✅
+- **22D:** Phase 22 closeout ✅
 
-## Phase 23 — Controlled Learning Loop v1 ⏳ Upcoming
+## Phase 23 — Controlled Learning Loop v1 ✅ COMPLETE
 **Goal:** Design v1 of supervised learning with human approval.
 
-- **23A:** Learning ledger schema
-- **23B:** Example approval workflow
-- **23C:** Eval-driven feedback loop
-- **23D:** Phase 23 closeout
+- **23A:** Learning ledger schema ✅
+- **23B:** Example approval workflow ✅
+- **23C:** Eval-driven feedback loop ✅
+- **23D:** Phase 23 closeout ✅
 
-## Phase 24 — Release / Recovery / Migration Discipline ⏳ Upcoming
+## Phase 24 — Release / Recovery / Migration Discipline ✅ COMPLETE
 **Goal:** Implement release process and rollback procedures.
 
-- **24A:** Release tagging workflow
-- **24B:** Rollback bundle creation
-- **24C:** Recovery testing
-- **24D:** Phase 24 closeout
+- **24A:** Release tagging workflow ✅
+- **24B:** Rollback bundle creation ✅
+- **24C:** Recovery testing ✅
+- **24D:** Phase 24 closeout ✅
 
-## Phase 25 — Optional Advanced Model Work Review ⏳ Upcoming
+## Phase 25 — Optional Advanced Model Work Review ✅ COMPLETE
 **Goal:** Review advanced model options (future, not urgent).
 
-- **25A:** Model comparison (Gemma vs alternatives)
-- **25B:** Hardware upgrade assessment
-- **25C:** Cloud vs local tradeoffs
-- **25D:** Phase 25 closeout
+- **25A:** Model comparison (Gemma vs alternatives) ✅
+- **25B:** Hardware upgrade assessment ✅
+- **25C:** Cloud vs local tradeoffs ✅
+- **25D:** Phase 25 closeout ✅
+
+## Maintenance Mode
+
+**Status:** ACTIVE (entered 2026-05-02)
+**M0:** Maintenance Roadmap + Tracker Normalization ✅ COMPLETE
+
+All implementation phases complete. System is in maintenance mode with periodic manual reviews.
 
 ## Maintenance Phases
 
-### Phase M1: Health Monitoring
-- Periodic `gemma-evals-status` runs
-- Validator checks
-- Drift detection
+### M1 — Weekly Health / Drift Operating Cycle ⏳ Ready
+**Cadence:** Weekly
+**Backend:** OpenCode
+**Execution Mode:** Manual review
+**Risk Level:** Low
+
+- Run `gemma-monitor-daily`
+- Run `gemma-monitor-drift`
+- Review results
+- Update Notion tracker
+
+### M2 — Space Agent Dashboard Operating Cycle ⏳ Planned
+**Cadence:** Weekly
+**Backend:** OpenCode / Space Agent
+**Execution Mode:** Manual review
+**Risk Level:** Low
+
+- Generate dashboard packet
+- Launch Space Agent
+- Paste packet and review with Gemma
+- Document action items
+
+### M3 — Knowledge + Eval Refresh Cycle ⏳ Planned
+**Cadence:** Monthly
+**Backend:** OpenCode / Gemma
+**Execution Mode:** Manual review
+**Risk Level:** Medium
+
+- Review knowledge pack docs for staleness
+- Update docs if needed
+- Re-index if changed
+- Run eval validators
+
+### M4 — Security Review + Localhost Exposure Audit ⏳ Planned
+**Cadence:** Monthly
+**Backend:** OpenCode
+**Execution Mode:** Manual review
+**Risk Level:** Medium
+
+- Verify Ollama bound to 127.0.0.1
+- Verify OpenCode bridge bound to 127.0.0.1
+- Check for unexpected listening ports
+- Review Agent Zero boundaries
+
+### M5 — Backup / Restore / Release Snapshot Cycle ⏳ Planned
+**Cadence:** Per-release
+**Backend:** OpenCode
+**Execution Mode:** Docs-only
+**Risk Level:** Medium
+
+- Create rollback bundle
+- Test bundle integrity
+- Tag release if needed
+- Document release notes
+
+### M6 — Quarterly Model / Hardware / Architecture Review ⏳ Planned
+**Cadence:** Quarterly
+**Backend:** OpenCode / Gemma
+**Execution Mode:** Docs-only
+**Risk Level:** Low
+
+- Review Phase 25 docs
+- Check if Gemma 4 still sufficient
+- Check GPU status
+- Revisit cloud vs local decision
 
 ## Decision Gates
 

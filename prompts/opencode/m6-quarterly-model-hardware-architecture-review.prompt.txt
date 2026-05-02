@@ -1,0 +1,83 @@
+# M6 — Quarterly Model / Hardware / Architecture Review
+
+## Purpose
+
+Revisit model, hardware, and architecture decisions quarterly.
+
+## Boundaries
+
+- Do not pull new models without approval.
+- Do not change hardware without approval.
+- Do not migrate to cloud without approval.
+- Do not train or fine-tune.
+
+## Steps
+
+1. Review Phase 25 docs:
+   - docs/phase25/PHASE25A_MODEL_COMPARISON.md
+   - docs/phase25/PHASE25B_HARDWARE_UPGRADE_ASSESSMENT.md
+   - docs/phase25/PHASE25C_CLOUD_VS_LOCAL_TRADEOFFS.md
+2. Check if new models available:
+   ```bash
+   ollama list
+   # Check if newer Gemma versions available
+   ```
+3. Check GPU status:
+   ```bash
+   nvidia-smi
+   # Note memory usage, temperature, driver version
+   ```
+4. Review system performance:
+   - Inference speed adequate?
+   - Memory usage reasonable?
+   - Any performance degradation?
+5. Check if cloud offerings improved:
+   - Any new local-capable models?
+   - Any pricing changes?
+   - Any privacy improvements?
+6. Document findings:
+   - Current state still optimal?
+   - Any changes needed?
+   - If changes needed: create proposal doc
+7. Update CURRENT_STATE.md
+8. Update Notion tracker
+
+## Expected Output
+
+- Review document
+- Decision: continue current setup or propose changes
+- Updated CURRENT_STATE.md
+
+## Report Format
+
+```markdown
+## M6 Quarterly Review — YYYY-MM-DD
+
+### Model
+- Current: gemma4-e4b-bazzite
+- Status: [adequate / needs upgrade]
+- Notes: [any new models considered]
+
+### Hardware
+- GPU: GTX 1060 6GB
+- Status: [adequate / needs upgrade]
+- Notes: [performance observations]
+
+### Architecture
+- Current: Local-only
+- Status: [optimal / reconsider]
+- Notes: [cloud/hybrid considerations]
+
+### Decision
+- [Continue current setup / Propose changes]
+
+### Next Review
+- Date: [next quarter]
+```
+
+## Stop Conditions
+
+Stop if:
+- Hardware failure detected
+- Model producing dangerous outputs
+- Security vulnerability discovered
