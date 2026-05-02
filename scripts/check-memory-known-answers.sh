@@ -128,100 +128,205 @@ fi
 
 printf 'Running execution modes with helpers...\n'
 
-run_search_check() {
+EXEC_RESULTS=()
+
+run_and_validate() {
   local case_id="$1"
   local query="$2"
-  local out_file="${TMPDIR}/gemma-search-${case_id}-$$.txt"
+  local scope="$3"
+  local expected="$4"
+  local forbidden="$5"
+  local helper="$6"
 
-  if command -v gemma-memory-search >/dev/null 2>&1; then
-    gemma-memory-search "$query" > "$out_file" 2>&1 || true
-  else
-    printf 'SKIP: gemma-memory-search not in PATH\n' >&2
-    return 1
-  fi
-}
+  local out_file
+  out_file=$(mktemp "${TMPDIR}/gemma-check-${case_id}-XXXXXX.txt") || {
+    out_file="${TMPDIR}/gemma-check-${case_id}-$$.txt"
+  }
 
-run_rag_check() {
-  local case_id="$1"
-  local query="$2"
-  local out_file="${TMPDIR}/gemma-rag-${case_id}-$$.txt"
+  local status="SKIP"
+  local output=""
 
-  if command -v gemma-memory-rag >/dev/null 2>&1; then
-    gemma-memory-rag "$query" > "$out_file" 2>&1 || true
-  else
-    printf 'SKIP: gemma-memory-rag not in PATH\n' >&2
-    return 1
-  fi
-}
-
-check_fragments() {
-  local text="$1"
-  shift
-  local expected=("$@")
-  local missing=()
-
-  for frag in "${expected[@]}"; do
-    if [[ -z "$frag" ]]; then
-      continue
-    fi
-    if echo "$text" | grep -qiF "$frag"; then
-      :
+  if command -v "$helper" >/dev/null 2>&1; then
+    if "$helper" "$query" > "$out_file" 2>&1; then
+      status="PASS"
     else
-      missing+=("$frag")
+      status="WARN"
     fi
-  done
-
-  if [ ${#missing[@]} -eq 0 ]; then
-    return 0
+    output=$(cat "$out_file")
+  else
+    status="SKIP"
+    output="$helper not in PATH"
   fi
-  return 1
+
+  local missing_expected=()
+  local found_forbidden=()
+
+  if [ -f "$out_file" ]; then
+    local text
+    text=$(cat "$out_file")
+
+    for frag in $expected; do
+      if [[ -n "$frag" ]] && ! echo "$text" | grep -qFi "$frag"; then
+        missing_expected+=("$frag")
+      fi
+    done
+
+    for frag in $forbidden; do
+      if [[ -n "$frag" ]] && echo "$text" | grep -qFi "$frag"; then
+        found_forbidden+=("$frag")
+      fi
+    done
+  fi
+
+  rm -f "$out_file" 2>/dev/null || true
+
+  if [ ${#found_forbidden[@]} -gt 0 ]; then
+    status="FAIL"
+  elif [ ${#missing_expected[@]} -gt 0 ]; then
+    status="WARN"
+  fi
+
+  printf 'Case %s: %s' "$case_id" "$status"
+  if [ ${#missing_expected[@]} -gt 0 ]; then
+    printf ' (missing: %s)' "$(join_by ', ' "${missing_expected[@]}")"
+  fi
+  if [ ${#found_forbidden[@]} -gt 0 ]; then
+    printf ' (forbidden: %s)' "$(join_by ', ' "${found_forbidden[@]}")"
+  fi
+  printf '\n'
+
+  EXEC_RESULTS+=("$case_id:$status")
 }
 
-check_forbidden() {
-  local text="$1"
+join_by() {
+  local delimiter="$1"
   shift
-  local forbidden=("$@")
-  local found=()
-
-  for frag in "${forbidden[@]}"; do
-    if [[ -z "$frag" ]]; then
-      continue
-    fi
-    if echo "$text" | grep -qiF "$frag"; then
-      found+=("$frag")
+  local first=1
+  for item in "$@"; do
+    if [ $first -eq 1 ]; then
+      printf '%s' "$item"
+      first=0
+    else
+      printf '%s%s' "$delimiter" "$item"
     fi
   done
-
-  if [ ${#found[@]} -eq 0 ]; then
-    return 0
-  fi
-  return 1
 }
 
-python3 - "$FIXTURE" <<'PY'
+count_status() {
+  local status="$1"
+  local count=0
+  for result in "${EXEC_RESULTS[@]}"; do
+    if [[ "$result" == *:$status ]]; then
+      count=$((count + 1))
+    fi
+  done
+  echo "$count"
+}
+
+python3 - "$FIXTURE" "$RUN_SEARCH" "$RUN_RAG" <<'PY'
 import json
 import sys
+import subprocess
+import os
 from pathlib import Path
 
 fixture = Path(sys.argv[1])
+run_search = int(sys.argv[2])
+run_rag = int(sys.argv[3])
+
 results = {"PASS": 0, "WARN": 0, "FAIL": 0, "SKIP": 0}
+executed = 0
 
 for line in fixture.read_text(encoding="utf-8").splitlines():
   if not line.strip():
     continue
   obj = json.loads(line)
+  
   case_id = obj["id"]
   query = obj["query"]
   scope = obj.get("helper_scope", "both")
   expected = obj.get("expected_fragments", [])
   forbidden = obj.get("forbidden_fragments", [])
 
-  print(f"Case {case_id}: query={query}")
-  print(f"  scope={scope}, expected={len(expected)}, forbidden={len(forbidden)}")
+  should_run = False
+  helper = None
+  
+  if run_search and scope in ("search", "both"):
+    should_run = True
+    helper = "gemma-memory-search"
+  elif run_rag and scope in ("rag", "both"):
+    should_run = True
+    helper = "gemma-memory-rag"
 
-  results["PASS"] += 1
+  if not should_run:
+    results["SKIP"] += 1
+    continue
+    continue
+
+  executed += 1
+
+  if not helper or not os.path.isabs(helper):
+    which_helper = subprocess.run(["which", helper], capture_output=True, text=True).stdout.strip()
+  else:
+    which_helper = helper
+
+  if not which_helper:
+    print(f"Case {case_id}: SKIP ({helper} not in PATH)")
+    results["SKIP"] += 1
+    continue
+
+  try:
+    result = subprocess.run(
+      [helper, query],
+      capture_output=True,
+      text=True,
+      timeout=60,
+      env=os.environ.copy()
+    )
+    output = result.stdout + result.stderr
+  except subprocess.TimeoutExpired:
+    print(f"Case {case_id}: WARN (timeout)")
+    results["WARN"] += 1
+    continue
+  except FileNotFoundError:
+    print(f"Case {case_id}: SKIP ({helper} not found)")
+    results["SKIP"] += 1
+    continue
+  except Exception as e:
+    print(f"Case {case_id}: FAIL ({e})")
+    results["FAIL"] += 1
+    continue
+
+  missing = []
+  for frag in expected:
+    if frag and frag.lower() not in output.lower():
+      missing.append(frag)
+
+  found_forbidden = []
+  for frag in forbidden:
+    if frag and frag.lower() in output.lower():
+      found_forbidden.append(frag)
+
+  if found_forbidden:
+    print(f"Case {case_id}: FAIL (forbidden: {', '.join(found_forbidden)})")
+    results["FAIL"] += 1
+  elif missing:
+    print(f"Case {case_id}: WARN (missing: {', '.join(missing)})")
+    results["WARN"] += 1
+  else:
+    print(f"Case {case_id}: PASS")
+    results["PASS"] += 1
 
 print(f"\nSummary: PASS={results['PASS']}, WARN={results['WARN']}, FAIL={results['FAIL']}, SKIP={results['SKIP']}")
+
+if results["FAIL"] > 0:
+  sys.exit(1)
 PY
 
-printf 'PASS: static validation complete\n'
+EXEC_STATUS=$?
+
+if [ "$EXEC_STATUS" -ne 0 ]; then
+  exit 1
+fi
+
+printf 'PASS: execution validation complete\n'

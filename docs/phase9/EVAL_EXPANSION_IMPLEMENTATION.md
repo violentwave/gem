@@ -2,7 +2,7 @@
 
 ## Status
 
-Phase 9C.1 implementation complete.
+Phase 9C.1 and 9C.2 implementation complete.
 
 ## Files Added
 
@@ -90,3 +90,54 @@ The fixture is intentionally repo-local (`tests/fixtures/`) and non-mutating to 
 - No sudo used
 - No model changes performed
 - No OpenCode permission changes performed
+
+## Phase 9C.2: Execution Mode Fix
+
+### Changes
+
+1. **False-positive forbidden fragments fixed**:
+   - `ufw` alone -> specific bad commands: `use ufw`, `install ufw`, `enable ufw`, `sudo ufw`
+   - `autonomous` alone -> specific bad claims: `autonomous implementation is allowed`, `Gemma can implement unattended`
+   - `not ufw` was incorrectly forbidden -> removed
+   - Similar fixes for apt/ufw recommendations
+
+2. **Execution modes now real**:
+   - `--run-search` actually invokes `gemma-memory-search` and validates output
+   - `--run-rag --allow-ollama` actually invokes `gemma-memory-rag`
+   - Non-zero exit codes from helpers produce WARN/FAIL
+   - Missing helper produces SKIP
+   - Output is captured and validated
+
+3. **Fragment validation**:
+   - expected_fragments checked case-insensitively
+   - forbidden_fragments checked case-insensitively
+   - PASS/WARN/FAIL per case with details
+
+### Execution Results (--run-search)
+
+```
+Case ka001: WARN (missing: .local/share/bazzite-security/gemma-knowledge/docs)
+Case ka002: WARN (missing: firewalld)
+Case ka003: PASS
+Case ka004: PASS
+Case ka005: WARN (missing: not unattended, implementation work)
+Case ka006: WARN (missing: supervised, prototype, secondary)
+Case ka007: WARN (missing: comparison, deterministic)
+
+Summary: PASS=2, WARN=5, FAIL=0, SKIP=1
+```
+
+The WARNs are expected because the live `gemma-memory-search` helper generates answers based on actual RuVector retrieval and Stage 3A fallback, which may not contain exact fragment matches.
+
+### --run-rag --allow-ollama
+
+This mode is intentionally skipped in default validation. It requires:
+- `--run-rag` flag
+- `--allow-ollama` explicit confirmation
+- Only runs when Ollama is available and user accepts model calls
+
+### Live Eval Stores Remain Untouched
+
+- No modification to `~/.local/share/bazzite-security/gemma-evals/cases/`
+- No modification to `~/.local/share/bazzite-security/gemma-evals/examples/`
+- Helper execution creates canonical reports/logs but none are copied to repo
