@@ -1732,6 +1732,46 @@ All implementation phases complete. System is in maintenance mode with periodic 
 - Safety mechanisms proven
 - User override tested
 
+## Maintenance Phases
+
+### M0: Maintenance Roadmap + Tracker Normalization ✅ Complete (2026-05-02)
+- Closeout: `docs/maintenance/M0_MAINTENANCE_ROADMAP_TRACKER_NORMALIZATION.md`
+
+### M1: Weekly Health / Drift Operating Cycle ✅ Complete (2026-05-02)
+- Daily monitor: 11/11 PASS
+- Drift monitor: 6/8 PASS, 2 WARN expected
+- Next: 2026-05-09
+
+### M2–M6: Combined Operating Cycles ✅ Complete (2026-05-02)
+- M2 Dashboard: PASS
+- M3 Knowledge: PASS (0 stale docs)
+- M4 Security: PASS (all localhost-only)
+- M5 Backup: PASS (bundle created, recovery tested)
+- M6 Quarterly: PASS (NO CHANGES recommended)
+- Report: `~/offload/security-reports/manual/m2-m6-combined-2026-05-02.md`
+
+### M7: Controlled Training Readiness Review ✅ Complete (2026-05-02)
+- **Training Readiness:** NOT READY
+- **Fine-tuning:** DEFERRED
+- **Hugging Face Datasets:** REVIEW-ONLY
+- **RAG:** PREFERRED
+- **Examples:** 32 (insufficient for training)
+- **Eval Cases:** 25 (insufficient for training)
+- **Gates Met:** 1/7
+- **Artifacts:**
+  - `docs/maintenance/M7_CONTROLLED_TRAINING_READINESS_REVIEW.md`
+  - `docs/maintenance/TRAINING_DATASET_READINESS_CHECKLIST.md`
+  - `docs/maintenance/HUGGINGFACE_DATASET_VETTING_POLICY.md`
+  - `docs/maintenance/RAG_VS_LORA_RECHECK_MATRIX.md`
+
+### M8: External Dataset Vetting (Hugging Face Review) ⏳ Planned
+- **Purpose:** Review HF dataset candidates without downloading or training
+- **Status:** PLANNED (prompt ready)
+- **Prompt:** `prompts/opencode/m8-external-dataset-vetting-huggingface-review.prompt.txt`
+- **Trigger:** Human identifies dataset candidates or approves M8 execution
+
+---
+
 ## Validation Commands
 
 ```bash

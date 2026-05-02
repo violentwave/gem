@@ -878,12 +878,37 @@
 
 ---
 
+## M7 — Controlled Training Readiness Review (2026-05-02) — COMPLETE
+
+- **Training Readiness:** NOT READY
+- **Fine-tuning (LoRA/QLoRA):** DEFERRED indefinitely
+- **SFT:** BLOCKED (dataset insufficient)
+- **Hugging Face Datasets:** REVIEW-ONLY (no download by default, no training)
+- **RAG:** Remains PREFERRED canonical approach
+- **Examples:** 32 (21 generation-suitable)
+- **Eval Cases:** 25 (all passing)
+- **Drafts:** 0
+- **Dataset Gates Met:** 1/7 (Gate 2: quality only)
+- **Hardware:** GTX 1060 6GB — insufficient for practical training
+- **Phase 14 Recap:** RAG preferred, LoRA deferred (hardware + dataset blockers)
+- **Phase 25 Recap:** NO CHANGES, current setup optimal
+- **Artifacts:**
+  - `docs/maintenance/M7_CONTROLLED_TRAINING_READINESS_REVIEW.md`
+  - `docs/maintenance/TRAINING_DATASET_READINESS_CHECKLIST.md`
+  - `docs/maintenance/HUGGINGFACE_DATASET_VETTING_POLICY.md`
+  - `docs/maintenance/RAG_VS_LORA_RECHECK_MATRIX.md`
+  - `prompts/opencode/m8-external-dataset-vetting-huggingface-review.prompt.txt`
+- **Next M7 Recheck:** 2026-08-02 (M6) or on hardware/dataset change
+- **M8 (if continuing training track):** External Dataset Vetting — PLANNED
+
+---
+
 ## Validation
 
 Run these to verify current state:
 ```bash
-gemma-examples-check  # Should PASS
-gemma-evals-check     # Should PASS
+gemma-examples-check  # Should PASS (32 examples)
+gemma-evals-check     # Should PASS (25 cases)
 gemma-evals-status   # Should PASS
-gemma-examples-review-drafts  # Should PASS
+gemma-examples-review-drafts  # Should PASS (0 drafts)
 ```
