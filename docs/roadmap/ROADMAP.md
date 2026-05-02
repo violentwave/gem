@@ -1322,9 +1322,17 @@
 - Agent Zero stop: SUCCESS
 - No secrets exposed
 
+**Phase 12G:** Agent Zero Timeout Review + Direct Bridge Briefing Fallback ✅ Complete (2026-05-02)
+- Closeout: `docs/phase12/PHASE12G_AGENT_ZERO_TIMEOUT_REVIEW_DIRECT_BRIDGE_FALLBACK.md`
+- Timeout cause: bridge 60s timeout < OpenCode response time
+- Safe timeout knob: NOT FOUND
+- Direct bridge briefing: SUCCESS
+- Briefing report: `~/offload/security-reports/manual/phase12g-direct-opencode-bridge-briefing-20260502-065102.md`
+- Agent Zero stopped after test
+- No secrets exposed
+
 **Future Phases:**
 - Phase 12C1: Space Agent Manual UI Dry-Run ⏳ BLOCKED (requires Space Agent installation + explicit prompt)
-- Phase 12G: Agent Zero Timeout Tuning or Direct Bridge Briefing ⏳ Upcoming
 - Phase 12H: Phase 12 Bridge Readiness Closeout ⏳ Upcoming
 - Phase 11RV: Official VectorDB API Prototype Review ⏳ Future (optional)
 - Phase 13 — Curated Learning Examples Expansion (future controlled learning feasibility)

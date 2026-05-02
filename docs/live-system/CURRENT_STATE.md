@@ -365,6 +365,23 @@
 - Boundary compliance: PASS
 - Next: Phase 12G (timeout tuning) or Phase 12H (closeout) or Phase 13
 
+**Phase 12G:** Agent Zero Timeout Review + Direct Bridge Briefing Fallback (2026-05-02) — COMPLETE
+- Closeout: docs/phase12/PHASE12G_AGENT_ZERO_TIMEOUT_REVIEW_DIRECT_BRIDGE_FALLBACK.md
+- Timeout cause: bridge 60s timeout < OpenCode response time for complex prompts
+- Safe timeout knob: NOT FOUND (Agent Zero config has no timeout field)
+- Agent Zero config modified: NO
+- Bridge config modified: NO
+- Bridge status: WORKING (127.0.0.1:4141)
+- Agent Zero start: SUCCESS
+- Agent Zero host health: WORKING (v1.9)
+- Container bridge route: WORKING
+- Direct bridge briefing: SUCCESS (simple prompt)
+- Briefing report: ~/offload/security-reports/manual/phase12g-direct-opencode-bridge-briefing-20260502-065102.md
+- Agent Zero stop: SUCCESS
+- No secrets exposed
+- Boundary compliance: PASS
+- Next: Phase 12H (Bridge Readiness Closeout)
+
 ---
 
 ## Validation
