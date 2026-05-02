@@ -6,10 +6,11 @@ Runs lightweight known-answer and retrieval-quality checks for supervised memory
 This helper is manual-run only. No daemon, no timer, no automation.
 
 Usage:
-    gemma-memory-quality-check --static-only         # Validate fixture only
-    gemma-memory-quality-check --run-search      # Run search helper checks
-    gemma-memory-quality-check --run-rag --allow-ollama  # Run RAG helper checks (requires explicit --allow-ollama)
-    gemma-memory-quality-check --all --allow-ollama    # Run all checks (search + RAG)
+    gemma-memory-quality-check                 # Default: static-only validation
+    gemma-memory-quality-check --static-only  # Validate fixture only
+    gemma-memory-quality-check --run-search    # Run search helper checks
+    gemma-memory-quality-check --run-rag --allow-ollama  # Run RAG helper checks
+    gemma-memory-quality-check --all --allow-ollama    # Run all checks
 """
 
 from __future__ import annotations
@@ -80,7 +81,8 @@ def load_fixture(path: Path) -> list[dict[str, Any]]:
     return cases
 
 
-def run_search_check(query: str) -> tuple[str, bool]:
+def run_search_check(query: str) -> tuple[str, bool, bool]:
+    """Returns (output, is_error, is_missing)."""
     try:
         result = subprocess.run(
             ["gemma-memory-search", query],
@@ -89,16 +91,18 @@ def run_search_check(query: str) -> tuple[str, bool]:
             timeout=60,
         )
         output = result.stdout + result.stderr
-        return output, result.returncode != 0
+        is_error = result.returncode != 0
+        return output, is_error, False
     except FileNotFoundError:
-        return "gemma-memory-search not in PATH", True
+        return "gemma-memory-search not in PATH", True, True
     except subprocess.TimeoutExpired:
-        return "gemma-memory-search timeout", True
+        return "gemma-memory-search timeout", True, False
     except Exception as e:
-        return f"error: {e}", True
+        return f"error: {e}", True, False
 
 
-def run_rag_check(query: str) -> tuple[str, bool]:
+def run_rag_check(query: str) -> tuple[str, bool, bool]:
+    """Returns (output, is_error, is_missing)."""
     try:
         result = subprocess.run(
             ["gemma-memory-rag", query],
@@ -107,13 +111,14 @@ def run_rag_check(query: str) -> tuple[str, bool]:
             timeout=120,
         )
         output = result.stdout + result.stderr
-        return output, result.returncode != 0
+        is_error = result.returncode != 0
+        return output, is_error, False
     except FileNotFoundError:
-        return "gemma-memory-rag not in PATH", True
+        return "gemma-memory-rag not in PATH", True, True
     except subprocess.TimeoutExpired:
-        return "gemma-memory-rag timeout", True
+        return "gemma-memory-rag timeout", True, False
     except Exception as e:
-        return f"error: {e}", True
+        return f"error: {e}", True, False
 
 
 def validate_case(
@@ -131,20 +136,41 @@ def validate_case(
         "status": "SKIP",
         "expected_missing": [],
         "forbidden_found": [],
+        "execution_error": None,
         "note": "",
     }
     
     should_skip = True
+    execution_failed = False
+    helper_missing = False
     
     if run_search and scope in ("search", "both"):
         should_skip = False
-        output, is_error = run_search_check(query)
+        output, is_error, is_missing = run_search_check(query)
         result["search_output"] = output[:500] if len(output) > 500 else output
+        if is_error:
+            execution_failed = True
+            result["execution_error"] = output[:100]
+        if is_missing:
+            helper_missing = True
+            result["execution_error"] = "gemma-memory-search not in PATH"
     
     if run_rag and scope in ("rag", "both"):
         should_skip = False
-        output, is_error = run_rag_check(query)
+        output, is_error, is_missing = run_rag_check(query)
         result["rag_output"] = output[:500] if len(output) > 500 else output
+        if is_error:
+            execution_failed = True
+            if result.get("execution_error"):
+                result["execution_error"] += "; " + output[:100]
+            else:
+                result["execution_error"] = output[:100]
+        if is_missing:
+            helper_missing = True
+            if result.get("execution_error"):
+                result["execution_error"] += "; gemma-memory-rag not in PATH"
+            else:
+                result["execution_error"] = "gemma-memory-rag not in PATH"
     
     if should_skip:
         result["status"] = "SKIP"
@@ -168,6 +194,12 @@ def validate_case(
         result["status"] = "FAIL"
         result["forbidden_found"] = found
         result["note"] = f"forbidden fragments: {', '.join(found)}"
+    elif helper_missing:
+        result["status"] = "WARN"
+        result["note"] = f"helper not found: {result.get('execution_error', 'unknown')}"
+    elif execution_failed:
+        result["status"] = "WARN"
+        result["note"] = f"helper error: {result.get('execution_error', 'non-zero exit')}"
     elif missing:
         result["status"] = "WARN"
         result["expected_missing"] = missing
@@ -216,7 +248,10 @@ def write_report(
     ]
     
     for r in results:
-        lines.append(f"| {r.get('id', '?')} | {r.get('status', '?')} | {r.get('note', '')[:60]}... |")
+        note = r.get("note", "")
+        if len(note) > 50:
+            note = note[:50] + "..."
+        lines.append(f"| {r.get('id', '?')} | {r.get('status', '?')} | {note} |")
     
     lines.extend([
         "",
@@ -279,8 +314,13 @@ def main() -> int:
         print("ERROR: --run-rag requires --allow-ollama", file=sys.stderr)
         return 1
     
+    run_static = args.static_only
     run_search = args.run_search or args.all
     run_rag = args.run_rag or args.all
+    
+    # Default to static-only if no mode flags provided
+    if not run_static and not run_search and not run_rag:
+        run_static = True
     
     mode = "static-only"
     if run_search and run_rag:
@@ -292,7 +332,7 @@ def main() -> int:
     
     log(f"=== gemma-memory-quality-check ({mode}) ===")
     
-    if args.static_only:
+    if run_static:
         mode = "static-only"
         log("Static-only mode: validating fixture only")
         cases = load_fixture(FIXTURE_PATH)

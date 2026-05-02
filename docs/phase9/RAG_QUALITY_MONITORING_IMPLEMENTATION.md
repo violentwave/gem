@@ -2,7 +2,7 @@
 
 ## Status
 
-Phase 9D implementation complete.
+Phase 9D and 9D.1 implementation complete.
 
 ## Files Added
 
@@ -83,3 +83,26 @@ Report includes:
 - Helper is repo-local only
 - No system changes
 - Existing Gemma validators pass
+
+## Phase 9D.1: Mode Fix
+
+### Changes
+
+1. **Wrapper fixed**:
+   - Now defaults to `--static-only` only when called with **no arguments**
+   - Passes arguments through when provided: `./check-gemma-memory-quality.sh --run-search` -> runs search mode
+
+2. **Helper default mode fixed**:
+   - Now defaults to `--static-only` when called with **no arguments**
+   - These three are now equivalent:
+     - `helpers/gemma-memory-quality-check`
+     - `helpers/gemma-memory-quality-check --static-only`
+     - `./scripts/check-gemma-memory-quality.sh`
+
+3. **Execution status handling improved**:
+   - Helper missing: marks case **WARN** (not PASS)
+   - Helper exits non-zero: marks case **WARN** (unless forbidden fragments found)
+   - Helper timeout: marks case **WARN**
+   - Missing expected fragments: marks case **WARN** (not FAIL)
+   - Forbidden fragments: marks case **FAIL**
+   - PASS only when all expected found, no forbidden, and helper ran successfully

@@ -10,4 +10,8 @@ if [ ! -f "$HELPER" ]; then
   exit 1
 fi
 
-exec "$HELPER" --static-only "$@"
+if [ $# -eq 0 ]; then
+  exec "$HELPER" --static-only
+else
+  exec "$HELPER" "$@"
+fi
