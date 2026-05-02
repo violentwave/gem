@@ -329,7 +329,28 @@
 - No config modified
 - No secrets exposed
 - Boundary compliance: PASS
-- Next: Phase 13 (Curated Learning Examples) or Space Agent installation
+
+**Phase 12E-FIX:** OpenCode Bridge Localhost Hardening (2026-05-02) — COMPLETE
+- Bridge hardened to 127.0.0.1:4141
+- Wrong opencode serve web UI process cleaned from port 4141
+- Bridge helper scripts verified: opencode-bridge-up/down/status
+- Bridge config backup: ~/.config/opencode-bridge/config.json.backup-20260502-060158
+- Agent Zero stopped, not started for message_send (bridge not reachable from container yet)
+- Boundary compliance: PASS
+
+**Phase 12E2:** Agent Zero Loopback Bridge Reachability Fix (2026-05-02) — COMPLETE
+- Closeout: docs/phase12/PHASE12E2_AGENT_ZERO_LOOPBACK_BRIDGE_REACHABILITY_FIX.md
+- Helper already correct: agent-zero-up uses --network slirp4netns:allow_host_loopback=true
+- Helper backup: ~/.local/bin/agent-zero-up.backup-20260502-060158
+- Bridge bind: 127.0.0.1:4141 (not 0.0.0.0)
+- Container bridge route: WORKING (10.0.2.2:4141 reachable)
+- Agent Zero UI/API health: WORKING (v1.9)
+- One-message test: PASSED (safe read-only response)
+- Bridge session stale: CLEARED (backup: ~/.local/share/opencode-bridge/session.json.backup-20260502-060745)
+- Agent Zero stopped after test
+- No secrets exposed
+- Boundary compliance: PASS
+- Next: Phase 12F (Agent Zero OpenCode Bridge Read-Only Briefing Dry-Run)
 
 ---
 

@@ -1297,8 +1297,24 @@
 - No Agent Zero code changes
 - No external API keys configured
 
+**Phase 12E-FIX:** OpenCode Bridge Localhost Hardening ✅ Complete (2026-05-02)
+- Closeout: `docs/phase12/PHASE12E_FIX_OPENCODE_BRIDGE_LOCALHOST_HARDENING.md`
+- Bridge hardened to 127.0.0.1:4141
+- Wrong opencode serve web UI process cleaned from port 4141
+- Agent Zero stopped, not started for message_send
+
+**Phase 12E2:** Agent Zero Loopback Bridge Reachability Fix ✅ Complete (2026-05-02)
+- Closeout: `docs/phase12/PHASE12E2_AGENT_ZERO_LOOPBACK_BRIDGE_REACHABILITY_FIX.md`
+- Helper already correct: agent-zero-up uses `--network slirp4netns:allow_host_loopback=true`
+- Bridge bind: 127.0.0.1:4141 (not 0.0.0.0)
+- Container bridge route: WORKING
+- Agent Zero UI/API health: WORKING (v1.9)
+- One-message test: PASSED
+- Agent Zero stopped after test
+
 **Future Phases:**
 - Phase 12C1: Space Agent Manual UI Dry-Run ⏳ BLOCKED (requires Space Agent installation + explicit prompt)
+- Phase 12F: Agent Zero OpenCode Bridge Read-Only Briefing Dry-Run ⏳ Upcoming
 - Phase 11RV: Official VectorDB API Prototype Review ⏳ Future (optional)
 - Phase 13 — Curated Learning Examples Expansion (future controlled learning feasibility)
 - Phase 14 — Fine-tuning / LoRA Feasibility Review
