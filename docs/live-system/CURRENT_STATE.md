@@ -843,11 +843,11 @@
 ### Next Maintenance Phase
 
 - **M1:** Weekly Health / Drift Operating Cycle — Ready
-- **M2:** Space Agent Dashboard Operating Cycle — Planned
-- **M3:** Knowledge + Eval Refresh Cycle — Planned
-- **M4:** Security Review + Localhost Exposure Audit — Planned
-- **M5:** Backup / Restore / Release Snapshot Cycle — Planned
-- **M6:** Quarterly Model / Hardware / Architecture Review — Planned
+- **M2:** Space Agent Dashboard Operating Cycle — Ready
+- **M3:** Knowledge + Eval Refresh Cycle — Ready
+- **M4:** Security Review + Localhost Exposure Audit — Ready
+- **M5:** Backup / Restore / Release Snapshot Cycle — Ready
+- **M6:** Quarterly Model / Hardware / Architecture Review — Ready
 
 ## M1 — Weekly Health / Drift Operating Cycle (2026-05-02) — COMPLETE
 
@@ -858,6 +858,23 @@
 - **Action Required:** None — drift is acceptable
 - **Report:** ~/offload/security-reports/manual/m1-weekly-health-drift-2026-05-02.md
 - **Next M1:** 2026-05-09
+
+## M2–M6 — Combined Operating Cycles (2026-05-02) — COMPLETE
+
+| Phase | Status | Notes |
+|-------|--------|-------|
+| **M2** Dashboard | PASS | Packet generated, all components verified |
+| **M3** Knowledge | PASS | 0 stale docs, knowledge fresh, evals passing |
+| **M4** Security | PASS | All services localhost-only, no unauthorized exposure |
+| **M5** Backup | PASS | Rollback bundle created (11M, 90 files), recovery test PASS |
+| **M6** Quarterly | PASS | Hardware healthy, no changes recommended |
+
+- **Combined Report:** ~/offload/security-reports/manual/m2-m6-combined-2026-05-02.md
+- **Next M2:** 2026-05-09
+- **Next M3:** 2026-06-02
+- **Next M4:** 2026-06-02
+- **Next M5:** Per-release or monthly
+- **Next M6:** 2026-08-02
 
 ---
 
