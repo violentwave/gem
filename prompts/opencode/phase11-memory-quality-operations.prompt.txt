@@ -1,0 +1,116 @@
+# Phase 11: Memory Quality Operations Prompt
+
+You are working in ~/projects/gem.
+
+## Goal
+
+Mature manual memory quality operations:
+- gemma-memory-quality-check expansion
+- Known-answer fixtures
+- RAG answer comparison
+- Stale-memory review packets
+- Manual runbooks
+
+This is Phase 11 — NOT classification cleanup (that was Phase 10D disposition).
+
+## Hard Boundaries
+
+- No ingestion execution
+- No indexing
+- No RuVector mutation
+- No memory promotion
+- No wrapper default changes
+- No live eval store changes
+- No helper installation
+- No daemon/timer automation unless explicitly reviewed
+- No system/model/security/OpenCode permission changes
+- No sudo
+
+## Context
+
+### Phase 10D Completed (2026-05-02)
+- Classification WARN disposition complete
+- Conservative Class C behavior accepted
+- Phase 11 restored to Memory Quality Operations
+
+### Current State
+- Stage 3A: Deterministic fallback (canonical)
+- Stage 4A: 19 eval cases
+- Stage 4B: 22 reviewed examples
+- gemma-memory-search: supervised RuVector helper
+- gemma-memory-rag: supervised RAG helper
+
+## Tasks
+
+### 1. Quality Check Expansion
+Plan expansion of `gemma-memory-quality-check`:
+- Add more test queries
+- Define PASS/WARN/FAIL thresholds
+- Document comparison logic
+
+### 2. Known-Answer Fixtures
+Plan additions to known-answer fixtures:
+- Path policy examples
+- Firewalld examples
+- RuVector status examples
+- Stage 3A fallback examples
+
+### 3. RAG Comparison
+Plan manual RAG answer comparison:
+- Compare Stage 3A vs supervised RAG
+- Document divergences
+- Define acceptable variance
+
+### 4. Stale-Memory Review
+Plan stale-memory review packets:
+- When to review
+- What to audit
+- Manual process only
+
+### 5. Runbooks
+Plan manual runbooks for:
+- Memory quality check
+- Known-answer validation
+- Stale-memory review
+
+## Deliverables
+
+- `docs/phase11/PHASE11_PLAN.md`
+- Quality check expansion plan
+- Known-answer fixture additions
+- RAG comparison documentation
+- Stale-memory review packet template
+- Manual runbook outline
+
+## Validation Commands
+
+Run these to verify current state before planning:
+```bash
+./scripts/check-memory-known-answers.sh
+./scripts/check-gemma-memory-quality.sh
+gemma-evals-status
+gemma-evals-check
+gemma-examples-check
+```
+
+## Original Macro Roadmap
+
+- Phase 11 — Memory Quality Operations (this phase)
+- Phase 12 — Supervised Agent Zero / Space Agent Bridge
+- Phase 13 — Curated Learning Examples Expansion
+- Phase 14 — Fine-tuning / LoRA Feasibility Review
+- Phase 15 — Production Hardening / Release Discipline
+
+## Hard Boundaries Reminder
+
+This prompt must NOT:
+- Execute ingestion
+- Execute indexing
+- Mutate RuVector
+- Promote memory
+- Change wrapper defaults
+- Install new helpers
+- Create daemon/timer automation
+- Modify system/security/model/OpenCode permissions
+
+(End of file)

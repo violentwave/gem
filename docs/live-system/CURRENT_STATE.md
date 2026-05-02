@@ -224,14 +224,18 @@
 - Phase 10A: Dry-run planning docs + prompts
 - Phase 10B: Dry-run smoke (classification WARN, boundaries PRESERVED)
 - Phase 10C: Closeout with WARN documented
+- Phase 10D: Classification WARN disposition complete
 - No ingestion execution
 - Stage 3A fallback confirmed
-- Classification drift: source_class expected A, got C (docs/phase10/*)
+- Classification drift: source_class expected A, got C (docs/phase10/*) — ACCEPTED as conservative
 
-**Phase 11:** Recommended (Classification Fix)
-- Address helper classification drift
-- Expand approved roots policy
-- Or accept conservative behavior
+**Phase 11:** Recommended (Memory Quality Operations)
+- Mature manual memory quality operations
+- gemma-memory-quality-check expansion
+- Known-answer fixtures
+- RAG answer comparison
+- Stale-memory review packets
+- No daemon/timer automation unless reviewed
 
 ## Validation
 

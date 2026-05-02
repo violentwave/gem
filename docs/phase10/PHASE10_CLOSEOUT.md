@@ -131,11 +131,14 @@ Option C: Expand approved roots (future)
 ## Files Modified
 
 - `docs/phase10/PHASE10_CLOSEOUT.md` (this file)
+- `docs/live-system/CURRENT_STATE.md`
+- `docs/roadmap/ROADMAP.md`
 
 ## State Updates Required
 
 - `docs/live-system/CURRENT_STATE.md` — Phase 10 complete
-- `docs/roadmap/ROADMAP.md` — Phase 11 recommendation
+- `docs/roadmap/ROADMAP.md` — Phase 10 complete
+- Phase 10D disposition: See `PHASE10D_CLASSIFICATION_WARN_DISPOSITION.md`
 
 ---
 
@@ -143,6 +146,7 @@ Option C: Expand approved roots (future)
 
 - Phase 10B: COMPLETE with WARN
 - Phase 10C: COMPLETE
+- Phase 10D: Disposition accepted
 - Boundaries: PRESERVED
 - Stage 3A fallback: CONFIRMED
-- Next: Phase 11 planning input
+- Next: Phase 11 (Memory Quality Operations)

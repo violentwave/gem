@@ -1175,22 +1175,41 @@
 - Rollback: executable=false
 - Stage 3A fallback: confirmed
 - All validators: PASS
-- Classification drift: documented for Phase 11
+- Classification drift: documented, accepted as conservative in Phase 10D
 
-**Classification WARN:**
-- Helper classified repo-relative docs/phase10 as Class C (requires explicit approval)
-- Expected: Class A (approved docs path)
-- Not dangerous: executable=false + pending_human_approval blocked execution
+### Phase 10D: Classification WARN Disposition ✅ Complete (2026-05-02)
+**Goal:** Document classification WARN disposition, accept conservative behavior, restore Phase 11 to original macro roadmap.
 
-**Next Phase Options:**
-- Phase 11: Classification Fix ⏳ Recommended
-- Option A: Fix helper classification (low priority)
-- Option B: Accept conservative behavior (recommended)
-- Option C: Expand approved roots (future)
+**Tasks:**
+- Create disposition doc: `PHASE10D_CLASSIFICATION_WARN_DISPOSITION.md`
+- Clarify this is NOT Phase 11
+- Confirm conservative Class C behavior is acceptable
+- Reject auto-Class-A for all docs/* without policy
+- Restore Phase 11 to Memory Quality Operations
 
-**Depends on:** Phase 9 complete
+**Deliverables:**
+- `docs/phase10/PHASE10D_CLASSIFICATION_WARN_DISPOSITION.md`
+- Phase 10 closeout updated
+- CURRENT_STATE restored
+- ROADMAP restored
 
-## Maintenance Phases
+**Decision:**
+- Accept conservative Class C behavior (not dangerous, executable=false blocked execution)
+- Do NOT change helper behavior
+- Do NOT expand approved roots
+- Classification cleanup is Phase 10D disposition, NOT Phase 11
+- No helper behavior changes
+
+**Phase 11 Restoration:**
+- Phase 11 — Memory Quality Operations (original macro roadmap)
+- Phase 12 — Supervised Agent Zero / Space Agent Bridge
+- Phase 13 — Curated Learning Examples Expansion
+- Phase 14 — Fine-tuning / LoRA Feasibility Review
+- Phase 15 — Production Hardening / Release Discipline
+
+**Depends on:** Phase 10C complete
+
+### Phase 11: Memory Quality Operations ⏳ Recommended
 
 ### Phase M1: Health Monitoring
 - Periodic `gemma-evals-status` runs
