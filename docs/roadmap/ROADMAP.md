@@ -1535,15 +1535,32 @@
 - No separate dashboard app planned
 - Phases 18-25 reframed
 
-## Phase 18 — Space Agent Operator Dashboard Integration ⏳ Upcoming
-**Goal:** Define what Space Agent displays and how report packets feed it.
+**Phase 18A:** Space Agent Dashboard Requirements and Source Inventory ✅ Complete (2026-05-02)
+- Closeout: `docs/phase18/PHASE18A_SPACE_AGENT_DASHBOARD_REQUIREMENTS.md`
+- 23 scripts inventoried, 5 dashboard categories
+- Manual actions: 8 defined, Forbidden workflows: 8 documented
 
-- **18A:** Space Agent dashboard requirements and source inventory
-- **18B:** Dashboard data contract (JSON/Markdown packet format)
-- **18C:** Read-only dashboard packet generator design
-- **18D:** Space Agent manual dashboard workflow
-- **18E:** Notion dashboard/status packet integration
-- **18F:** Phase 18 closeout
+**Phase 18B:** Dashboard Data Contract ✅ Complete (2026-05-02)
+- Closeout: `docs/phase18/PHASE18B_DASHBOARD_DATA_CONTRACT.md`
+- JSON schema: 7 required fields, Markdown template: Mustache-style
+- Packet types: 6 defined
+
+**Phase 18C:** Read-Only Dashboard Packet Generator Design ✅ Complete (2026-05-02)
+- Closeout: `docs/phase18/PHASE18C_READ_ONLY_DASHBOARD_PACKET_GENERATOR_DESIGN.md`
+- Architecture: 4 components, Processing pipeline: 6 steps
+
+**Phase 18D:** Space Agent Manual Dashboard Workflow ✅ Complete (2026-05-02)
+- Closeout: `docs/phase18/PHASE18D_SPACE_AGENT_MANUAL_DASHBOARD_WORKFLOW.md`
+- Workflows: 3 defined, All steps: Manual-only
+
+**Phase 18E:** Notion Dashboard/Status Packet Integration ✅ Complete (2026-05-02)
+- Closeout: `docs/phase18/PHASE18E_NOTION_DASHBOARD_STATUS_PACKET_INTEGRATION.md`
+- Integration: Notion snapshot → Space Agent, Approach: Local snapshot
+
+**Phase 18F:** Phase 18 Closeout ✅ Complete (2026-05-02)
+- Closeout: `docs/phase18/PHASE18F_PHASE_18_CLOSEOUT.md`
+- Dashboard type: Conversational status interface
+- All safety boundaries: MAINTAINED
 
 ## Phase 19 — Monitoring / Eval / Security Implementation ⏳ Upcoming
 **Goal:** Create the scripts that generate data for Space Agent.

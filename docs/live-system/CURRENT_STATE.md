@@ -630,7 +630,38 @@
 - Correction: Space Agent = dashboard, scripts = data providers
 - No separate dashboard app planned
 - Monitoring scripts feed Space Agent, not standalone UI
-- Next: Phase 18 (Space Agent Operator Dashboard Integration)
+
+**Phase 18A:** Space Agent Dashboard Requirements and Source Inventory (2026-05-02) — COMPLETE
+- Closeout: docs/phase18/PHASE18A_SPACE_AGENT_DASHBOARD_REQUIREMENTS.md
+- 23 scripts inventoried, 5 dashboard categories
+- Manual actions: 8 defined, Forbidden workflows: 8 documented
+- Report format: Markdown standard
+
+**Phase 18B:** Dashboard Data Contract (2026-05-02) — COMPLETE
+- Closeout: docs/phase18/PHASE18B_DASHBOARD_DATA_CONTRACT.md
+- JSON schema: 7 required fields
+- Markdown template: Mustache-style
+- Packet types: 6 defined
+
+**Phase 18C:** Read-Only Dashboard Packet Generator Design (2026-05-02) — COMPLETE
+- Closeout: docs/phase18/PHASE18C_READ_ONLY_DASHBOARD_PACKET_GENERATOR_DESIGN.md
+- Architecture: 4 components
+- Processing pipeline: 6 steps
+
+**Phase 18D:** Space Agent Manual Dashboard Workflow (2026-05-02) — COMPLETE
+- Closeout: docs/phase18/PHASE18D_SPACE_AGENT_MANUAL_DASHBOARD_WORKFLOW.md
+- Workflows: 3 defined
+- All steps: Manual-only
+
+**Phase 18E:** Notion Dashboard/Status Packet Integration (2026-05-02) — COMPLETE
+- Closeout: docs/phase18/PHASE18E_NOTION_DASHBOARD_STATUS_PACKET_INTEGRATION.md
+- Integration: Notion snapshot → Space Agent
+- Approach: Local snapshot (Option 2)
+
+**Phase 18F:** Phase 18 Closeout (2026-05-02) — COMPLETE
+- Closeout: docs/phase18/PHASE18F_PHASE_18_CLOSEOUT.md
+- Dashboard type: Conversational status interface
+- Next: Phase 19 (Monitoring / Eval / Security Implementation)
 
 ---
 
