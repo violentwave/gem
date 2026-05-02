@@ -1,5 +1,12 @@
 # RuVector Integration Plan
 
+## Status
+
+**Current Implementation:** Phase 7B.2 semantic prototype working; JSON/cosine prototype NOT production VectorDB
+**Embedding Model:** `nomic-embed-text:latest` (768 dimensions)
+**Storage:** JSON prototype files under `~/.local/share/bazzite-security/ruvector/semantic-prototype/`
+**Fallback:** Stage 3A deterministic retrieval remains canonical
+
 ## Overview
 
 This document outlines the integration plan for RuVector into the Bazzite Local AI Operations Stack.
@@ -220,5 +227,32 @@ ls -la ~/.local/share/bazzite-security/ruvector/
 - Phase 7B.2 Semantic Prototype: `docs/integrations/ruvector/RUVECTOR_PHASE7B2_SEMANTIC_PROTOTYPE_REPORT.md`
 - Phase 8B.3 Quality Workflow: `docs/workflows/memory/WORKFLOW_8B3_MEMORY_QUALITY_VALIDATION.md`
 - Phase 8B.3 Quality Gates: `docs/workflows/memory/MEMORY_QUALITY_GATES.md`
+- Phase 8B.3 Quality Checklist: `docs/workflows/memory/MEMORY_QUALITY_VALIDATION_CHECKLIST.md`
+- Phase 11C-RV Audit: `docs/integrations/ruvector/RUVECTOR_OFFICIAL_DOCS_ALIGNMENT_AUDIT.md`
+- Roadmap: `docs/roadmap/ROADMAP.md`
+
+## Future Considerations
+
+### AgenticDB Learning APIs
+
+AgenticDB-style learning/session APIs are **future-review only**, not currently enabled:
+
+- Reflexion memory
+- Causal memory graphs
+- Skill libraries
+- Learning sessions
+
+**Future controlled learning** may be considered only after explicit graduation gates:
+1. Successful task completion evidence
+2. Human-reviewed success/failure classification
+3. Sanitized curated examples (no secrets, raw logs, browser data, private code)
+4. Eval/checker coverage
+5. Privacy/secret review
+6. Rollback plan
+7. Comparison against Stage 3A baseline
+8. Explicit human approval
+9. Bounded implementation prompt
+
+This is NOT autonomous self-training. This is "graduated controlled learning loop."
 - Phase 8B.3 Quality Checklist: `docs/workflows/memory/MEMORY_QUALITY_VALIDATION_CHECKLIST.md`
 - Roadmap: `docs/roadmap/ROADMAP.md`

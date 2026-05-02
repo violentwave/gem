@@ -1241,7 +1241,10 @@
 
 **Next Phase Options:**
 - Phase 11D: RAG Answer Comparison Dry-Run ⏳ Future
+- Phase 11RV: Official VectorDB API Prototype Review ⏳ Future (optional)
 - Phase 12 — Supervised Agent Zero / Space Agent Bridge
+- Phase 13 — Curated Learning Examples Expansion (future controlled learning feasibility)
+- Phase 14 — Fine-tuning / LoRA Feasibility Review
 
 ## Maintenance Phases
 

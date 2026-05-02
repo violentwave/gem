@@ -1,0 +1,66 @@
+# Phase 11RV: Official RuVector VectorDB Prototype Review Prompt
+
+You are working in ~/projects/gem.
+
+## Goal
+
+Plan a future planning-only prompt to decide whether to test official RuVector VectorDB API in a disposable repo-local prototype.
+
+## Hard Boundaries
+
+- Do NOT install packages by default
+- Do NOT run indexing by default
+- Do NOT modify runtime state
+- Do NOT mutate RuVector
+- Do NOT change helper behavior
+- Do NOT enable autonomous learning
+- All decisions remain planning-only
+
+## Context
+
+### Phase 11C Complete
+- Commit: c1d7202 — phase 11C fixture coverage (16→19 cases)
+- Validators: all PASS
+
+### Phase 11C-RV Complete
+- Audit doc: RUVECTOR_OFFICIAL_DOCS_ALIGNMENT_AUDIT.md
+- Integration plan clarified
+- Future controlled learning docbed without enabling
+
+### Current RuVector Status
+- Semantic prototype: JSON + cosine similarity
+- Embedding: nomic-embed-text:latest (768d)
+- Storage: JSON prototype files
+- Not production VectorDB/HNSW
+- Stage 3A remains canonical fallback
+- AgenticDB learning APIs: future-review only
+
+## Task
+
+Design a future planning-only prompt that:
+
+1. **Reviews official VectorDB API**
+   - Tests RuVector Rust/Node package in disposable prototype
+   - Does NOT install to live system
+   - Does NOT modify existing helpers
+
+2. **Decides whether to proceed**
+   - If VectorDB provides significant improvement
+   - If quality gates can be met
+   - If rollback is straightforward
+
+3. **Requires explicit approval before any installation**
+
+## Future Prompt Structure
+
+Design the prompt to require:
+- Disposable/repo-local test only
+- No live system modifications
+- Clear rollback plan
+- Quality comparison against current JSON/cosine prototype
+
+## Deliverable
+
+- Create prompts/opencode/phase11rv-official-vector-db-prototype-review.prompt.txt outline
+
+(End of file)

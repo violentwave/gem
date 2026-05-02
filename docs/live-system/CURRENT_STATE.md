@@ -233,9 +233,18 @@
 - Phase 11A: Planning docs + prompts created
 - Phase 11B: Static memory quality check expansion (16 cases)
 - Phase 11C: Known-answer fixture coverage audit (19 cases)
+- Phase 11C-RV: RuVector official docs alignment audit
 - Phase 11D-E: Future (requires explicit prompts)
 - No helper modifications
 - No automation added
+
+### RuVector Status
+- **Prototype:** Supervised-secondary semantic prototype
+- **Implementation:** JSON + cosine similarity (not production VectorDB)
+- **Embedding:** nomic-embed-text:latest (768d)
+- **Storage:** ~/.local/share/bazzite-security/ruvector/semantic-prototype/
+- **Fallback:** Stage 3A canonical fallback preserved
+- **Learning:** No autonomous learning; future controlled learning roadmap-only
 
 ## Validation
 

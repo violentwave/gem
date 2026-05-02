@@ -1,0 +1,81 @@
+# Phase 13: Controlled Learning Loop Feasibility Prompt
+
+You are working in ~/projects/gem.
+
+## Goal
+
+Plan a future planning-only prompt to design controlled learning from successful completions.
+
+## Hard Boundaries
+
+- Do NOT enable autonomous learning by default
+- Do NOT modify helper behavior
+- Do NOT change wrapper defaults
+- Do NOT ingest secrets, raw logs, browser data, or private code
+- All decisions remain planning-only
+
+## Context
+
+### Current Phase 11 Status
+- Phase 11A: Planning complete
+- Phase 11B: Static expansion (16 cases)
+- Phase 11C: Fixture coverage (19 cases)
+- Phase 11C-RV: RuVector alignment audit complete
+- Validators: all PASS
+
+### Current Learning Stance
+- No autonomous learning enabled
+- No AgenticDB learning/session execution
+- No automatic memory mutation
+- Future controlled learning may be considered ONLY after graduation gates
+
+## Graduation Gates (Required Before Any Learning)
+
+1. Successful task completion evidence
+2. Human-reviewed success/failure classification
+3. Sanitized curated examples (no secrets, raw logs, browser data, private code)
+4. Eval/checker coverage
+5. Privacy/secret review
+6. Rollback plan
+7. Comparison against Stage 3A baseline
+8. Explicit human approval
+9. Bounded implementation prompt
+
+## Task
+
+Design a future planning-only prompt that:
+
+1. **Documents controlled learning requirements**
+   - What can be learned (successful completions)
+   - What must be excluded (secrets, raw logs, etc.)
+   - Human review process
+
+2. **Defines graduation gates**
+   - Evidence requirements
+   - Review process
+   - Approval workflow
+
+3. **Addresses safety**
+   - No autonomous execution
+   - Bounded scope
+   - Rollback capability
+
+4. **Compares against current baselines**
+   - Stage 3A deterministic
+   - RuVector prototype
+   - Eval coverage
+
+## Future Prompt Structure
+
+Design the prompt to require ALL graduation gates before any learning is considered.
+
+## Deliverable
+
+- Create prompts/opencode/phase13-controlled-learning-loop-feasibility.prompt.txt outline
+
+## Important
+
+This is NOT "autonomous self-training." This is "graduated controlled learning loop."
+The phrase matters for safety.
+
+(End of file)
