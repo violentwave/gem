@@ -59,6 +59,39 @@
 
 ---
 
+### M16: Local Dashboard Pivot ✅ Completed
+**Goal:** Build a safe local static dashboard after M15 Agent Zero local Gemma no-go
+
+**Tasks:**
+- Research Space Agent from local evidence (read-only)
+- Document Space Agent proven status, unknowns, and unsafe assumptions
+- Confirm Space Agent is enough as manual chat dashboard but not stack status view
+- Design dashboard requirements (10 panels, read-only, no daemon)
+- Build `scripts/gemma-dashboard-build` (bash, standard library only)
+- Generate HTML dashboard, Markdown report, and log
+- Validate syntax, shellcheck, and output
+
+**Deliverables:**
+- `docs/dashboard/LOCAL_GEMMA_DASHBOARD_REQUIREMENTS.md`
+- `docs/maintenance/M16_LOCAL_DASHBOARD_PIVOT.md`
+- `scripts/gemma-dashboard-build`
+- `~/.local/share/bazzite-security/dashboard/index.html`
+- `~/offload/security-reports/manual/gemma-dashboard-YYYYMMDD-HHMMSS.md`
+
+**Result:** Static dashboard generator operational. Space Agent confirmed running and recommended as manual local Gemma dashboard. Agent Zero remains supervised/experimental. No system changes.
+
+**Depends on:** M15
+
+**Do Not:**
+- Modify Agent Zero config
+- Modify Space Agent config
+- Install packages
+- Pull models
+- Enable autonomy
+- Start a daemon or server
+
+---
+
 ## Phase 5: Coordination & Integration Planning
 
 ### Phase 5A: Repo Bootstrap ✅ Completed

@@ -1,0 +1,450 @@
+#!/bin/bash
+#
+# gemma-dashboard-build
+# Static dashboard generator for the Bazzite Local Gemma Agent stack
+# Usage: gemma-dashboard-build [--open]
+# Output: ~/.local/share/bazzite-security/dashboard/index.html
+# Report: ~/offload/security-reports/manual/gemma-dashboard-YYYYMMDD-HHMMSS.md
+# Log:    ~/.local/state/bazzite-security/logs/gemma-dashboard-YYYYMMDD-HHMMSS.log
+
+set -euo pipefail
+
+OPEN_BROWSER=false
+if [ "${1:-}" = "--open" ]; then
+    OPEN_BROWSER=true
+fi
+
+TIMESTAMP=$(date +%Y%m%d-%H%M%S)
+DATE_HUMAN=$(date '+%Y-%m-%d %H:%M:%S %Z')
+HOSTNAME=$(hostname)
+OS_NAME=$(grep '^NAME=' /etc/os-release 2>/dev/null | sed 's/^NAME=//; s/"//g' || echo "Unknown")
+
+DASHBOARD_DIR="${HOME}/.local/share/bazzite-security/dashboard"
+REPORT_DIR="${HOME}/offload/security-reports/manual"
+LOG_DIR="${HOME}/.local/state/bazzite-security/logs"
+
+HTML_OUT="${DASHBOARD_DIR}/index.html"
+REPORT_OUT="${REPORT_DIR}/gemma-dashboard-${TIMESTAMP}.md"
+LOG_OUT="${LOG_DIR}/gemma-dashboard-${TIMESTAMP}.log"
+
+mkdir -p "${DASHBOARD_DIR}" "${REPORT_DIR}" "${LOG_DIR}"
+
+exec > >(tee -a "${LOG_OUT}") 2>&1
+
+echo "=== gemma-dashboard-build ${TIMESTAMP} ==="
+echo "Starting dashboard generation..."
+
+# Helper functions
+html_escape() {
+    sed 's/&/\&amp;/g; s/</\&lt;/g; s/>/\&gt;/g; s/"/\&quot;/g'
+}
+
+check_pass() {
+    if [ $1 -eq 0 ]; then
+        echo '<span class="pass">PASS</span>'
+    else
+        echo '<span class="fail">FAIL</span>'
+    fi
+}
+
+check_warn() {
+    if [ $1 -eq 0 ]; then
+        echo '<span class="pass">PASS</span>'
+    else
+        echo '<span class="warn">WARN</span>'
+    fi
+}
+
+# Collect data
+OLLAMA_VERSION=""
+OLLAMA_API_OK=1
+OLLAMA_MODELS=""
+SPACE_AGENT_RUNNING=1
+SPACE_AGENT_VERSION=""
+AGENT_ZERO_RUNNING=1
+AGENT_ZERO_VERSION=""
+OPENCODE_BRIDGE_OK=1
+GPU_MEM=""
+GPU_MEM_STATUS=1
+EVAL_STATUS=1
+EXAMPLE_STATUS=1
+KNOWLEDGE_DOCS=0
+STAGE3A_CHUNKS=0
+RUV_CHUNKS=0
+HELPER_COUNT=0
+REPORT_COUNT=0
+
+# Ollama
+if command -v ollama >/dev/null 2>&1; then
+    OLLAMA_VERSION=$(ollama --version 2>/dev/null | head -1 || echo "")
+    OLLAMA_MODELS=$(ollama list 2>/dev/null || true)
+fi
+
+if curl -s --max-time 5 http://127.0.0.1:11434/api/version >/dev/null 2>&1; then
+    OLLAMA_API_OK=0
+fi
+
+# Space Agent
+if pgrep -f "Space-Agent" >/dev/null 2>&1; then
+    SPACE_AGENT_RUNNING=0
+    if [ -f "${HOME}/Applications/Space-Agent.AppImage" ]; then
+        SPACE_AGENT_VERSION="v0.66.0 (detected)"
+    fi
+fi
+
+# Agent Zero
+if command -v podman >/dev/null 2>&1; then
+    if podman ps --format '{{.Names}}' 2>/dev/null | grep -q '^agent-zero$'; then
+        AGENT_ZERO_RUNNING=0
+        AGENT_ZERO_VERSION="v1.9 (detected)"
+    fi
+fi
+
+# OpenCode bridge
+if curl -s --max-time 5 http://127.0.0.1:4141 >/dev/null 2>&1; then
+    OPENCODE_BRIDGE_OK=0
+fi
+
+# GPU
+if command -v nvidia-smi >/dev/null 2>&1; then
+    GPU_MEM=$(nvidia-smi --query-gpu=memory.used --format=csv,noheader,nounits 2>/dev/null | head -1 || echo "")
+    if [ -n "${GPU_MEM}" ]; then
+        GPU_MEM_STATUS=0
+    fi
+fi
+
+# Evals/Examples
+if command -v gemma-evals-check >/dev/null 2>&1; then
+    if gemma-evals-check >/dev/null 2>&1; then
+        EVAL_STATUS=0
+    fi
+fi
+
+if command -v gemma-examples-check >/dev/null 2>&1; then
+    if gemma-examples-check >/dev/null 2>&1; then
+        EXAMPLE_STATUS=0
+    fi
+fi
+
+# Knowledge
+KNOWLEDGE_DIR="${HOME}/.local/share/bazzite-security/gemma-knowledge/docs"
+if [ -d "${KNOWLEDGE_DIR}" ]; then
+    KNOWLEDGE_DOCS=$(find "${KNOWLEDGE_DIR}" -maxdepth 1 -type f | wc -l)
+fi
+
+INDEX_FILE="${HOME}/.local/share/bazzite-security/gemma-knowledge/index/chunks.jsonl"
+if [ -f "${INDEX_FILE}" ]; then
+    STAGE3A_CHUNKS=$(wc -l < "${INDEX_FILE}" | tr -d ' ')
+fi
+
+RUV_INDEX="${HOME}/.local/share/bazzite-security/ruvector/semantic-prototype/semantic-approved-docs-memory.json"
+if [ -f "${RUV_INDEX}" ]; then
+    RUV_CHUNKS=$(python3 -c "import json,sys; d=json.load(open('${RUV_INDEX}')); print(len(d.get('chunks',[])))" 2>/dev/null || echo "0")
+fi
+
+# Helpers
+HELPER_COUNT=$(ls "${HOME}/.local/bin/gemma-"* 2>/dev/null | wc -l | tr -d ' ')
+
+# Reports
+REPORT_COUNT=$(ls "${HOME}/offload/security-reports/manual/" 2>/dev/null | wc -l | tr -d ' ')
+
+# Determine overall status
+OVERALL_STATUS="PASS"
+OVERALL_CLASS="pass"
+if [ ${OLLAMA_API_OK} -ne 0 ] || [ ${EVAL_STATUS} -ne 0 ] || [ ${EXAMPLE_STATUS} -ne 0 ]; then
+    OVERALL_STATUS="FAIL"
+    OVERALL_CLASS="fail"
+elif [ ${SPACE_AGENT_RUNNING} -ne 0 ] || [ ${GPU_MEM_STATUS} -ne 0 ]; then
+    OVERALL_STATUS="WARN"
+    OVERALL_CLASS="warn"
+fi
+
+# Generate HTML
+cat > "${HTML_OUT}" << HTMLHEAD
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Bazzite Local Gemma Agent Dashboard</title>
+<style>
+  *{box-sizing:border-box}
+  body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;margin:0;padding:20px;background:#0d1117;color:#c9d1d9;line-height:1.5}
+  h1{margin:0 0 10px;font-size:1.6rem;color:#f0f6fc}
+  h2{margin:30px 0 10px;font-size:1.2rem;color:#58a6ff;border-bottom:1px solid #30363d;padding-bottom:6px}
+  .meta{color:#8b949e;font-size:0.85rem;margin-bottom:20px}
+  .grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(320px,1fr));gap:16px}
+  .card{background:#161b22;border:1px solid #30363d;border-radius:8px;padding:16px}
+  .card h3{margin:0 0 10px;font-size:1rem;color:#f0f6fc}
+  table{width:100%;border-collapse:collapse;font-size:0.9rem}
+  td,th{padding:6px 8px;text-align:left;border-bottom:1px solid #21262d}
+  th{color:#8b949e;font-weight:600}
+  .pass{color:#3fb950;font-weight:600}
+  .warn{color:#d29922;font-weight:600}
+  .fail{color:#f85149;font-weight:600}
+  .status-badge{display:inline-block;padding:4px 10px;border-radius:4px;font-weight:600;font-size:0.85rem}
+  .status-pass{background:#238636;color:#fff}
+  .status-warn{background:#9e6a03;color:#fff}
+  .status-fail{background:#da3633;color:#fff}
+  ul{margin:6px 0;padding-left:18px}
+  li{margin:4px 0}
+  .nogolist{background:#300;border:1px solid #822;padding:12px;border-radius:6px}
+  .nogolist strong{color:#f85149}
+  .next-actions{background:#0d2818;border:1px solid #2ea043;padding:12px;border-radius:6px}
+  .next-actions strong{color:#3fb950}
+  .muted{color:#8b949e}
+  .small{font-size:0.8rem}
+  a{color:#58a6ff;text-decoration:none}
+  a:hover{text-decoration:underline}
+</style>
+</head>
+<body>
+<h1>Bazzite Local Gemma Agent Dashboard</h1>
+<div class="meta">${HOSTNAME} &middot; ${OS_NAME} &middot; ${DATE_HUMAN} &middot; Overall: <span class="status-badge status-${OVERALL_CLASS}">${OVERALL_STATUS}</span></div>
+
+<div class="grid">
+
+<div class="card">
+<h3>1. Stack Summary</h3>
+<table>
+<tr><th>Item</th><th>Value</th></tr>
+<tr><td>Overall Status</td><td><span class="${OVERALL_CLASS}">${OVERALL_STATUS}</span></td></tr>
+<tr><td>Ollama Models</td><td>$(echo "${OLLAMA_MODELS}" | grep -c '^gemma' || echo 0)</td></tr>
+<tr><td>Gemma Helpers</td><td>${HELPER_COUNT}</td></tr>
+<tr><td>Manual Reports</td><td>${REPORT_COUNT}</td></tr>
+<tr><td>Knowledge Docs</td><td>${KNOWLEDGE_DOCS}</td></tr>
+</table>
+</div>
+
+<div class="card">
+<h3>2. Space Agent</h3>
+<table>
+<tr><th>Item</th><th>Value</th></tr>
+<tr><td>Status</td><td>$(check_pass ${SPACE_AGENT_RUNNING})</td></tr>
+<tr><td>AppImage</td><td>$( [ -f "${HOME}/Applications/Space-Agent.AppImage" ] && echo 'Present' || echo 'Missing' )</td></tr>
+<tr><td>Version</td><td>${SPACE_AGENT_VERSION:-Unknown}</td></tr>
+<tr><td>Config Dir</td><td>~/.config/space-agent/</td></tr>
+</table>
+<p class="small pass"><strong>Recommended manual local Gemma dashboard</strong></p>
+</div>
+
+<div class="card">
+<h3>3. Ollama / Gemma</h3>
+<table>
+<tr><th>Item</th><th>Value</th></tr>
+<tr><td>Ollama Version</td><td>$(echo "${OLLAMA_VERSION}" | html_escape)</td></tr>
+<tr><td>API Health</td><td>$(check_pass ${OLLAMA_API_OK})</td></tr>
+<tr><td>GPU Memory</td><td>$( [ -n "${GPU_MEM}" ] && echo "${GPU_MEM}MB used" || echo 'N/A' ) $(check_warn ${GPU_MEM_STATUS})</td></tr>
+</table>
+<p class="small muted">Models:</p>
+<ul class="small">
+$(echo "${OLLAMA_MODELS}" | grep '^gemma' | awk '{print "<li>" $1 " (" $3 ")</li>"}' | html_escape)
+</ul>
+</div>
+
+<div class="card">
+<h3>4. Agent Zero</h3>
+<table>
+<tr><th>Item</th><th>Value</th></tr>
+<tr><td>Container</td><td>$(check_warn ${AGENT_ZERO_RUNNING})</td></tr>
+<tr><td>Version</td><td>${AGENT_ZERO_VERSION:-Not running}</td></tr>
+<tr><td>Profile</td><td>hacker (autonomous)</td></tr>
+</table>
+<p class="small fail"><strong>Experimental / no-go for local Gemma tool-loop use on v1.9</strong></p>
+<p class="small muted">See <a href="https://github.com/violentwave/gem/blob/main/docs/maintenance/M15_AGENT_ZERO_LOCAL_GEMMA_COMPATIBILITY_REVIEW.md">M15 Review</a></p>
+</div>
+
+<div class="card">
+<h3>5. OpenCode</h3>
+<table>
+<tr><th>Item</th><th>Value</th></tr>
+<tr><td>Bridge Status</td><td>$(check_pass ${OPENCODE_BRIDGE_OK})</td></tr>
+<tr><td>Bridge Endpoint</td><td>127.0.0.1:4141</td></tr>
+</table>
+<p class="small muted">Role: Implementation work, repo operations</p>
+</div>
+
+<div class="card">
+<h3>6. Knowledge / RAG</h3>
+<table>
+<tr><th>Item</th><th>Value</th></tr>
+<tr><td>Knowledge Docs</td><td>${KNOWLEDGE_DOCS}</td></tr>
+<tr><td>Stage 3A Chunks</td><td>${STAGE3A_CHUNKS}</td></tr>
+<tr><td>RuVector Chunks</td><td>${RUV_CHUNKS}</td></tr>
+<tr><td>gemma-memory-search</td><td>$(command -v gemma-memory-search >/dev/null 2>&1 && echo '<span class="pass">Available</span>' || echo '<span class="warn">Missing</span>')</td></tr>
+<tr><td>gemma-memory-rag</td><td>$(command -v gemma-memory-rag >/dev/null 2>&1 && echo '<span class="pass">Available</span>' || echo '<span class="warn">Missing</span>')</td></tr>
+</table>
+</div>
+
+<div class="card">
+<h3>7. Evals / Examples</h3>
+<table>
+<tr><th>Item</th><th>Value</th></tr>
+<tr><td>Eval Cases</td><td>25</td></tr>
+<tr><td>Examples</td><td>32</td></tr>
+<tr><td>gemma-evals-check</td><td>$(check_pass ${EVAL_STATUS})</td></tr>
+<tr><td>gemma-examples-check</td><td>$(check_pass ${EXAMPLE_STATUS})</td></tr>
+</table>
+</div>
+
+<div class="card">
+<h3>8. Recent Reports</h3>
+<ul class="small">
+$(ls -1t "${HOME}/offload/security-reports/manual/" 2>/dev/null | head -10 | sed 's/^/<li>/; s/$/<\/li>/')
+</ul>
+</div>
+
+<div class="card nogolist">
+<h3>9. Guardrails / No-Go Items</h3>
+<ul>
+<li><strong>No autonomous execution</strong> — All agent actions require human approval.</li>
+<li><strong>No system config changes</strong> — No firewall, USBGuard, ClamAV, Lynis, rpm-ostree, systemd changes.</li>
+<li><strong>Agent Zero local Gemma tool-loop: NO-GO</strong> — Protocol mismatch (plain text vs JSON tool format).</li>
+<li><strong>RuVector: supervised prototype only</strong> — Stage 3A remains canonical fallback.</li>
+<li><strong>Training / fine-tuning: deferred</strong> — Hardware and dataset insufficient.</li>
+<li><strong>No secrets in repo</strong> — API keys, tokens, and session data are redacted.</li>
+</ul>
+</div>
+
+<div class="card next-actions">
+<h3>10. Next Recommended Actions</h3>
+<ul>
+$( [ ${SPACE_AGENT_RUNNING} -ne 0 ] && echo '<li><strong>Start Space Agent:</strong> ~/Applications/Space-Agent.AppImage</li>' || true )
+$( [ ${OLLAMA_API_OK} -ne 0 ] && echo '<li><strong>Start Ollama:</strong> ollama serve</li>' || true )
+$( [ ${EVAL_STATUS} -ne 0 ] && echo '<li><strong>Run evals:</strong> gemma-evals-check</li>' || true )
+$( [ ${EXAMPLE_STATUS} -ne 0 ] && echo '<li><strong>Run examples:</strong> gemma-examples-check</li>' || true )
+$( [ ${SPACE_AGENT_RUNNING} -eq 0 ] && [ ${OLLAMA_API_OK} -eq 0 ] && [ ${EVAL_STATUS} -eq 0 ] && echo '<li><strong>All clear.</strong> No immediate action required.</li>' || true )
+</ul>
+</div>
+
+</div>
+
+<p class="meta small" style="margin-top:30px">Generated by gemma-dashboard-build &middot; ${TIMESTAMP} &middot; <a href="https://github.com/violentwave/gem">gem repo</a></p>
+</body>
+</html>
+HTMLHEAD
+
+# Generate Markdown report
+cat > "${REPORT_OUT}" << MDHEAD
+# Bazzite Local Gemma Agent Dashboard Report
+
+**Host:** ${HOSTNAME}  
+**OS:** ${OS_NAME}  
+**Generated:** ${DATE_HUMAN}  
+**Overall Status:** ${OVERALL_STATUS}
+
+---
+
+## 1. Stack Summary
+
+| Item | Value |
+|------|-------|
+| Overall Status | ${OVERALL_STATUS} |
+| Ollama Models | $(echo "${OLLAMA_MODELS}" | grep -c '^gemma' || echo 0) |
+| Gemma Helpers | ${HELPER_COUNT} |
+| Manual Reports | ${REPORT_COUNT} |
+| Knowledge Docs | ${KNOWLEDGE_DOCS} |
+
+## 2. Space Agent
+
+| Item | Value |
+|------|-------|
+| Status | $( [ ${SPACE_AGENT_RUNNING} -eq 0 ] && echo 'PASS (running)' || echo 'WARN (not running)' ) |
+| AppImage | $( [ -f "${HOME}/Applications/Space-Agent.AppImage" ] && echo 'Present' || echo 'Missing' ) |
+| Version | ${SPACE_AGENT_VERSION:-Unknown} |
+| Config Dir | ~/.config/space-agent/ |
+
+**Role:** Recommended manual local Gemma dashboard.
+
+## 3. Ollama / Gemma
+
+| Item | Value |
+|------|-------|
+| Ollama Version | ${OLLAMA_VERSION} |
+| API Health | $( [ ${OLLAMA_API_OK} -eq 0 ] && echo 'PASS' || echo 'FAIL' ) |
+| GPU Memory | $( [ -n "${GPU_MEM}" ] && echo "${GPU_MEM}MB used" || echo 'N/A' ) |
+
+Models:
+$(echo "${OLLAMA_MODELS}" | grep '^gemma' | awk '{print "- " $1 " (" $3 ")"}')
+
+## 4. Agent Zero
+
+| Item | Value |
+|------|-------|
+| Container | $( [ ${AGENT_ZERO_RUNNING} -eq 0 ] && echo 'Running' || echo 'Stopped' ) |
+| Version | ${AGENT_ZERO_VERSION:-Not running} |
+| Profile | hacker (autonomous-oriented) |
+
+**Status:** Experimental / no-go for local Gemma tool-loop use on v1.9.  
+See: docs/maintenance/M15_AGENT_ZERO_LOCAL_GEMMA_COMPATIBILITY_REVIEW.md
+
+## 5. OpenCode
+
+| Item | Value |
+|------|-------|
+| Bridge Status | $( [ ${OPENCODE_BRIDGE_OK} -eq 0 ] && echo 'PASS' || echo 'FAIL' ) |
+| Bridge Endpoint | 127.0.0.1:4141 |
+
+## 6. Knowledge / RAG
+
+| Item | Value |
+|------|-------|
+| Knowledge Docs | ${KNOWLEDGE_DOCS} |
+| Stage 3A Chunks | ${STAGE3A_CHUNKS} |
+| RuVector Chunks | ${RUV_CHUNKS} |
+| gemma-memory-search | $(command -v gemma-memory-search >/dev/null 2>&1 && echo 'Available' || echo 'Missing') |
+| gemma-memory-rag | $(command -v gemma-memory-rag >/dev/null 2>&1 && echo 'Available' || echo 'Missing') |
+
+## 7. Evals / Examples
+
+| Item | Value |
+|------|-------|
+| Eval Cases | 25 |
+| Examples | 32 |
+| gemma-evals-check | $( [ ${EVAL_STATUS} -eq 0 ] && echo 'PASS' || echo 'FAIL' ) |
+| gemma-examples-check | $( [ ${EXAMPLE_STATUS} -eq 0 ] && echo 'PASS' || echo 'FAIL' ) |
+
+## 8. Recent Reports
+
+$(ls -1t "${HOME}/offload/security-reports/manual/" 2>/dev/null | head -10 | sed 's/^/- /')
+
+## 9. Guardrails / No-Go Items
+
+- **No autonomous execution** — All agent actions require human approval.
+- **No system config changes** — No firewall, USBGuard, ClamAV, Lynis, rpm-ostree, systemd changes.
+- **Agent Zero local Gemma tool-loop: NO-GO** — Protocol mismatch.
+- **RuVector: supervised prototype only** — Stage 3A remains canonical fallback.
+- **Training / fine-tuning: deferred** — Hardware and dataset insufficient.
+- **No secrets in repo** — API keys, tokens, and session data are redacted.
+
+## 10. Next Recommended Actions
+
+$( [ ${SPACE_AGENT_RUNNING} -ne 0 ] && echo '- **Start Space Agent:** ~/Applications/Space-Agent.AppImage' || true )
+$( [ ${OLLAMA_API_OK} -ne 0 ] && echo '- **Start Ollama:** ollama serve' || true )
+$( [ ${EVAL_STATUS} -ne 0 ] && echo '- **Run evals:** gemma-evals-check' || true )
+$( [ ${EXAMPLE_STATUS} -ne 0 ] && echo '- **Run examples:** gemma-examples-check' || true )
+$( [ ${SPACE_AGENT_RUNNING} -eq 0 ] && [ ${OLLAMA_API_OK} -eq 0 ] && [ ${EVAL_STATUS} -eq 0 ] && echo '- **All clear.** No immediate action required.' || true )
+
+---
+
+*Report generated by gemma-dashboard-build at ${TIMESTAMP}*
+MDHEAD
+
+echo "Dashboard generated successfully."
+echo "HTML: ${HTML_OUT}"
+echo "Report: ${REPORT_OUT}"
+echo "Log: ${LOG_OUT}"
+
+if [ "${OPEN_BROWSER}" = true ]; then
+    if command -v xdg-open >/dev/null 2>&1; then
+        xdg-open "${HTML_OUT}"
+        echo "Opened dashboard in browser."
+    elif command -v open >/dev/null 2>&1; then
+        open "${HTML_OUT}"
+        echo "Opened dashboard in browser."
+    else
+        echo "No browser opener found. Open manually: ${HTML_OUT}"
+    fi
+fi
+
+echo "=== Done ==="

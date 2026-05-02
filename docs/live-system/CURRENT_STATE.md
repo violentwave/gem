@@ -984,6 +984,27 @@
 - **No secrets exposed**
 - **Boundary compliance:** PASS
 
+## M16 — Local Dashboard Pivot (2026-05-02) — COMPLETE
+
+- **Space Agent Research:** COMPLETE
+  - AppImage: Present at `~/Applications/Space-Agent.AppImage` (134 MB)
+  - Process: RUNNING (PID 927191, v0.66.0)
+  - Config dir: `~/.config/space-agent/` (Electron app data, secrets not inspected)
+  - Providers: OpenRouter works, local Gemma works, Gemini optional
+- **Pivot Decision:** Build static dashboard generator after M15 confirmed Agent Zero local Gemma tool-loop is no-go
+- **Dashboard Generator:** `scripts/gemma-dashboard-build`
+  - Syntax check: PASS
+  - shellcheck: PASS (info-level warnings only)
+  - Generates HTML: `~/.local/share/bazzite-security/dashboard/index.html`
+  - Generates Markdown: `~/offload/security-reports/manual/gemma-dashboard-YYYYMMDD-HHMMSS.md`
+  - Generates Log: `~/.local/state/bazzite-security/logs/gemma-dashboard-YYYYMMDD-HHMMSS.log`
+  - Supports `--open` flag for browser
+  - 10 panels: Stack Summary, Space Agent, Ollama/Gemma, Agent Zero, OpenCode, Knowledge/RAG, Evals/Examples, Recent Reports, Guardrails, Next Actions
+- **Agent Zero Container:** Detected running (not started by M16)
+- **No config modified**
+- **No secrets exposed**
+- **Boundary compliance:** PASS
+
 ---
 
 ## Validation
