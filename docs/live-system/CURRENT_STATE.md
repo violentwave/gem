@@ -270,6 +270,15 @@
 - No Space Agent execution
 - No authority granted
 
+**Phase 12B:** Agent Zero Read-Only Bridge Review (2026-05-02) — COMPLETE
+- Review doc: docs/phase12/PHASE12B_AGENT_ZERO_READONLY_BRIDGE_REVIEW.md
+- Briefing template: docs/phase12/AGENT_ZERO_READONLY_BRIEFING_PACKET_TEMPLATE.md
+- Runtime dry-run prompt: prompts/opencode/phase12b1-agent-zero-readonly-runtime-dry-run.prompt.txt
+- Agent Zero state inspected (read-only): installed, not running, no auto-restart
+- Readiness: CONFIRMED for explicit future dry-run
+- No Agent Zero execution in this phase
+- No authority granted
+
 ---
 
 ## Validation
