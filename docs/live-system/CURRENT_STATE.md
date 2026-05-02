@@ -899,7 +899,20 @@
   - `docs/maintenance/RAG_VS_LORA_RECHECK_MATRIX.md`
   - `prompts/opencode/m8-external-dataset-vetting-huggingface-review.prompt.txt`
 - **Next M7 Recheck:** 2026-08-02 (M6) or on hardware/dataset change
-- **M8 (if continuing training track):** External Dataset Vetting — PLANNED
+
+## M8 — External Dataset Vetting / Hugging Face Review (2026-05-02) — COMPLETE
+
+- **Status:** COMPLETE
+- **Datasets Approved:** NONE (no candidates provided)
+- **Datasets Reviewed:** NONE
+- **Datasets Downloaded:** NONE
+- **Training Performed:** NONE
+- **Examples Modified:** NONE
+- **Decision:** HF datasets remain REVIEW-ONLY
+- **Candidate Matrix:** `docs/maintenance/HUGGINGFACE_DATASET_CANDIDATE_MATRIX.md` (template ready)
+- **Sample Review Template:** `docs/maintenance/HUGGINGFACE_SAMPLE_REVIEW_PACKET_TEMPLATE.md`
+- **M8A Prompt:** `prompts/opencode/m8a-huggingface-dataset-sample-review.prompt.txt`
+- **Next M8 Trigger:** Human provides dataset candidates or approves M8A execution
 
 ---
 

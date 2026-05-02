@@ -1,0 +1,154 @@
+# M8A — Hugging Face Dataset Sample Review
+
+**Phase:** M8A — Hugging Face Dataset Sample Review  
+**Type:** Review-only maintenance phase  
+**Status:** PLANNED (not yet executed)
+
+---
+
+## Purpose
+
+Review a tiny sample from a specific Hugging Face dataset candidate, provided by the human operator. This phase produces a review packet only. No dataset is downloaded by default, no training occurs, and no examples are modified without separate human approval.
+
+---
+
+## Prerequisites
+
+Before running M8A:
+
+1. M8 (External Dataset Vetting) must be complete.
+2. A specific HF dataset candidate must be identified by the human operator.
+3. [HUGGINGFACE_DATASET_VETTING_POLICY.md](../maintenance/HUGGINGFACE_DATASET_VETTING_POLICY.md) must be reviewed.
+4. [HUGGINGFACE_SAMPLE_REVIEW_PACKET_TEMPLATE.md](../maintenance/HUGGINGFACE_SAMPLE_REVIEW_PACKET_TEMPLATE.md) must be reviewed.
+
+---
+
+## Human Input Required
+
+The human operator must provide:
+
+1. **Dataset identifier** — Exact Hugging Face dataset name (e.g., `username/dataset-name`)
+2. **Review scope** — Number of samples to review (default: 5, max: 10)
+3. **Specific focus** — What to look for (e.g., "command examples", "security policy", "path references")
+
+---
+
+## Hard Boundaries
+
+- **NO dataset download by default** — Review metadata and public samples only.
+- **NO training** — No fine-tuning, LoRA, QLoRA, or SFT.
+- **NO bulk import** — Individual samples reviewed only.
+- **NO example/eval modification** — Proposed examples are documented only; live examples are not modified.
+- **NO secrets** — Do not print tokens, API keys, or secrets.
+- **NO system changes** — Do not install packages, modify configs, or expose services.
+
+---
+
+## Workflow
+
+### Step 1: Validate Input
+
+- [ ] Confirm dataset identifier format is valid (`username/dataset-name`)
+- [ ] Confirm dataset exists on Hugging Face Hub
+- [ ] Confirm review scope is within bounds (1–10 samples)
+- [ ] Reject if identifier is missing, invalid, or dataset does not exist
+
+### Step 2: License Review
+
+- [ ] Read dataset card (public metadata)
+- [ ] Identify license
+- [ ] Confirm permissive use
+- [ ] Document in review packet
+
+### Step 3: Sample Review
+
+- [ ] Inspect specified number of samples (public viewer or single-row access)
+- [ ] Assess quality, relevance, and Bazzite alignment
+- [ ] Scan for deny-rules (secrets, PII, harmful content)
+- [ ] Scan for Bazzite contradictions
+- [ ] Document each sample in review packet
+
+### Step 4: Packet Output
+
+Produce a completed sample review packet using the template:
+
+```markdown
+# Sample Review Packet: {dataset_name}
+
+**Reviewer:** OpenCode (M8A execution)  
+**Date:** {YYYY-MM-DD}  
+**Dataset:** {HF URL}  
+**License:** {license}  
+**Total Samples Reviewed:** {count}
+
+## Summary
+| Metric | Value |
+|--------|-------|
+| Total samples reviewed | {count} |
+| Rejected samples | {count} |
+| Accepted as inspiration | {count} |
+| Denied-rule hits | {count} |
+| Bazzite contradiction hits | {count} |
+| Proposed curated examples | {count} |
+
+## Human Approval
+- [ ] APPROVED
+- [ ] REJECTED
+- [ ] CONDITIONAL
+```
+
+### Step 5: Human Approval
+
+- [ ] Submit packet to human reviewer
+- [ ] Obtain explicit approval before any rewrite or example creation
+- [ ] Record approval decision
+
+---
+
+## Output Artifacts
+
+| Artifact | Location |
+|----------|----------|
+| Review packet (Markdown) | `~/offload/security-reports/manual/m8a-hf-sample-review-{dataset}-YYYYMMDD-HHMMSS.md` |
+| Vetting log | `~/.local/state/bazzite-security/logs/m8a-hf-sample-review-YYYYMMDD-HHMMSS.log` |
+
+---
+
+## Acceptance Criteria
+
+- [ ] Human-provided dataset identifier received
+- [ ] License reviewed and documented
+- [ ] 1–10 samples reviewed
+- [ ] All samples scanned for deny-rules
+- [ ] All samples scanned for Bazzite contradictions
+- [ ] Review packet generated
+- [ ] No dataset downloaded by default
+- [ ] No training performed
+- [ ] No bulk import performed
+- [ ] No examples modified without approval
+- [ ] No secrets printed
+- [ ] Human approval obtained before any sample use
+
+---
+
+## Example Invocation
+
+Human provides:
+> "Review dataset `tatsu-lab/alpaca`, samples 1–5, focus on Linux system administration examples."
+
+M8A execution:
+1. Validate `tatsu-lab/alpaca` exists
+2. Review license (CC BY NC SA 4.0 — note NC restriction)
+3. Inspect samples 1–5 for Linux admin content
+4. Scan for deny-rules and contradictions
+5. Produce review packet
+6. Submit for human approval
+
+---
+
+## Sign-Off
+
+- Phase: M8A — PLANNED
+- Status: Ready for execution when human provides dataset identifier
+- Boundaries: Review-only, no download, no training, no example modification
+- Date: 2026-05-02

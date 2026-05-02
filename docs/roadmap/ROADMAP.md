@@ -1764,11 +1764,29 @@ All implementation phases complete. System is in maintenance mode with periodic 
   - `docs/maintenance/HUGGINGFACE_DATASET_VETTING_POLICY.md`
   - `docs/maintenance/RAG_VS_LORA_RECHECK_MATRIX.md`
 
-### M8: External Dataset Vetting (Hugging Face Review) ⏳ Planned
+### M8: External Dataset Vetting (Hugging Face Review) ✅ Complete (2026-05-02)
 - **Purpose:** Review HF dataset candidates without downloading or training
-- **Status:** PLANNED (prompt ready)
-- **Prompt:** `prompts/opencode/m8-external-dataset-vetting-huggingface-review.prompt.txt`
-- **Trigger:** Human identifies dataset candidates or approves M8 execution
+- **Status:** COMPLETE
+- **Datasets Approved:** NONE (no candidates provided)
+- **Datasets Downloaded:** NONE
+- **Training Performed:** NONE
+- **Artifacts:**
+  - `docs/maintenance/M8_EXTERNAL_DATASET_VETTING_HUGGINGFACE_REVIEW.md`
+  - `docs/maintenance/HUGGINGFACE_DATASET_CANDIDATE_MATRIX.md`
+  - `docs/maintenance/HUGGINGFACE_SAMPLE_REVIEW_PACKET_TEMPLATE.md`
+  - `prompts/opencode/m8a-huggingface-dataset-sample-review.prompt.txt`
+- **Next M8 Trigger:** Human provides dataset candidates or approves M8A execution
+
+### M9: RAG Quality and Retrieval Tuning Cycle ⏳ Planned (Optional)
+- **Purpose:** Improve RAG retrieval quality, expand eval coverage, document RAG failure cases
+- **Status:** PLANNED
+- **Scope:**
+  - Formal RAG accuracy baseline measurement
+  - Document 10+ RAG failure cases
+  - Expand eval cases toward 50 minimum
+  - Improve chunking or indexing if needed
+- **Trigger:** Human approves M9 execution or M7 gates show progress
+- **Note:** M9 is optional. Regular maintenance (M1/M2) continues on schedule.
 
 ---
 
