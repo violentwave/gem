@@ -796,7 +796,26 @@
 
 **Phase 24D:** Phase 24 Closeout (2026-05-02) — COMPLETE
 - Closeout: docs/phase24/PHASE24_RELEASE_RECOVERY_MIGRATION_DISCIPLINE.md
-- Next: Phase 25 (Optional Advanced Model Work Review)
+
+**Phase 25A:** Model Comparison (2026-05-02) — COMPLETE
+- Doc: docs/phase25/PHASE25A_MODEL_COMPARISON.md
+- Compared: Gemma 4, Llama 3.1, Mistral 7B, Qwen 2.5, Phi-4, DeepSeek R1
+- Finding: Gemma 4 is optimal for current hardware
+
+**Phase 25B:** Hardware Upgrade Assessment (2026-05-02) — COMPLETE
+- Doc: docs/phase25/PHASE25B_HARDWARE_UPGRADE_ASSESSMENT.md
+- Options: RTX 3060 12GB, RTX 4060 Ti 16GB, RTX 3090 24GB, No upgrade
+- Finding: No upgrade needed; RTX 4060 Ti 16GB if upgrading
+
+**Phase 25C:** Cloud vs Local Tradeoffs (2026-05-02) — COMPLETE
+- Doc: docs/phase25/PHASE25C_CLOUD_VS_LOCAL_TRADEOFFS.md
+- Compared: Local-only, Cloud, Hybrid
+- Finding: Local-only is correct for this stack
+
+**Phase 25D:** Phase 25 Closeout (2026-05-02) — COMPLETE
+- Closeout: docs/phase25/PHASE25_OPTIONAL_ADVANCED_MODEL_WORK_REVIEW.md
+- Recommendation: NO CHANGES — current setup is optimal
+- Next: Maintenance phases (M1, M2, ...)
 
 ---
 
