@@ -350,7 +350,20 @@
 - Agent Zero stopped after test
 - No secrets exposed
 - Boundary compliance: PASS
-- Next: Phase 12F (Agent Zero OpenCode Bridge Read-Only Briefing Dry-Run)
+
+**Phase 12F:** Agent Zero OpenCode Bridge Read-Only Briefing Dry-Run (2026-05-02) — COMPLETE
+- Closeout: docs/phase12/PHASE12F_AGENT_ZERO_OPENCODE_BRIDGE_READONLY_BRIEFING_DRY_RUN.md
+- Approved source: docs/phase12/PHASE12E2_AGENT_ZERO_LOOPBACK_BRIDGE_REACHABILITY_FIX.md
+- Bridge status: WORKING (127.0.0.1:4141)
+- Agent Zero start: SUCCESS
+- Agent Zero host health: WORKING (v1.9)
+- Chat context creation: SUCCESS (gqr1IM5R)
+- Container direct bridge chat: SUCCESS (OpenCode responded)
+- Agent Zero message_send: TIMEOUT after 180s (documented as WARN)
+- Agent Zero stop: SUCCESS
+- No secrets exposed
+- Boundary compliance: PASS
+- Next: Phase 12G (timeout tuning) or Phase 12H (closeout) or Phase 13
 
 ---
 

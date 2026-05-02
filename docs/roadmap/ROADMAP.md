@@ -1312,9 +1312,20 @@
 - One-message test: PASSED
 - Agent Zero stopped after test
 
+**Phase 12F:** Agent Zero OpenCode Bridge Read-Only Briefing Dry-Run ✅ Complete (2026-05-02)
+- Closeout: `docs/phase12/PHASE12F_AGENT_ZERO_OPENCODE_BRIDGE_READONLY_BRIEFING_DRY_RUN.md`
+- Bridge status: WORKING (127.0.0.1:4141)
+- Agent Zero start: SUCCESS
+- Chat context creation: SUCCESS
+- Container direct bridge chat: SUCCESS
+- Agent Zero message_send: TIMEOUT (documented as WARN)
+- Agent Zero stop: SUCCESS
+- No secrets exposed
+
 **Future Phases:**
 - Phase 12C1: Space Agent Manual UI Dry-Run ⏳ BLOCKED (requires Space Agent installation + explicit prompt)
-- Phase 12F: Agent Zero OpenCode Bridge Read-Only Briefing Dry-Run ⏳ Upcoming
+- Phase 12G: Agent Zero Timeout Tuning or Direct Bridge Briefing ⏳ Upcoming
+- Phase 12H: Phase 12 Bridge Readiness Closeout ⏳ Upcoming
 - Phase 11RV: Official VectorDB API Prototype Review ⏳ Future (optional)
 - Phase 13 — Curated Learning Examples Expansion (future controlled learning feasibility)
 - Phase 14 — Fine-tuning / LoRA Feasibility Review
