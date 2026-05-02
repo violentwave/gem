@@ -2,7 +2,7 @@
 
 ## Status
 
-Planning only.
+Phase 9C.1 implemented. Planning only for 9C.2+.
 
 ## Goal
 
