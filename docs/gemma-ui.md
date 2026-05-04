@@ -220,6 +220,13 @@ gemma-ui --memory-compare "<question>"
 - Memory mode performs read-only retrieval/RAG only.
 - Memory mode does not ingest new data, train the model, mutate repos, or execute remediation.
 
+**Voice-to-Memory Routing:**
+- Natural voice commands are routed deterministically to memory mode.
+- Examples: "memory ask ...", "search memory ...", "compare memory ...", "stage 3a ..."
+- Voice session prints detected route before executing.
+- Memory RAG requires confirmation before running.
+- No transcripts are ingested or stored as training data.
+
 ---
 
 ## Config
@@ -374,3 +381,9 @@ cat ~/.config/bazzite-security/gemma-ui.json
   - RuVector remains explicit supervised secondary
   - Stage 3A remains canonical deterministic fallback
   - Read-only retrieval/RAG only. No ingestion.
+- **2026-05-04** — v1.4.1. Voice-to-memory routing:
+  - Intent router detects memory subcommands: ask, search, compare, stage3a
+  - `route_intent()` returns (mode, subcmd, reason) triple
+  - Voice session prints detected route before executing
+  - Memory RAG requires confirmation before running in voice session
+  - No transcript ingestion. No training data storage.
