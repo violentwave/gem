@@ -75,6 +75,45 @@ This generates the dashboard and then opens it in your default browser using `xd
 
 ---
 
+## How to Chat with Gemma
+
+The dashboard is **not a chat box**. It is a status page only. To actually talk to Gemma, use **Space Agent**.
+
+### Steps
+
+1. **Start Space Agent** (if not running):
+   ```bash
+   ~/Applications/Space-Agent.AppImage
+   ```
+
+2. **In Space Agent, open the chat panel.**
+   - Look for the "Local LLM" or "Chat" option.
+   - If prompted, select the local Ollama provider.
+
+3. **Select the local Gemma model:**
+   - Model: `gemma4-e4b-bazzite:latest`
+   - Endpoint: `http://127.0.0.1:11434/v1/chat/completions`
+   - API key: `ollama` (placeholder)
+
+4. **Type your message and chat.**
+
+### What If Space Agent Is Not Configured?
+
+Space Agent provider settings are entered manually in the UI. If the local provider is not set up:
+- Go to Settings → Provider.
+- Add a custom OpenAI-compatible provider.
+- Base URL: `http://127.0.0.1:11434/v1`
+- Model: `gemma4-e4b-bazzite:latest`
+- API key: `ollama`
+
+### Remember
+
+- **Space Agent = chat UI** (interactive, conversational)
+- **Static dashboard = status page** (read-only, non-interactive)
+- The static dashboard does **not** appear inside Space Agent Spaces unless you manually create a link or custom space.
+
+---
+
 ## What Each Panel Means
 
 ### 1. Stack Summary
@@ -178,13 +217,20 @@ Dynamic suggestions based on current status:
 
 ## How Space Agent Fits In
 
-**Space Agent** is the **recommended manual local Gemma dashboard** for chat and interactive use. It is an Electron app that provides a plain-text chat UI connected to local Ollama/Gemma.
+**Space Agent** is the **recommended manual local Gemma chat UI**. It is an Electron app that provides a plain-text chat interface connected to local Ollama/Gemma.
 
-- **For conversation:** Use Space Agent.
-- **For status overview:** Use the static dashboard (`index.html`).
-- **For reports:** Use the Markdown reports in `~/offload/security-reports/manual/`.
+| Tool | Purpose | Interactive? |
+|------|---------|-------------|
+| **Space Agent** | Chat with Gemma | YES |
+| **Static dashboard** | View stack status | NO (read-only) |
+| **Markdown reports** | Read detailed findings | NO (read-only) |
 
-The static dashboard complements Space Agent by providing a non-interactive, always-readable status summary that does not require Space Agent to be running.
+### Important Distinctions
+
+- **Space Agent is for chat.** Open it when you want to talk to Gemma.
+- **The static dashboard is for status.** Open it when you want to see what is running.
+- **The static dashboard does NOT appear inside Space Agent Spaces.** Space Agent has its own "Spaces" screen with widgets like news feeds and games. The static dashboard is a separate HTML file on disk. You would need to manually create a custom Space Agent space with a web-view widget to embed it, and that is not currently documented or tested.
+- If Space Agent is running but you want the status dashboard, **open both** — they serve different purposes.
 
 ---
 

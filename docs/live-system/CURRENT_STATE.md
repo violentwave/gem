@@ -1032,6 +1032,31 @@
 - **No secrets exposed**
 - **Boundary compliance:** PASS
 
+## M19 — Dashboard Data Quality and Space Agent Integration Refinement (2026-05-03) — COMPLETE
+
+- **Space Agent Detection Improved:** `scripts/gemma-dashboard-build`
+  - Now checks multiple patterns: `Space-Agent`, `space-agent`, `Space-Agent.AppImage`
+  - More robust against process naming variations
+- **Space Agent Panel Text Clarified:**
+  - Running: "Chat UI running. Use the Space Agent window for conversation."
+  - Not running: "Chat UI not running. Start: ~/Applications/Space-Agent.AppImage"
+  - Always notes: "This static dashboard does not appear inside Space Agent Spaces."
+- **Operator Guide Updated:** `docs/dashboard/DASHBOARD_OPERATOR_GUIDE.md`
+  - Added "How to Chat with Gemma" section
+  - Updated "How Space Agent Fits In" with comparison table
+  - Clarified dashboard vs Space Agent distinction
+- **Space Agent Local Evidence Researched (Read-Only):**
+  - Spaces directory: `~/.config/space-agent/customware/L2/user/spaces/`
+  - Schema: `spaces/v2` with YAML `space.yaml` files
+  - Existing spaces: `big-bang`, `crypto-dashboard`, `daily-news`
+  - Widget types: `news-feed`, `weather`, `tetris-game`, etc.
+  - **No generic web-view/local-html widget observed**
+  - Embedding dashboard in Spaces is not straightforward
+- **Artifact:** `docs/maintenance/M19_DASHBOARD_SPACE_AGENT_REFINEMENT.md`
+- **No config modified**
+- **No secrets exposed**
+- **Boundary compliance:** PASS
+
 ---
 
 ## Validation

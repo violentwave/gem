@@ -121,6 +121,34 @@
 
 ---
 
+### M19: Dashboard Data Quality and Space Agent Integration Refinement ✅ Completed
+**Goal:** Improve Space Agent detection and clarify dashboard vs Space Agent relationship
+
+**Tasks:**
+- Improve Space Agent process detection with multiple patterns
+- Update Space Agent panel text to distinguish chat UI from status dashboard
+- Research Space Agent local evidence (spaces directory, widget types)
+- Update operator guide with "How to Chat" section
+
+**Deliverables:**
+- Updated `scripts/gemma-dashboard-build`
+- Updated `docs/dashboard/DASHBOARD_OPERATOR_GUIDE.md`
+- `docs/maintenance/M19_DASHBOARD_SPACE_AGENT_REFINEMENT.md`
+
+**Result:** Space Agent detection is more robust. Dashboard clearly states it does not appear inside Space Agent Spaces. Operator guide includes chat instructions. Space Agent widget research shows no generic HTML embedding mechanism.
+
+**Depends on:** M17
+
+**Do Not:**
+- Modify Agent Zero config
+- Modify Space Agent config
+- Install packages
+- Pull models
+- Enable autonomy
+- Start a daemon or server
+
+---
+
 ## Phase 5: Coordination & Integration Planning
 
 ### Phase 5A: Repo Bootstrap ✅ Completed

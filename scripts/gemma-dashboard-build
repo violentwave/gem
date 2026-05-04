@@ -132,8 +132,11 @@ if curl -s --max-time 5 http://127.0.0.1:11434/api/version >/dev/null 2>&1; then
     OLLAMA_API_OK=0
 fi
 
-# Space Agent
-if pgrep -f "Space-Agent" >/dev/null 2>&1; then
+# Space Agent — check multiple patterns for robustness
+# Patterns: AppImage name, mount path binary, lowercase variant
+if pgrep -f "Space-Agent" >/dev/null 2>&1 || \
+   pgrep -f "space-agent" >/dev/null 2>&1 || \
+   pgrep -f "Space-Agent.AppImage" >/dev/null 2>&1; then
     SPACE_AGENT_RUNNING=0
     if [ -f "${HOME}/Applications/Space-Agent.AppImage" ]; then
         SPACE_AGENT_VERSION="v0.66.0 (detected)"
@@ -273,7 +276,8 @@ cat > "${HTML_OUT}" << HTMLHEAD
 <tr><td>Version</td><td>${SPACE_AGENT_VERSION:-Unknown}</td></tr>
 <tr><td>Config Dir</td><td>~/.config/space-agent/</td></tr>
 </table>
-<p class="small pass"><strong>Recommended manual local Gemma dashboard</strong></p>
+$( [ ${SPACE_AGENT_RUNNING} -eq 0 ] && echo '<p class="small pass"><strong>Chat UI running.</strong> Use the Space Agent window for conversation.</p>' || echo '<p class="small warn"><strong>Chat UI not running.</strong> Start: ~/Applications/Space-Agent.AppImage</p>' )
+<p class="small muted">This static dashboard does not appear inside Space Agent Spaces.</p>
 </div>
 
 <div class="card">
@@ -402,7 +406,11 @@ cat > "${REPORT_OUT}" << MDHEAD
 | Version | ${SPACE_AGENT_VERSION:-Unknown} |
 | Config Dir | ~/.config/space-agent/ |
 
-**Role:** Recommended manual local Gemma dashboard.
+**Role:** Recommended manual local Gemma chat UI.
+
+$( [ ${SPACE_AGENT_RUNNING} -eq 0 ] && echo '**Chat UI running.** Use the Space Agent window for conversation.' || echo '**Chat UI not running.** Start: ~/Applications/Space-Agent.AppImage' )
+
+*Note: This static dashboard does not appear inside Space Agent Spaces unless manually linked/imported.*
 
 ## 3. Ollama / Gemma
 
