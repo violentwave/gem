@@ -77,38 +77,48 @@ This generates the dashboard and then opens it in your default browser using `xd
 
 ## How to Chat with Gemma
 
-The dashboard is **not a chat box**. It is a status page only. To actually talk to Gemma, use **Space Agent**.
+The dashboard is **not a chat box**. It is a status page only. To talk to Gemma, use the **terminal or direct Ollama API**.
 
-### Steps
+### Important Correction (M20)
 
-1. **Start Space Agent** (if not running):
-   ```bash
-   ~/Applications/Space-Agent.AppImage
-   ```
+Space Agent's "Local LLM" panel is a **browser/WebGPU Hugging Face/Transformers.js model loader**. It expects a Hugging Face repo ID (e.g., `google/gemma-2b`) with ONNX assets, not an Ollama model tag. Entering `gemma4-e4b-bazzite:latest` there will fail because Space Agent looks for `config.json` in a Hugging Face repository format.
 
-2. **In Space Agent, open the chat panel.**
-   - Look for the "Local LLM" or "Chat" option.
-   - If prompted, select the local Ollama provider.
+**Do NOT load `gemma4-e4b-bazzite:latest` in Space Agent's Local LLM panel.**
 
-3. **Select the local Gemma model:**
-   - Model: `gemma4-e4b-bazzite:latest`
-   - Endpoint: `http://127.0.0.1:11434/v1/chat/completions`
-   - API key: `ollama` (placeholder)
+### Verified Fallback Paths
 
-4. **Type your message and chat.**
+#### 1. Terminal Helper (Recommended)
 
-### What If Space Agent Is Not Configured?
+```bash
+gemma-bazzite
+```
 
-Space Agent provider settings are entered manually in the UI. If the local provider is not set up:
-- Go to Settings → Provider.
-- Add a custom OpenAI-compatible provider.
-- Base URL: `http://127.0.0.1:11434/v1`
-- Model: `gemma4-e4b-bazzite:latest`
-- API key: `ollama`
+This is the approved supervised terminal interface to local Gemma.
+
+#### 2. Direct Ollama API Test
+
+```bash
+curl -X POST http://127.0.0.1:11434/v1/chat/completions \
+  -H "Content-Type: application/json" \
+  -d '{"model":"gemma4-e4b-bazzite:latest","messages":[{"role":"user","content":"Hello"}]}'
+```
+
+#### 3. RAG-Assisted Query
+
+```bash
+gemma-knowledge-rag "Your question here"
+```
+
+### Space Agent Status
+
+Space Agent's ability to connect to Ollama via an OpenAI-compatible provider path has **not been verified** in this stack. Previous Phase 7E.1 claims are under correction.
+
+Space Agent remains useful as a **workspace UI and manual tool**, but its chat path to local Gemma is currently **unverified**.
 
 ### Remember
 
-- **Space Agent = chat UI** (interactive, conversational)
+- **Terminal / direct Ollama = verified chat with Gemma**
+- **Space Agent Local LLM panel = Hugging Face browser loader only**
 - **Static dashboard = status page** (read-only, non-interactive)
 - The static dashboard does **not** appear inside Space Agent Spaces unless you manually create a link or custom space.
 
@@ -137,6 +147,8 @@ Shows whether Space Agent is running and where its AppImage is.
 ~/Applications/Space-Agent.AppImage
 ```
 
+**Note:** Space Agent's "Local LLM" panel is a Hugging Face browser loader, not an Ollama chat interface. Its path to local Gemma is **unverified**.
+
 ### 3. Ollama / Gemma
 
 Shows Ollama version, API health, GPU memory usage, and loaded models.
@@ -157,7 +169,7 @@ Shows whether the Agent Zero container is running.
 
 **Why no-go?** Agent Zero expects JSON tool responses (`tool_name`, `tool_args`), but local Gemma returns plain text. The `hacker` profile is autonomous-oriented. No supervised profile exists in v1.9. See M15 review for full details.
 
-**What to do:** Do not rely on Agent Zero for local Gemma tasks. Use Space Agent or direct Ollama API calls instead.
+**What to do:** Do not rely on Agent Zero for local Gemma tasks. Use direct Ollama API calls or `gemma-bazzite` instead.
 
 ### 5. OpenCode
 
@@ -217,20 +229,24 @@ Dynamic suggestions based on current status:
 
 ## How Space Agent Fits In
 
-**Space Agent** is the **recommended manual local Gemma chat UI**. It is an Electron app that provides a plain-text chat interface connected to local Ollama/Gemma.
+**Space Agent** is a manual workspace UI and tool dashboard. Its "Local LLM" panel is a **browser/WebGPU Hugging Face model loader**, not an Ollama chat interface. Its path to local Gemma via Ollama is **currently unverified** in this stack.
 
-| Tool | Purpose | Interactive? |
-|------|---------|-------------|
-| **Space Agent** | Chat with Gemma | YES |
-| **Static dashboard** | View stack status | NO (read-only) |
-| **Markdown reports** | Read detailed findings | NO (read-only) |
+| Tool | Purpose | Verified? |
+|------|---------|-----------|
+| **gemma-bazzite** | Terminal chat with Gemma | YES |
+| **Direct Ollama API** | API chat with Gemma | YES |
+| **Space Agent Local LLM** | Hugging Face browser loader | YES (for HF repos) |
+| **Space Agent + Ollama** | Chat via Ollama provider | **NOT VERIFIED** |
+| **Static dashboard** | View stack status | YES |
+| **Markdown reports** | Read detailed findings | YES |
 
 ### Important Distinctions
 
-- **Space Agent is for chat.** Open it when you want to talk to Gemma.
+- **Terminal / direct Ollama = verified chat with Gemma.** Use `gemma-bazzite` or `curl` to the Ollama API.
+- **Space Agent Local LLM panel = Hugging Face browser loader only.** Do not enter Ollama model tags there.
 - **The static dashboard is for status.** Open it when you want to see what is running.
-- **The static dashboard does NOT appear inside Space Agent Spaces.** Space Agent has its own "Spaces" screen with widgets like news feeds and games. The static dashboard is a separate HTML file on disk. You would need to manually create a custom Space Agent space with a web-view widget to embed it, and that is not currently documented or tested.
-- If Space Agent is running but you want the status dashboard, **open both** — they serve different purposes.
+- **The static dashboard does NOT appear inside Space Agent Spaces.** Space Agent has its own "Spaces" screen with widgets. The static dashboard is a separate HTML file on disk.
+- Space Agent remains useful as a **workspace UI** for other tools (news, weather, games, etc.), but do not rely on it as the primary local Gemma chat interface until its Ollama provider path is verified.
 
 ---
 

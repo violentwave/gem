@@ -149,6 +149,32 @@
 
 ---
 
+### M20: Space Agent Provider Reality Check and Documentation Correction ✅ Completed
+**Goal:** Correct documentation after user found Space Agent Local LLM panel is a Hugging Face browser loader, not Ollama chat
+
+**Tasks:**
+- Document user finding: Local LLM panel expects HF repo IDs with ONNX assets, not Ollama tags
+- Correct DASHBOARD_OPERATOR_GUIDE.md: remove incorrect Space Agent chat instructions
+- Update dashboard script: change Space Agent panel to "Ollama/Gemma provider path not yet verified"
+- Document verified fallback paths: gemma-bazzite, direct Ollama API, gemma-knowledge-rag
+
+**Deliverables:**
+- Updated `docs/dashboard/DASHBOARD_OPERATOR_GUIDE.md`
+- Updated `scripts/gemma-dashboard-build`
+- `docs/maintenance/M20_SPACE_AGENT_PROVIDER_REALITY_CHECK.md`
+
+**Result:** Documentation no longer claims Space Agent can chat with local Gemma via Ollama. Verified terminal/API fallbacks are documented. Space Agent remains useful as workspace UI but not as primary Gemma chat interface.
+
+**Depends on:** M19
+
+**Do Not:**
+- Modify Space Agent config
+- Install packages
+- Pull models
+- Enable autonomy
+
+---
+
 ## Phase 5: Coordination & Integration Planning
 
 ### Phase 5A: Repo Bootstrap ✅ Completed

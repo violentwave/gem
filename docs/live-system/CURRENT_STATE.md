@@ -1057,6 +1057,19 @@
 - **No secrets exposed**
 - **Boundary compliance:** PASS
 
+## M20 — Space Agent Provider Reality Check and Documentation Correction (2026-05-04) — COMPLETE
+
+- **User Finding:** Space Agent's "Local LLM" panel is a browser/WebGPU Hugging Face/Transformers.js model loader, not an Ollama chat interface.
+- **Failure Mode:** Entering `gemma4-e4b-bazzite:latest` in the Local LLM panel fails because Space Agent looks for `config.json` in a Hugging Face repo format.
+- **Documentation Corrected:**
+  - `docs/dashboard/DASHBOARD_OPERATOR_GUIDE.md` — Removed incorrect "Chat via Space Agent" instructions; replaced with "Important Correction (M20)" and verified fallback paths (`gemma-bazzite`, direct Ollama API, `gemma-knowledge-rag`)
+  - `docs/dashboard/DASHBOARD_OPERATOR_GUIDE.md` — Updated "How Space Agent Fits In" table to mark Space Agent + Ollama as "NOT VERIFIED"
+  - `scripts/gemma-dashboard-build` — Changed Space Agent panel from "Chat UI running" to "Space Agent running; Ollama/Gemma provider path not yet verified"
+- **Artifact:** `docs/maintenance/M20_SPACE_AGENT_PROVIDER_REALITY_CHECK.md`
+- **No config modified**
+- **No secrets exposed**
+- **Boundary compliance:** PASS
+
 ---
 
 ## Validation
