@@ -95,6 +95,7 @@ Modes can be selected by number or command:
 | 5 | Voice | `/voice` or `/5` | `gemma-voice-chat` | Voice chat (status only if not configured) | not configured |
 | 6 | Reports | `/reports` or `/6` | built-in | Browse recent reports | built-in |
 | 7 | Health | `/health` or `/7` | built-in + `gemma-bazzite-health` | Safe status checks | ready |
+| 8 | Dashboard | `/dashboard` or `/8` | built-in | Read-only status dashboard | built-in |
 
 ---
 
@@ -104,6 +105,8 @@ Modes can be selected by number or command:
 |---------|-------------|
 | `/help` | Show help |
 | `/mode` | Show mode selector |
+| `/dashboard` | Show read-only status dashboard |
+| `/status` | Alias for `/dashboard` |
 | `/clear` | Clear the screen |
 | `/save` | Save current session state |
 | `/back` | Return to welcome screen |
@@ -290,6 +293,9 @@ python3 -m py_compile ~/.local/bin/gemma-ui
 # Demo UI
 ~/.local/bin/gemma-ui --demo-ui
 
+# Dashboard
+~/.local/bin/gemma-ui --dashboard
+
 # Config check
 ~/.local/bin/gemma-ui --config-check
 
@@ -325,3 +331,8 @@ cat ~/.config/bazzite-security/gemma-ui.json
   - `--config` and `--config-check` CLI flags
   - Deep merge backfill preserves user values
   - `web_ui` and `livekit` remain disabled with warnings
+- **2026-05-04** — v1.3.0. Non-invasive status dashboard:
+  - `/dashboard` and `/status` commands (mode [8])
+  - `--dashboard` and `--status` CLI flags
+  - Read-only dashboard: Core, Voice, Memory, Repo, Safety, Feature Flags
+  - No scans run. No sudo. No system changes.

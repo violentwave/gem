@@ -37,6 +37,7 @@ gemma-security-chat remains available as the security console helper.
 | Reports | `/reports` | built-in | Browse recent generated reports |
 | Tools | `/tools` | built-in | List all available helpers |
 | Health | `/health` | built-in + `gemma-bazzite-health` | Safe status checks |
+| Dashboard | `/dashboard` | built-in | Read-only status dashboard |
 
 ### UI Commands
 
@@ -44,6 +45,8 @@ gemma-security-chat remains available as the security console helper.
 |---------|-------------|
 | `/help` | Show help |
 | `/mode` | Show mode selector |
+| `/dashboard` | Show read-only status dashboard |
+| `/status` | Alias for `/dashboard` |
 | `/clear` | Clear the screen |
 | `/save` | Save current session state |
 | `/quit` | Exit |
