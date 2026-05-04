@@ -67,17 +67,33 @@ When `gemma-voice-chat` is not installed, the UI shows:
 
 ```json
 {
-  "version": "1.0.0",
+  "version": "1.2.0",
   "default_mode": "general",
   "theme": "default",
+  "accent": "cyan",
   "show_icons": true,
   "show_timestamps": true,
+  "compact_mode": false,
+  "confirm_tools": true,
+  "confirm_sudo_tools": true,
   "features": {
-    "voice": false,
+    "general": true,
+    "security": true,
     "memory": true,
     "repo": true,
+    "voice": true,
+    "reports": true,
+    "health": true,
     "dashboard": false,
-    "auto_health_check": false
+    "web_ui": false,
+    "livekit": false
+  },
+  "voice": {
+    "duration_seconds": 6,
+    "delete_audio_by_default": true,
+    "recorder_preference": "auto",
+    "stt_preference": "auto",
+    "tts_preference": "auto"
   },
   "paths": {
     "helpers_dir": "~/.local/bin",
@@ -87,6 +103,20 @@ When `gemma-voice-chat` is not installed, the UI shows:
   }
 }
 ```
+
+### Config Commands
+
+```bash
+gemma-ui --config        # Print current config
+gemma-ui --config-check  # Validate config and show feature flags
+```
+
+### Config Behavior
+
+- Missing keys are backfilled from defaults automatically.
+- User-set values are preserved.
+- Invalid values trigger warnings but do not crash the UI.
+- `web_ui` and `livekit` remain disabled; enabling them produces a warning.
 
 ---
 

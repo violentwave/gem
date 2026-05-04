@@ -193,17 +193,33 @@ When `gemma-voice-chat` is not installed, the UI shows:
 
 ```json
 {
-  "version": "1.0.0",
+  "version": "1.2.0",
   "default_mode": "general",
   "theme": "default",
+  "accent": "cyan",
   "show_icons": true,
   "show_timestamps": true,
+  "compact_mode": false,
+  "confirm_tools": true,
+  "confirm_sudo_tools": true,
   "features": {
-    "voice": false,
+    "general": true,
+    "security": true,
     "memory": true,
     "repo": true,
+    "voice": true,
+    "reports": true,
+    "health": true,
     "dashboard": false,
-    "auto_health_check": false
+    "web_ui": false,
+    "livekit": false
+  },
+  "voice": {
+    "duration_seconds": 6,
+    "delete_audio_by_default": true,
+    "recorder_preference": "auto",
+    "stt_preference": "auto",
+    "tts_preference": "auto"
   },
   "paths": {
     "helpers_dir": "~/.local/bin",
@@ -213,6 +229,20 @@ When `gemma-voice-chat` is not installed, the UI shows:
   }
 }
 ```
+
+### Config Commands
+
+```bash
+gemma-ui --config        # Print current config
+gemma-ui --config-check  # Validate config and show feature flags
+```
+
+### Config Behavior
+
+- Missing keys are backfilled from defaults automatically.
+- User-set values are preserved.
+- Invalid values trigger warnings but do not crash the UI.
+- `web_ui` and `livekit` remain disabled; enabling them produces a warning.
 
 ---
 
@@ -260,10 +290,16 @@ python3 -m py_compile ~/.local/bin/gemma-ui
 # Demo UI
 ~/.local/bin/gemma-ui --demo-ui
 
+# Config check
+~/.local/bin/gemma-ui --config-check
+
+# View config
+~/.local/bin/gemma-ui --config
+
 # Verify alias
 ls -la ~/.local/bin/gemma-agent
 
-# Verify config
+# Verify config file
 cat ~/.config/bazzite-security/gemma-ui.json
 ```
 
@@ -281,3 +317,11 @@ cat ~/.config/bazzite-security/gemma-ui.json
   - Risk labels per tool (SAFE, CONFIRM, SUDO)
   - Grouped tool display by category
   - `--demo-ui` flag for UI preview
+- **2026-05-04** — v1.2.0. Config-driven UI expansion:
+  - Expanded config schema with accent, compact_mode, confirm_tools
+  - Feature flags for all 10 modes (general, security, memory, repo, voice, reports, health, dashboard, web_ui, livekit)
+  - Voice settings block (duration, delete_audio, recorder/stt/tts preference)
+  - Config validation with safe fallbacks
+  - `--config` and `--config-check` CLI flags
+  - Deep merge backfill preserves user values
+  - `web_ui` and `livekit` remain disabled with warnings
