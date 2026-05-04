@@ -87,7 +87,7 @@ The `/memory dashboard` (or `/memory quality`) command shows a read-only quality
 
 1. **Helper Availability** — Shows which helpers are installed and their roles.
 2. **Known Policy Status** — RuVector (supervised secondary), Stage 3A (canonical fallback), Promotion (denied / not default).
-3. **Current Index State** — Shows index path, file size, chunk count (Stage 3A), and manifest presence. No mutation.
+3. **Current Index State** — Shows index path, file size, chunk count (Stage 3A), last modified time, and manifest status. Manifests are checked across multiple known paths (RuVector: `semantic-manifest-*.json` and `manifest-*.json`; Stage 3A: `gemma-knowledge-manifest-*.txt`). If no manifest is found, a supervised refresh note is shown. No mutation.
 4. **Recommended Use** — When to use RuVector (semantic recall), Stage 3A (exact path/policy), or compare mode.
 5. **Warnings** — No ingestion, no raw logs, no default promotion, Stage 3A fallback preserved.
 
@@ -109,9 +109,11 @@ Read-only. No ingestion. No default promotion.
   Promotion    denied / not default    RuVector remains supervised prototype.
 
 3. Current Index State
-  RuVector    ~/.local/share/.../semantic-approved-docs-memory.json    ✓ 8.6 MB
-  Stage 3A    ~/.local/share/.../chunks.jsonl                          ✓ 511.6 KB (335 chunks)
-  Manifest    ~/.local/share/.../manifest.json                         ⚠ not found
+  RuVector    ~/.local/share/.../semantic-approved-docs-memory.json    ✓ 8.6 MB (modified 2026-04-30 18:40)
+  Stage 3A    ~/.local/share/.../chunks.jsonl                          ✓ 511.6 KB (335 chunks, modified 2026-05-02 11:23)
+
+  RuVector    ~/.local/share/.../semantic-manifest-*.json              ✓ 8762.2 KB (modified 2026-04-30 18:40)
+  Stage 3A    ~/.local/share/.../gemma-knowledge-manifest-*.txt        ✓ 1.7 KB (modified 2026-04-30 14:10)
 
 4. Recommended Use
   • Use RuVector for semantic recall questions.

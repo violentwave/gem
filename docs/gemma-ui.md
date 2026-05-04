@@ -395,3 +395,9 @@ cat ~/.config/bazzite-security/gemma-ui.json
   - `--memory-dashboard` CLI flag
   - Read-only dashboard: helper availability, policy status, index state, recommendations, warnings
   - No ingestion. No default promotion. Stage 3A fallback preserved.
+- **2026-05-04** — v1.4.3. Manifest path fix:
+  - Dashboard checks multiple manifest paths for RuVector and Stage 3A
+  - Shows manifest size and last modified time when found
+  - Shows supervised refresh note when not found
+  - `--memory-status` also reports manifest status
+  - No ingestion. No index rebuild. No default promotion.
