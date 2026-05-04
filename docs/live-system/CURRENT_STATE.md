@@ -99,6 +99,7 @@
 ### Config
 ```
 ~/.config/bazzite-security/
+├── gemma-ui.json                     # Unified UI config
 ├── PATHS.md
 ├── FINAL_POLICY.md
 ├── RUNBOOK.md
@@ -112,6 +113,10 @@
 ### Scripts
 ```
 ~/.local/bin/
+├── gemma-ui                          # Main unified terminal front door
+├── gemma-agent -> gemma-ui           # Compatibility alias
+├── gemma-security-chat               # Security console helper (15 tools)
+├── gemma-security-analyzer           # Security tool analysis wrapper
 ├── gemma-bazzite
 ├── gemma-bazzite-health
 ├── gemma-security-summary
@@ -128,10 +133,16 @@
 ├── gemma-knowledge-index
 ├── gemma-knowledge-search
 ├── gemma-knowledge-rag
+├── gemma-memory-search               # RuVector semantic search
+├── gemma-memory-rag                  # RuVector RAG with Ollama
 ├── gemma-evals-check
 ├── gemma-examples-check
 ├── gemma-evals-status
-└── gemma-examples-review-drafts
+├── gemma-examples-review-drafts
+├── gemma-monitor-daily
+├── gemma-monitor-drift
+├── gemma-monitor-weekly
+└── gemma-dashboard-build
 ```
 
 ### Persistent State
@@ -169,6 +180,8 @@
 ## Operating Model
 
 ### Current Capability Level
+- **gemma-ui:** Main local terminal front door (unified router, 10 modes, 15+ helpers)
+- **gemma-security-chat:** Security console helper (15 tools, Rich UI)
 - **Gemma wrappers:** L1 advisory, L2 report writing, RAG queries
 - **gemma-memory-search:** Supervised RuVector semantic search with Stage 3A fallback
 - **gemma-memory-rag:** Supervised RAG using RuVector context + local Ollama generation

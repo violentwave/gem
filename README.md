@@ -48,7 +48,7 @@ These paths remain the live system source-of-truth and are not moved:
 - Status reporting, draft review, validation tools
 - All validators passing
 
-## Current Phase: Phase 5F ✅ Complete
+## Current Phase: Phase 5G ✅ Complete
 
 ### Phase 5A: Repo Bootstrap ✅
 - Create coordination repo (this work)
@@ -83,10 +83,21 @@ These paths remain the live system source-of-truth and are not moved:
 - Phase 6 sandbox plan
 - Integration decisions documented
 
+### Phase 5G: Unified Terminal UI ✅
+- Single entry point `gemma-ui` (and alias `gemma-agent`) routing to all helpers
+- 10 modes: general, security, memory, repo, voice, reports, tools, health, help, quit
+- 22-helper registry with graceful handling of missing helpers
+- Delegates to existing helpers rather than duplicating logic
+- Keeps `gemma-security-chat` and all other helpers working independently
+- Uses Python stdlib + Rich (already installed)
+- Config: `~/.config/bazzite-security/gemma-ui.json`
+- Docs: `docs/gemma-ui.md`
+
 ## Operating Model
 
 ### Current State
 - **Gemma wrappers:** L1 advisory, L2 report writing, RAG queries
+- **Gemma UI:** `gemma-ui` / `gemma-agent` unified terminal router (10 modes, 22 helpers)
 - **OpenCode/Codex:** Implementation work, repo operations
 - **Agent Zero:** Not yet integrated (assessment phase)
 - **RuVector:** Not yet integrated (assessment phase)
@@ -110,6 +121,10 @@ find ~/projects/gem -type f -name "*.md" | head -20
 gemma-examples-check
 gemma-evals-check
 gemma-evals-status
+
+# Launch unified terminal UI
+gemma-ui --help
+gemma-ui --list-modes
 
 # Check inventory
 ls -la ~/projects/gem/inventory/

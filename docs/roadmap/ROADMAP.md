@@ -336,6 +336,32 @@
 
 **Depends on:** 5C, 5D, 5E
 
+### Phase 5G: Unified Terminal UI ✅ Completed
+**Goal:** Build polished local terminal front door for all Gemma functions
+
+**Tasks:**
+- Create `~/.local/bin/gemma-ui` as unified router
+- Add `gemma-agent` compatibility alias
+- Implement welcome screen with model/status display
+- Implement top status bar (mode, Ollama, tools, voice, memory)
+- Implement numbered mode selector [1]-[7]
+- Implement transcript-style output panels
+- Implement consistent footer (/help, /mode, /back, /quit)
+- Add risk labels per tool (SAFE, CONFIRM, SUDO)
+- Group tool display by category
+- Add `--demo-ui` flag for UI preview
+- Update config with theme, timestamps, feature flags
+- Keep all existing safety gates intact
+
+**Deliverables:**
+- `~/.local/bin/gemma-ui` (executable, Python + Rich)
+- `~/.local/bin/gemma-agent` (symlink)
+- `~/.config/bazzite-security/gemma-ui.json`
+- `docs/gemma-ui.md`
+- `docs/maintenance/GEMMA_UI_FRONT_DOOR.md`
+
+**Depends on:** 5F
+
 ## Phase 6: Sandbox Prototypes ⏳ Upcoming
 
 ### Phase 6A: Agent Zero Sandbox ⏳
