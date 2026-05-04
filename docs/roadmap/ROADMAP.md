@@ -362,6 +362,29 @@
 
 **Depends on:** 5F
 
+### Phase 5G.1: Voice Mode Regression Closeout ✅ Completed
+**Goal:** Fix voice mode interaction and recorder reliability
+
+**Issues Fixed:**
+- Enter key alone no longer triggers accidental recording
+- `r` and `/r` both trigger recording explicitly
+- `pw-record` no longer uses `-d` for duration (PipeWire 1.4.10 does not support it)
+- `timeout` controls recording duration; exit code 124 is treated as success
+- `pw-record` uses `--rate 16000 --channels 1 --format s16`
+- `/quit` exits cleanly
+
+**Safety:**
+- Voice mode remains push-to-talk only.
+- Voice mode does not bypass confirmation gates.
+- No always-listening daemon or wake word is used.
+
+**Deliverables:**
+- Updated `~/.local/bin/gemma-voice-chat`
+- Updated `~/.local/bin/gemma-ui`
+- `docs/maintenance/GEMMA_VOICE_MODE.md`
+
+**Depends on:** 5G
+
 ## Phase 6: Sandbox Prototypes ⏳ Upcoming
 
 ### Phase 6A: Agent Zero Sandbox ⏳

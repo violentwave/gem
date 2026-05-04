@@ -90,7 +90,7 @@ Inside `gemma-ui`:
 
 ## Voice Session Flow
 
-1. Type **`r`** and press **Enter** to record (6 seconds)
+1. Type **`r`** or **`/r`** or **`/record`** and press **Enter** to record (6 seconds)
 2. Or type text directly and press **Enter** to send as text
 3. Audio saved to temp WAV file
 4. whisper-cli transcribes WAV to text
@@ -99,6 +99,13 @@ Inside `gemma-ui`:
 7. piper converts text to speech
 8. WAV played through speakers
 9. Raw audio deleted (unless `--keep-audio`)
+
+**Recording details:**
+- `pw-record` duration is controlled by `timeout`.
+- `timeout` exit code 124 (process killed after duration) is treated as successful completion.
+- Voice mode remains push-to-talk only.
+- Voice mode does not bypass confirmation gates.
+- No always-listening daemon or wake word is used.
 
 ## Configuration
 

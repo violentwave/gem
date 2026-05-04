@@ -117,6 +117,7 @@
 ├── gemma-agent -> gemma-ui           # Compatibility alias
 ├── gemma-security-chat               # Security console helper (15 tools)
 ├── gemma-security-analyzer           # Security tool analysis wrapper
+├── gemma-voice-chat                  # Local push-to-talk voice agent (STT + TTS)
 ├── gemma-bazzite
 ├── gemma-bazzite-health
 ├── gemma-security-summary
@@ -182,6 +183,7 @@
 ### Current Capability Level
 - **gemma-ui:** Main local terminal front door (unified router, 10 modes, 15+ helpers)
 - **gemma-security-chat:** Security console helper (15 tools, Rich UI)
+- **gemma-voice-chat:** Local push-to-talk voice agent (STT + TTS, no daemon, no wake word)
 - **Gemma wrappers:** L1 advisory, L2 report writing, RAG queries
 - **gemma-memory-search:** Supervised RuVector semantic search with Stage 3A fallback
 - **gemma-memory-rag:** Supervised RAG using RuVector context + local Ollama generation
@@ -197,6 +199,13 @@
 - No secrets in coordination repo
 - RuVector is supervised only — Stage 3A remains canonical fallback
 - gemma-memory-search/rag are helpers, NOT wrapper defaults
+
+### Voice Mode Boundaries
+- Voice mode remains push-to-talk only.
+- Voice mode does not bypass confirmation gates.
+- No always-listening daemon or wake word is used.
+- `pw-record` duration is controlled by `timeout`.
+- Use `r` or `/r` or `/record` to record.
 
 ## Phase 8 Completion (2026-05-01)
 

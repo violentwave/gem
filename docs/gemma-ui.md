@@ -173,9 +173,16 @@ Detected helpers (15 total):
 
 Voice mode is local push-to-talk only when configured.
 
+**Interaction:**
+- Use `r` or `/r` or `/record` to record.
+- `pw-record` duration is controlled by `timeout`.
+- Voice mode remains push-to-talk only.
+- Voice mode does not bypass confirmation gates.
+- No always-listening daemon or wake word is used.
+
 When `gemma-voice-chat` is not installed, the UI shows:
 - Current configuration status
-- Setup guide for local STT/TTS options (whisper.cpp, piper, porcupine)
+- Setup guide for local STT/TTS options (whisper.cpp, piper)
 - No automatic installation
 
 ---
