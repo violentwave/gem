@@ -22,6 +22,8 @@ Memory mode provides explicit supervised access to:
 ```
 /memory              Show memory status and help
 /memory status       Show memory mode status
+/memory dashboard    Show memory quality dashboard
+/memory quality      Alias for dashboard
 /memory search <q>   RuVector semantic search (supervised)
 /memory ask <q>      RuVector RAG with Ollama (supervised)
 /memory stage3a <q>  Stage 3A deterministic fallback
@@ -32,7 +34,8 @@ Memory mode provides explicit supervised access to:
 ### CLI
 
 ```bash
-gemma-ui --memory-status
+gemma-ui --memory-status              Show memory mode status
+gemma-ui --memory-dashboard           Show memory quality dashboard
 gemma-ui --memory-search "RuVector promotion decision"
 gemma-ui --memory-ask "What did we decide about voice mode?"
 gemma-ui --memory-stage3a "What is the safe operating model?"
@@ -74,6 +77,55 @@ Ingestion:      not performed
 Index Paths:
   RuVector:  ✓ ~/.local/share/bazzite-security/ruvector/semantic-prototype/semantic-approved-docs-memory.json
   Stage 3A:  ✓ ~/.local/share/bazzite-security/gemma-knowledge/index/chunks.jsonl
+```
+
+## Memory Quality Dashboard
+
+The `/memory dashboard` (or `/memory quality`) command shows a read-only quality dashboard to help decide when to use RuVector vs Stage 3A.
+
+### Sections
+
+1. **Helper Availability** — Shows which helpers are installed and their roles.
+2. **Known Policy Status** — RuVector (supervised secondary), Stage 3A (canonical fallback), Promotion (denied / not default).
+3. **Current Index State** — Shows index path, file size, chunk count (Stage 3A), and manifest presence. No mutation.
+4. **Recommended Use** — When to use RuVector (semantic recall), Stage 3A (exact path/policy), or compare mode.
+5. **Warnings** — No ingestion, no raw logs, no default promotion, Stage 3A fallback preserved.
+
+### Example Output
+
+```
+🧠 Memory Quality Dashboard
+Read-only. No ingestion. No default promotion.
+
+1. Helper Availability
+  gemma-memory-search       ✓ available    RuVector semantic search
+  gemma-memory-rag          ✓ available    RuVector RAG
+  gemma-knowledge-search    ✓ available    Stage 3A keyword search
+  gemma-knowledge-rag       ✓ available    Stage 3A RAG fallback
+
+2. Known Policy Status
+  RuVector     supervised secondary    Explicit mode only. Not default.
+  Stage 3A     canonical fallback      Deterministic retrieval. No embeddings.
+  Promotion    denied / not default    RuVector remains supervised prototype.
+
+3. Current Index State
+  RuVector    ~/.local/share/.../semantic-approved-docs-memory.json    ✓ 8.6 MB
+  Stage 3A    ~/.local/share/.../chunks.jsonl                          ✓ 511.6 KB (335 chunks)
+  Manifest    ~/.local/share/.../manifest.json                         ⚠ not found
+
+4. Recommended Use
+  • Use RuVector for semantic recall questions.
+      Examples: "what did we decide about...?", "how does X relate to Y?"
+  • Use Stage 3A for exact path/policy/command questions.
+      Examples: "what is the canonical path for...?", "show me the firewall rule..."
+  • Use compare mode when uncertain.
+      Runs both and lets you evaluate side-by-side.
+
+5. Warnings
+  ⚠ No ingestion in this mode.
+  ⚠ No raw logs or transcripts displayed.
+  ⚠ No default promotion. RuVector stays supervised.
+  ⚠ Stage 3A fallback preserved.
 ```
 
 ## Comparison Summary

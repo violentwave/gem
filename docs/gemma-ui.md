@@ -197,6 +197,8 @@ Memory mode provides explicit supervised access to RuVector and Stage 3A retriev
 **Commands:**
 ```
 /memory status          Show memory mode status
+/memory dashboard      Show memory quality dashboard
+/memory quality        Alias for dashboard
 /memory search <query>  RuVector semantic search (supervised)
 /memory ask <question>  RuVector RAG with Ollama (supervised)
 /memory stage3a <q>     Stage 3A deterministic fallback
@@ -206,7 +208,8 @@ Memory mode provides explicit supervised access to RuVector and Stage 3A retriev
 
 **CLI flags:**
 ```bash
-gemma-ui --memory-status
+gemma-ui --memory-status              Show memory mode status
+gemma-ui --memory-dashboard           Show memory quality dashboard
 gemma-ui --memory-search "<query>"
 gemma-ui --memory-ask "<question>"
 gemma-ui --memory-stage3a "<question>"
@@ -387,3 +390,8 @@ cat ~/.config/bazzite-security/gemma-ui.json
   - Voice session prints detected route before executing
   - Memory RAG requires confirmation before running in voice session
   - No transcript ingestion. No training data storage.
+- **2026-05-04** — v1.4.2. Memory quality dashboard:
+  - `/memory dashboard` and `/memory quality` commands
+  - `--memory-dashboard` CLI flag
+  - Read-only dashboard: helper availability, policy status, index state, recommendations, warnings
+  - No ingestion. No default promotion. Stage 3A fallback preserved.
