@@ -360,6 +360,10 @@ gemma-dashboard --open
 
 ---
 
+## Related Dashboards
+
+- **Security Dashboard:** [`docs/dashboard/SECURITY_DASHBOARD_OPERATOR_GUIDE.md`](SECURITY_DASHBOARD_OPERATOR_GUIDE.md) — Host security status (firewall, USBGuard, ClamAV, Lynis)
+
 ## References
 
 - [`docs/dashboard/LOCAL_GEMMA_DASHBOARD_REQUIREMENTS.md`](LOCAL_GEMMA_DASHBOARD_REQUIREMENTS.md)

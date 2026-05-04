@@ -175,6 +175,35 @@
 
 ---
 
+### M21: Live Local Security Dashboard v1 ✅ Completed
+**Goal:** Build a local-only live security dashboard with optional foreground watch mode
+
+**Tasks:**
+- Create `scripts/gemma-security-dashboard-build` with 10 security panels
+- Add `--watch` foreground watch mode with `--interval` support
+- Add `--open` and `--help` flags
+- Generate HTML with `<meta refresh>` in watch mode
+- Create `docs/dashboard/SECURITY_DASHBOARD_OPERATOR_GUIDE.md`
+
+**Deliverables:**
+- `scripts/gemma-security-dashboard-build`
+- `docs/dashboard/SECURITY_DASHBOARD_OPERATOR_GUIDE.md`
+- `docs/maintenance/M21_LIVE_SECURITY_DASHBOARD.md`
+
+**Result:** Security dashboard operational. Read-only inspection of firewall, USBGuard, ClamAV, Lynis, and security timers. Watch mode runs in foreground only, stops on Ctrl+C. No daemon or server created.
+
+**Depends on:** M20
+
+**Do Not:**
+- Modify firewall rules
+- Modify USBGuard policy
+- Run ClamAV scans
+- Run Lynis audits
+- Start a daemon or server
+- Install packages
+
+---
+
 ## Phase 5: Coordination & Integration Planning
 
 ### Phase 5A: Repo Bootstrap ✅ Completed

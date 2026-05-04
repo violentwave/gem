@@ -1070,6 +1070,30 @@
 - **No secrets exposed**
 - **Boundary compliance:** PASS
 
+## M21 — Live Local Security Dashboard v1 (2026-05-04) — COMPLETE
+
+- **Security Dashboard Script:** `scripts/gemma-security-dashboard-build`
+  - Generates HTML: `~/.local/share/bazzite-security/security-dashboard/index.html`
+  - Generates Markdown: `~/offload/security-reports/manual/security-dashboard-YYYYMMDD-HHMMSS.md`
+  - Generates Log: `~/.local/state/bazzite-security/logs/security-dashboard-YYYYMMDD-HHMMSS.log`
+  - 10 panels: Security Summary, Firewall, USBGuard, ClamAV/Freshclam, Lynis, Security Timers, Recent Reports, Gemma Advisory Status, Guardrails, Next Safe Actions
+  - `--watch` flag: foreground watch mode with configurable `--interval` (default 60s, min 15s)
+  - `--open` flag: open dashboard in browser
+  - `--help` flag: usage documentation
+  - Watch mode adds `<meta http-equiv="refresh">` to HTML for browser auto-refresh
+  - Watch mode stops on Ctrl+C — no daemon, no background service
+- **Operator Guide:** `docs/dashboard/SECURITY_DASHBOARD_OPERATOR_GUIDE.md`
+- **Validation:**
+  - `bash -n`: PASS
+  - `shellcheck`: PASS (info only)
+  - `--help`: PASS
+  - One-shot generation: PASS
+  - Watch mode smoke test (`timeout 35s --watch --interval 15`): PASS (2 refreshes, exited cleanly)
+  - No lingering process: PASS
+- **No config modified**
+- **No secrets exposed**
+- **Boundary compliance:** PASS
+
 ---
 
 ## Validation
