@@ -385,6 +385,32 @@
 
 **Depends on:** 5G
 
+### Phase 5G.2: Supervised Memory Mode ✅ Completed
+**Goal:** Wire RuVector Memory Mode into gemma-ui as explicit supervised mode
+
+**Tasks:**
+- Add `/memory` subcommands: status, search, ask, stage3a, compare
+- Add `--memory-*` CLI flags
+- Show RuVector status: supervised secondary only
+- Show Stage 3A status: canonical fallback
+- Run helpers via subprocess argument arrays (no shell injection)
+- Preserve helper-generated reports in canonical locations
+
+**Safety:**
+- RuVector memory mode is explicit and supervised.
+- RuVector is not the default retrieval path.
+- Stage 3A deterministic retrieval remains the canonical fallback.
+- Memory mode performs read-only retrieval/RAG only.
+- Memory mode does not ingest new data, train the model, mutate repos, or execute remediation.
+
+**Deliverables:**
+- Updated `~/.local/bin/gemma-ui`
+- `docs/maintenance/GEMMA_UI_MEMORY_MODE.md`
+- Updated `docs/gemma-ui.md`
+- Updated `docs/live-system/CURRENT_STATE.md`
+
+**Depends on:** 5G.1
+
 ## Phase 6: Sandbox Prototypes ⏳ Upcoming
 
 ### Phase 6A: Agent Zero Sandbox ⏳

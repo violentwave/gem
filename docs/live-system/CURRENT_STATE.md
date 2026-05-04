@@ -187,6 +187,7 @@
 - **Gemma wrappers:** L1 advisory, L2 report writing, RAG queries
 - **gemma-memory-search:** Supervised RuVector semantic search with Stage 3A fallback
 - **gemma-memory-rag:** Supervised RAG using RuVector context + local Ollama generation
+- **gemma-ui memory mode:** Explicit supervised RuVector + Stage 3A fallback via `/memory` subcommands
 - **OpenCode/Codex:** Implementation work, repo operations, config editing
 - **Agent Zero:** Not yet integrated (assessment phase)
 - **RuVector:** Supervised prototype only (L6), NOT production default
@@ -206,6 +207,13 @@
 - No always-listening daemon or wake word is used.
 - `pw-record` duration is controlled by `timeout`.
 - Use `r` or `/r` or `/record` to record.
+
+### Memory Mode Boundaries
+- RuVector memory mode is explicit and supervised.
+- RuVector is not the default retrieval path.
+- Stage 3A deterministic retrieval remains the canonical fallback.
+- Memory mode performs read-only retrieval/RAG only.
+- Memory mode does not ingest new data, train the model, mutate repos, or execute remediation.
 
 ## Phase 8 Completion (2026-05-01)
 

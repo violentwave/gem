@@ -90,7 +90,7 @@ Modes can be selected by number or command:
 |---|------|---------|-------------|-------------|--------|
 | 1 | General | `/general` or `/1` | `gemma-bazzite` | Chat with local Gemma | ready |
 | 2 | Security | `/security` or `/2` | `gemma-security-chat` | Security tool console | ready |
-| 3 | Memory | `/memory` or `/3` | `gemma-memory-search`, `gemma-knowledge-search` | RuVector / Stage 3A search | ready |
+| 3 | Memory | `/memory` or `/3` | `gemma-memory-search`, `gemma-knowledge-search` | Supervised RuVector + Stage 3A fallback | ready |
 | 4 | Repo | `/repo` or `/4` | `gemma-repo-brief` | Repo summaries | ready |
 | 5 | Voice | `/voice` or `/5` | `gemma-voice-chat` | Voice chat (status only if not configured) | not configured |
 | 6 | Reports | `/reports` or `/6` | built-in | Browse recent reports | built-in |
@@ -187,6 +187,38 @@ When `gemma-voice-chat` is not installed, the UI shows:
 - Current configuration status
 - Setup guide for local STT/TTS options (whisper.cpp, piper)
 - No automatic installation
+
+---
+
+## Memory Mode
+
+Memory mode provides explicit supervised access to RuVector and Stage 3A retrieval.
+
+**Commands:**
+```
+/memory status          Show memory mode status
+/memory search <query>  RuVector semantic search (supervised)
+/memory ask <question>  RuVector RAG with Ollama (supervised)
+/memory stage3a <q>     Stage 3A deterministic fallback
+/memory compare <q>     Run both and summarize differences
+/memory help            Show memory help
+```
+
+**CLI flags:**
+```bash
+gemma-ui --memory-status
+gemma-ui --memory-search "<query>"
+gemma-ui --memory-ask "<question>"
+gemma-ui --memory-stage3a "<question>"
+gemma-ui --memory-compare "<question>"
+```
+
+**Safety:**
+- RuVector memory mode is explicit and supervised.
+- RuVector is not the default retrieval path.
+- Stage 3A deterministic retrieval remains the canonical fallback.
+- Memory mode performs read-only retrieval/RAG only.
+- Memory mode does not ingest new data, train the model, mutate repos, or execute remediation.
 
 ---
 
@@ -336,3 +368,9 @@ cat ~/.config/bazzite-security/gemma-ui.json
   - `--dashboard` and `--status` CLI flags
   - Read-only dashboard: Core, Voice, Memory, Repo, Safety, Feature Flags
   - No scans run. No sudo. No system changes.
+- **2026-05-04** — v1.4.0. Supervised memory mode:
+  - `/memory` subcommands: status, search, ask, stage3a, compare
+  - `--memory-status`, `--memory-search`, `--memory-ask`, `--memory-stage3a`, `--memory-compare` CLI flags
+  - RuVector remains explicit supervised secondary
+  - Stage 3A remains canonical deterministic fallback
+  - Read-only retrieval/RAG only. No ingestion.
