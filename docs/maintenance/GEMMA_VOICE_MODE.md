@@ -90,14 +90,15 @@ Inside `gemma-ui`:
 
 ## Voice Session Flow
 
-1. Press **Enter** to record (6 seconds)
-2. Audio saved to temp WAV file
-3. whisper-cli transcribes WAV to text
-4. Text sent to Gemma via Ollama
-5. Gemma's text response received
-6. piper converts text to speech
-7. WAV played through speakers
-8. Raw audio deleted (unless `--keep-audio`)
+1. Type **`r`** and press **Enter** to record (6 seconds)
+2. Or type text directly and press **Enter** to send as text
+3. Audio saved to temp WAV file
+4. whisper-cli transcribes WAV to text
+5. Text sent to Gemma via Ollama
+6. Gemma's text response received
+7. piper converts text to speech
+8. WAV played through speakers
+9. Raw audio deleted (unless `--keep-audio`)
 
 ## Configuration
 
