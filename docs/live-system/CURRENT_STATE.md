@@ -187,7 +187,7 @@
 - **Gemma wrappers:** L1 advisory, L2 report writing, RAG queries
 - **gemma-memory-search:** Supervised RuVector semantic search with Stage 3A fallback
 - **gemma-memory-rag:** Supervised RAG using RuVector context + local Ollama generation
-- **gemma-ui memory mode:** Explicit supervised RuVector + Stage 3A fallback via `/memory` subcommands
+- **gemma-ui memory mode:** Explicit supervised RuVector + Stage 3A fallback via `/memory` subcommands; quality dashboard (`/memory dashboard`); voice-to-memory routing with confirmation
 - **OpenCode/Codex:** Implementation work, repo operations, config editing
 - **Agent Zero:** Not yet integrated (assessment phase)
 - **RuVector:** Supervised prototype only (L6), NOT production default

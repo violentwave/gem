@@ -395,6 +395,9 @@
 - Show Stage 3A status: canonical fallback
 - Run helpers via subprocess argument arrays (no shell injection)
 - Preserve helper-generated reports in canonical locations
+- Add memory quality dashboard (`/memory dashboard`, `--memory-dashboard`)
+- Add voice-to-memory routing with confirmation gates
+- Regression closeout: syntax, UI, query, safety validation
 
 **Safety:**
 - RuVector memory mode is explicit and supervised.
@@ -404,10 +407,17 @@
 - Memory mode does not ingest new data, train the model, mutate repos, or execute remediation.
 
 **Deliverables:**
-- Updated `~/.local/bin/gemma-ui`
+- Updated `~/.local/bin/gemma-ui` (v1.4.2)
 - `docs/maintenance/GEMMA_UI_MEMORY_MODE.md`
+- `docs/maintenance/GEMMA_UI_MEMORY_MODE_REGRESSION.md`
 - Updated `docs/gemma-ui.md`
 - Updated `docs/live-system/CURRENT_STATE.md`
+
+**Regression:**
+- Syntax: `py_compile` pass on gemma-ui and gemma-voice-chat
+- UI: `--memory-status`, `--memory-dashboard`, `--dashboard`, `--list-modes` pass
+- Queries: `--memory-search`, `--memory-stage3a`, `--memory-compare` pass
+- Safety: No ingestion, no default promotion, Stage 3A preserved, no sudo/scans
 
 **Depends on:** 5G.1
 
