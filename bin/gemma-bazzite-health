@@ -1,0 +1,149 @@
+#!/usr/bin/env bash
+set -Eeuo pipefail
+
+# gemma-bazzite-health - Health check for local Ollama/Gemma setup
+# Advisory only, no sudo, no system changes
+
+TIMESTAMP=$(date +%Y%m%d-%H%M%S)
+readonly TIMESTAMP
+readonly LOG_FILE="${HOME}/.local/state/bazzite-security/logs/gemma-bazzite-health-${TIMESTAMP}.log"
+
+# Ensure log directory exists
+mkdir -p "$(dirname "$LOG_FILE")"
+
+log() {
+    echo "$(date '+%Y-%m-%d %H:%M:%S') $*" | tee -a "$LOG_FILE"
+}
+
+main() {
+    log "=== Gemma Bazzite Health Check ==="
+    log "Timestamp: ${TIMESTAMP}"
+    log
+
+    # 1. Check Ollama binary
+    log "--- Checking Ollama Binary ---"
+    if command -v ollama &>/dev/null; then
+        OLLAMA_PATH=$(command -v ollama)
+        log "OK: Ollama found at ${OLLAMA_PATH}"
+    else
+        log "FAIL: Ollama binary not found in PATH"
+        exit 1
+    fi
+
+    # 2. Check Ollama version
+    log
+    log "--- Checking Ollama Version ---"
+    if ollama --version &>/dev/null; then
+        OLLAMA_VERSION=$(ollama --version 2>&1)
+        log "OK: ${OLLAMA_VERSION}"
+    else
+        log "FAIL: Could not get Ollama version"
+    fi
+
+    # 3. Check Ollama API
+    log
+    log "--- Checking Ollama API ---"
+    if curl -s http://127.0.0.1:11434/api/version &>/dev/null; then
+        API_VERSION=$(curl -s http://127.0.0.1:11434/api/version)
+        log "OK: API reachable, version ${API_VERSION}"
+    else
+        log "WARN: Ollama API not reachable at http://127.0.0.1:11434"
+    fi
+
+    # 4. Check models installed
+    log
+    log "--- Checking Models ---"
+    local gemma_base_found=false
+    local gemma_bazzite_found=false
+
+    if ollama list &>/dev/null; then
+        while IFS= read -r line; do
+            if [[ "$line" == *"gemma4:e4b"* ]]; then
+                log "OK: gemma4:e4b found"
+                gemma_base_found=true
+            elif [[ "$line" == *"gemma4-e4b-bazzite"* ]]; then
+                log "OK: gemma4-e4b-bazzite found"
+                gemma_bazzite_found=true
+            fi
+        done < <(ollama list 2>&1 || true)
+
+        if [[ "$gemma_base_found" == false ]]; then
+            log "WARN: gemma4:e4b not found"
+        fi
+        if [[ "$gemma_bazzite_found" == false ]]; then
+            log "WARN: gemma4-e4b-bazzite not found"
+        fi
+    else
+        log "WARN: Could not list Ollama models"
+    fi
+
+    # 5. Check helper scripts exist/executable
+    log
+    log "--- Checking Helper Scripts ---"
+    local scripts=(
+        "${HOME}/.local/bin/gemma-bazzite"
+        "${HOME}/.local/bin/gemma-security-summary"
+        "${HOME}/.local/bin/gemma-bazzite-health"
+        "${HOME}/.local/bin/gemma-security-summary-check"
+    )
+
+    for script in "${scripts[@]}"; do
+        if [[ -x "$script" ]]; then
+            log "OK: ${script} exists and is executable"
+        elif [[ -f "$script" ]]; then
+            log "WARN: ${script} exists but is not executable"
+        else
+            log "INFO: ${script} not found (may be created later)"
+        fi
+    done
+
+    # 6. Print ollama ps
+    log
+    log "--- Ollama Running Models ---"
+    if ollama ps &>/dev/null; then
+        ollama ps | tee -a "$LOG_FILE" || true
+    else
+        log "INFO: No Ollama models currently running"
+    fi
+
+    # 7. Print nvidia-smi summary if available
+    log
+    log "--- GPU Status ---"
+    if command -v nvidia-smi &>/dev/null; then
+        log "GPU detected:"
+        nvidia-smi --query-gpu=name,driver_version,memory.total,memory.used,temperature.gpu,utilization.gpu --format=csv,noheader,nounits 2>/dev/null | tee -a "$LOG_FILE" || true
+    else
+        log "INFO: nvidia-smi not found (no NVIDIA GPU or drivers not installed)"
+    fi
+
+    # 8. Check canonical directories exist
+    log
+    log "--- Checking Directory Structure ---"
+    local dirs=(
+        "${HOME}/.local/bin"
+        "${HOME}/.config/bazzite-security"
+        "${HOME}/.config/bazzite-security/ollama"
+        "${HOME}/.local/state/bazzite-security/logs"
+        "${HOME}/.local/share/bazzite-security"
+        "${HOME}/.cache/bazzite-security"
+        "${HOME}/offload/security-reports"
+        "${HOME}/offload/security-reports/manual"
+        "${HOME}/offload/security-reports/daily"
+        "${HOME}/offload/security-reports/weekly"
+        "${HOME}/offload/security-reports/audit"
+    )
+
+    for dir in "${dirs[@]}"; do
+        if [[ -d "$dir" ]]; then
+            log "OK: ${dir}"
+        else
+            log "INFO: ${dir} does not exist"
+        fi
+    done
+
+    log
+    log "=== Health Check Complete ==="
+    log "Log written to: ${LOG_FILE}"
+}
+
+main "$@"

@@ -1,0 +1,114 @@
+#!/bin/bash
+
+source ~/.local/lib/gemma-monitor-lib.sh
+
+START=$(date +%s)
+PASS_COUNT=0
+WARN_COUNT=0
+FAIL_COUNT=0
+
+monitor_header "Daily Health Monitor"
+
+monitor_section "Infrastructure"
+
+if command_exists ollama; then
+    OLLAMA_VERSION=$(ollama --version 2>/dev/null | head -1)
+    if [ $? -eq 0 ]; then
+        monitor_pass "Ollama: ${OLLAMA_VERSION}"
+    else
+        monitor_fail "Ollama: installed but version check failed"
+    fi
+else
+    monitor_fail "Ollama: not installed"
+fi
+
+if port_listening 127.0.0.1 11434; then
+    monitor_pass "Ollama API: 127.0.0.1:11434 reachable"
+else
+    monitor_fail "Ollama API: 127.0.0.1:11434 unreachable"
+fi
+
+if command_exists ollama; then
+    if ollama list 2>/dev/null | grep -q "gemma4-e4b-bazzite"; then
+        monitor_pass "Gemma model: gemma4-e4b-bazzite available"
+    else
+        monitor_fail "Gemma model: gemma4-e4b-bazzite not found"
+    fi
+else
+    monitor_fail "Gemma model: cannot check (ollama not found)"
+fi
+
+if command_exists nvidia-smi; then
+    GPU_MEM=$(nvidia-smi --query-gpu=memory.used --format=csv,noheader,nounits 2>/dev/null | head -1)
+    if [ -n "${GPU_MEM}" ]; then
+        if [ "${GPU_MEM}" -lt 5000 ]; then
+            monitor_pass "GPU: GTX 1060 6GB (${GPU_MEM}MB used)"
+        else
+            monitor_warn "GPU: GTX 1060 6GB (${GPU_MEM}MB used - high)"
+        fi
+    else
+        monitor_warn "GPU: nvidia-smi found but no output"
+    fi
+else
+    monitor_warn "GPU: nvidia-smi not found"
+fi
+
+monitor_section "Integration"
+
+if port_listening 127.0.0.1 4141; then
+    monitor_pass "OpenCode bridge: 127.0.0.1:4141 reachable"
+else
+    monitor_fail "OpenCode bridge: 127.0.0.1:4141 unreachable"
+fi
+
+monitor_section "Validation"
+
+if command_exists gemma-evals-check; then
+    if gemma-evals-check >/dev/null 2>&1; then
+        monitor_pass "Eval system: gemma-evals-check PASS"
+    else
+        monitor_fail "Eval system: gemma-evals-check FAIL"
+    fi
+else
+    monitor_warn "Eval system: gemma-evals-check not found"
+fi
+
+if command_exists gemma-examples-check; then
+    if gemma-examples-check >/dev/null 2>&1; then
+        monitor_pass "Examples: gemma-examples-check PASS"
+    else
+        monitor_fail "Examples: gemma-examples-check FAIL"
+    fi
+else
+    monitor_warn "Examples: gemma-examples-check not found"
+fi
+
+monitor_section "Resources"
+
+LARGE_LOGS=$(find ~/.local/state/bazzite-security/logs/ -type f -size +100M 2>/dev/null)
+if [ -z "${LARGE_LOGS}" ]; then
+    monitor_pass "Logs: no files > 100MB"
+else
+    LOG_COUNT=$(echo "${LARGE_LOGS}" | wc -l)
+    monitor_warn "Logs: ${LOG_COUNT} file(s) > 100MB"
+    echo "${LARGE_LOGS}" | while read -r log; do
+        monitor_info "  - $(basename "${log}"): $(file_size_mb "${log}")MB"
+    done
+fi
+
+for path in ~/.local ~/.cache ~/offload; do
+    if [ -d "${path}" ]; then
+        USAGE=$(disk_usage_percent "${path}")
+        if [ -n "${USAGE}" ]; then
+            if [ "${USAGE}" -lt 80 ]; then
+                monitor_pass "Disk ${path}: ${USAGE}% used"
+            else
+                monitor_warn "Disk ${path}: ${USAGE}% used (high)"
+            fi
+        fi
+    fi
+done
+
+DURATION=$(( $(date +%s) - START ))
+monitor_summary ${DURATION}
+exit $?

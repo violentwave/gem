@@ -46,6 +46,10 @@ build/
 !artifacts/doc-archives/*.tar.gz
 !artifacts/prototype-archives/
 !artifacts/prototype-archives/*.tar.gz
+!artifacts/legacy-binaries/
+!artifacts/legacy-binaries/*.tar.gz
+!artifacts/prompt-archives/
+!artifacts/prompt-archives/*.tar.gz
 *.zip
 
 # Generated reports (large)
@@ -56,6 +60,9 @@ reports/
 
 # Private artifacts
 artifacts/private/
+
+# Generated state (inventory is collected from live system, not source)
+inventory/
 inventory/raw/
 
 # Node.js

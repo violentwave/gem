@@ -1,0 +1,450 @@
+#!/usr/bin/env python3
+"""
+gemma-examples-check: Validates Stage 4B supervised example data integrity.
+
+This script validates the JSONL example files in:
+~/.local/share/bazzite-security/gemma-evals/examples/
+
+Usage:
+    gemma-examples-check
+
+Exit codes:
+    0: PASS
+    1: FAIL (validation errors)
+    2: USAGE ERROR (wrong arguments)
+
+Behavior:
+- Validates JSONL files are valid JSON
+- Checks required fields are present
+- Validates IDs are unique across all files
+- Validates types/sources/status values are valid
+- Checks for sensitive patterns (secrets, keys, tokens)
+- Validates minimum reviewed example counts
+- Does NOT call Ollama, execute commands, or run OpenCode
+"""
+
+import json
+import os
+import re
+import sys
+from datetime import datetime
+from pathlib import Path
+from typing import Dict, List, Set, Tuple
+
+# Configuration
+EXAMPLES_DIR = Path.home() / ".local/share/bazzite-security/gemma-evals/examples"
+MANIFESTS_DIR = Path.home() / ".local/share/bazzite-security/gemma-evals/manifests"
+LOGS_DIR = Path.home() / ".local/state/bazzite-security/logs"
+
+# Minimum counts
+MIN_COMMAND_REVIEW = 6
+MIN_RAG_ANSWER = 4
+MIN_BAD_TO_CORRECTED = 4
+MIN_PATH_POLICY = 4
+MIN_REVIEWED = 8
+
+# Valid values
+VALID_TYPES = {
+    "command_review_example",
+    "rag_answer_example", 
+    "bad_to_corrected_example",
+    "path_policy_example"
+}
+
+VALID_SOURCES = {
+    "synthetic",
+    "human_corrected",
+    "wrapper_output_sanitized"
+}
+
+VALID_STATUS = {
+    "draft",
+    "reviewed",
+    "deprecated"
+}
+
+# Sensitive patterns to check
+SENSITIVE_PATTERNS = [
+    r'[a-zA-Z0-9_-]*(?:api[_-]?key|apikey|api-secret|secret[_-]?key|secretkey)[:\s]*["\']?[a-zA-Z0-9_-]{20,}["\']?',
+    r'sk-[a-zA-Z0-9]{20,}',  # OpenAI-style keys
+    r'gh[pousr]_[a-zA-Z0-9]{20,}',  # GitHub tokens
+    r'Bearer\s+[a-zA-Z0-9_-]{20,}',
+    r'-----BEGIN (?:RSA |EC |DSA |OPENSSH )?PRIVATE KEY-----',
+    r'AKIA[0-9A-Z]{16}',  # AWS Access Key ID
+    r'[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}',  # UUID patterns
+    r'password[:\s]*["\']?[^"\']{8,}["\']?',
+    r'token[:\s]*["\']?[a-zA-Z0-9_-]{20,}["\']?',
+]
+
+# Forbidden platform assumptions
+FORBIDDEN_ASSUMPTIONS = ["apt", "apt-get", "ufw", "Ubuntu", "Debian"]
+
+
+def get_timestamp() -> str:
+    """Get current timestamp for filenames."""
+    return datetime.now().strftime("%Y%m%d-%H%M%S")
+
+
+def setup_logging() -> Path:
+    """Setup log file and return path."""
+    LOGS_DIR.mkdir(parents=True, exist_ok=True)
+    log_path = LOGS_DIR / f"gemma-examples-check-{get_timestamp()}.log"
+    return log_path
+
+
+def log_message(log_file, message: str, print_to_stdout: bool = True) -> None:
+    """Log message to file and optionally stdout."""
+    timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    log_line = f"[{timestamp}] {message}"
+    with open(log_file, 'a') as f:
+        f.write(log_line + '\n')
+    if print_to_stdout:
+        print(message)
+
+
+def validate_jsonl_file(filepath: Path) -> Tuple[List[dict], List[str]]:
+    """Validate a single JSONL file. Returns (entries, errors)."""
+    entries = []
+    errors = []
+    
+    if not filepath.exists():
+        return entries, [f"File not found: {filepath}"]
+    
+    try:
+        with open(filepath, 'r') as f:
+            for line_num, line in enumerate(f, 1):
+                line = line.strip()
+                if not line:
+                    continue
+                try:
+                    entry = json.loads(line)
+                    entry['_source_file'] = filepath.name
+                    entry['_line_num'] = line_num
+                    entries.append(entry)
+                except json.JSONDecodeError as e:
+                    errors.append(f"{filepath.name}:{line_num}: Invalid JSON: {e}")
+    except Exception as e:
+        errors.append(f"{filepath.name}: Cannot read file: {e}")
+    
+    return entries, errors
+
+
+def check_required_fields(entry: dict, filepath: str) -> List[str]:
+    """Check that required fields are present."""
+    errors = []
+    line_num = entry.get('_line_num', '?')
+    
+    required_fields = ['id', 'type', 'source', 'status', 'input', 'expected']
+    for field in required_fields:
+        if field not in entry:
+            errors.append(f"{filepath}:{line_num}: Missing required field '{field}'")
+    
+    return errors
+
+
+def check_valid_values(entry: dict, filepath: str) -> List[str]:
+    """Check that enum values are valid."""
+    errors = []
+    line_num = entry.get('_line_num', '?')
+    
+    if 'type' in entry and entry['type'] not in VALID_TYPES:
+        errors.append(f"{filepath}:{line_num}: Invalid type '{entry['type']}'")
+    
+    if 'source' in entry and entry['source'] not in VALID_SOURCES:
+        errors.append(f"{filepath}:{line_num}: Invalid source '{entry['source']}'")
+    
+    if 'status' in entry and entry['status'] not in VALID_STATUS:
+        errors.append(f"{filepath}:{line_num}: Invalid status '{entry['status']}'")
+    
+    return errors
+
+
+def check_expected_fields(entry: dict, filepath: str) -> List[str]:
+    """Check that expected object has required fields."""
+    errors = []
+    line_num = entry.get('_line_num', '?')
+    
+    if 'expected' not in entry:
+        return errors
+    
+    expected = entry['expected']
+    if not isinstance(expected, dict):
+        errors.append(f"{filepath}:{line_num}: 'expected' must be an object")
+        return errors
+    
+    # All example types must have must_include and must_not_include
+    if 'must_include' not in expected:
+        errors.append(f"{filepath}:{line_num}: Missing 'expected.must_include'")
+    elif not isinstance(expected['must_include'], list):
+        errors.append(f"{filepath}:{line_num}: 'expected.must_include' must be an array")
+    
+    if 'must_not_include' not in expected:
+        errors.append(f"{filepath}:{line_num}: Missing 'expected.must_not_include'")
+    elif not isinstance(expected['must_not_include'], list):
+        errors.append(f"{filepath}:{line_num}: 'expected.must_not_include' must be an array")
+    
+    # Type-specific required fields
+    ex_type = entry.get('type', '')
+    if ex_type == 'command_review_example':
+        if 'classification' not in expected:
+            errors.append(f"{filepath}:{line_num}: command_review_example missing 'expected.classification'")
+        if 'reason' not in expected:
+            errors.append(f"{filepath}:{line_num}: command_review_example missing 'expected.reason'")
+    elif ex_type == 'rag_answer_example':
+        if 'answer_summary' not in expected:
+            errors.append(f"{filepath}:{line_num}: rag_answer_example missing 'expected.answer_summary'")
+    elif ex_type == 'bad_to_corrected_example':
+        if 'correction' not in expected:
+            errors.append(f"{filepath}:{line_num}: bad_to_corrected_example missing 'expected.correction'")
+        if 'bad_patterns' not in expected:
+            errors.append(f"{filepath}:{line_num}: bad_to_corrected_example missing 'expected.bad_patterns'")
+    elif ex_type == 'path_policy_example':
+        if 'answer_summary' not in expected:
+            errors.append(f"{filepath}:{line_num}: path_policy_example missing 'expected.answer_summary'")
+    
+    return errors
+
+
+def check_sensitive_patterns(entry: dict, filepath: str) -> List[str]:
+    """Check for sensitive patterns in entry content."""
+    errors = []
+    line_num = entry.get('_line_num', '?')
+    
+    # Convert entry to string for pattern matching
+    entry_str = json.dumps(entry)
+    
+    for pattern in SENSITIVE_PATTERNS:
+        matches = re.finditer(pattern, entry_str, re.IGNORECASE)
+        for match in matches:
+            # Truncate the match for display
+            match_text = match.group()[:50] + "..." if len(match.group()) > 50 else match.group()
+            errors.append(f"{filepath}:{line_num}: Potential sensitive data detected: {match_text}")
+    
+    return errors
+
+
+def check_forbidden_assumptions(entry: dict, filepath: str) -> List[str]:
+    """Check for forbidden platform assumptions in corrections."""
+    errors = []
+    line_num = entry.get('_line_num', '?')
+    
+    # Only check bad_to_corrected_example type
+    if entry.get('type') != 'bad_to_corrected_example':
+        return errors
+    
+    expected = entry.get('expected', {})
+    correction = expected.get('correction', '')
+    must_not_include = expected.get('must_not_include', [])
+    
+    # Check that correction doesn't include forbidden terms in must_not_include
+    for forbidden in FORBIDDEN_ASSUMPTIONS:
+        if forbidden in must_not_include:
+            continue  # Already listed as must_not_include
+        if forbidden in correction:
+            errors.append(f"{filepath}:{line_num}: Correction contains forbidden term '{forbidden}' without being in must_not_include")
+    
+    return errors
+
+
+def count_by_type(entries: List[dict]) -> Dict[str, int]:
+    """Count entries by type."""
+    counts = {}
+    for entry in entries:
+        ex_type = entry.get('type', 'unknown')
+        counts[ex_type] = counts.get(ex_type, 0) + 1
+    return counts
+
+
+def count_by_status(entries: List[dict]) -> Dict[str, int]:
+    """Count entries by status."""
+    counts = {}
+    for entry in entries:
+        status = entry.get('status', 'unknown')
+        counts[status] = counts.get(status, 0) + 1
+    return counts
+
+
+def check_unique_ids(entries: List[dict]) -> List[str]:
+    """Check that all IDs are unique."""
+    errors = []
+    seen_ids: Dict[str, Tuple[str, int]] = {}  # id -> (filepath, line_num)
+    
+    for entry in entries:
+        entry_id = entry.get('id')
+        if not entry_id:
+            continue
+        
+        filepath = entry.get('_source_file', 'unknown')
+        line_num = entry.get('_line_num', 0)
+        
+        if entry_id in seen_ids:
+            prev_file, prev_line = seen_ids[entry_id]
+            errors.append(f"{filepath}:{line_num}: Duplicate ID '{entry_id}' (first seen in {prev_file}:{prev_line})")
+        else:
+            seen_ids[entry_id] = (filepath, line_num)
+    
+    return errors
+
+
+def write_manifest(log_file: Path, entries: List[dict], all_errors: List[str], result: str) -> None:
+    """Write validation manifest."""
+    MANIFESTS_DIR.mkdir(parents=True, exist_ok=True)
+    manifest_path = MANIFESTS_DIR / f"gemma-examples-check-{get_timestamp()}.txt"
+    
+    counts_by_type = count_by_type(entries)
+    counts_by_status = count_by_status(entries)
+    
+    with open(manifest_path, 'w') as f:
+        f.write("=" * 70 + "\n")
+        f.write("Gemma Examples Check Manifest\n")
+        f.write(f"Generated: {datetime.now().isoformat()}\n")
+        f.write(f"Result: {result}\n")
+        f.write("=" * 70 + "\n\n")
+        
+        f.write("Summary:\n")
+        f.write(f"  Total examples: {len(entries)}\n")
+        f.write(f"  Total errors: {len(all_errors)}\n\n")
+        
+        f.write("Counts by type:\n")
+        for ex_type, count in sorted(counts_by_type.items()):
+            f.write(f"  {ex_type}: {count}\n")
+        f.write("\n")
+        
+        f.write("Counts by status:\n")
+        for status, count in sorted(counts_by_status.items()):
+            f.write(f"  {status}: {count}\n")
+        f.write("\n")
+        
+        if all_errors:
+            f.write("Validation Errors:\n")
+            for error in all_errors:
+                f.write(f"  - {error}\n")
+            f.write("\n")
+        
+        f.write("Validated Files:\n")
+        for jsonl_file in sorted(EXAMPLES_DIR.glob("*.jsonl")):
+            f.write(f"  - {jsonl_file.name}\n")
+        f.write("\n")
+        
+        f.write("ID List:\n")
+        for entry in sorted(entries, key=lambda e: e.get('id', '')):
+            entry_id = entry.get('id', 'NO_ID')
+            ex_type = entry.get('type', 'unknown')
+            status = entry.get('status', 'unknown')
+            f.write(f"  {entry_id} ({ex_type}, {status})\n")
+    
+    return manifest_path
+
+
+def main() -> int:
+    """Main entry point."""
+    # Check for help
+    if len(sys.argv) > 1 and sys.argv[1] in ('-h', '--help'):
+        print(__doc__)
+        return 0
+    
+    # Check for unexpected arguments
+    if len(sys.argv) > 1:
+        print("Error: Unexpected arguments", file=sys.stderr)
+        print("Usage: gemma-examples-check", file=sys.stderr)
+        return 2
+    
+    # Setup
+    log_file = setup_logging()
+    all_entries: List[dict] = []
+    all_errors: List[str] = []
+    
+    log_message(log_file, "Starting gemma-examples-check validation")
+    
+    # Check examples directory exists
+    if not EXAMPLES_DIR.exists():
+        log_message(log_file, f"ERROR: Examples directory not found: {EXAMPLES_DIR}")
+        return 1
+    
+    # Find all JSONL files
+    jsonl_files = sorted(EXAMPLES_DIR.glob("*.jsonl"))
+    if not jsonl_files:
+        log_message(log_file, f"ERROR: No JSONL files found in {EXAMPLES_DIR}")
+        return 1
+    
+    log_message(log_file, f"Found {len(jsonl_files)} JSONL files to validate")
+    
+    # Validate each file
+    for jsonl_path in jsonl_files:
+        log_message(log_file, f"Validating: {jsonl_path.name}")
+        entries, errors = validate_jsonl_file(jsonl_path)
+        all_entries.extend(entries)
+        all_errors.extend(errors)
+        
+        # Validate each entry
+        for entry in entries:
+            all_errors.extend(check_required_fields(entry, jsonl_path.name))
+            all_errors.extend(check_valid_values(entry, jsonl_path.name))
+            all_errors.extend(check_expected_fields(entry, jsonl_path.name))
+            all_errors.extend(check_sensitive_patterns(entry, jsonl_path.name))
+            all_errors.extend(check_forbidden_assumptions(entry, jsonl_path.name))
+    
+    # Check unique IDs
+    all_errors.extend(check_unique_ids(all_entries))
+    
+    # Check minimum counts
+    counts_by_type = count_by_type(all_entries)
+    counts_by_status = count_by_status(all_entries)
+    
+    if counts_by_type.get('command_review_example', 0) < MIN_COMMAND_REVIEW:
+        all_errors.append(f"Insufficient command_review_example entries: {counts_by_type.get('command_review_example', 0)} < {MIN_COMMAND_REVIEW}")
+    
+    if counts_by_type.get('rag_answer_example', 0) < MIN_RAG_ANSWER:
+        all_errors.append(f"Insufficient rag_answer_example entries: {counts_by_type.get('rag_answer_example', 0)} < {MIN_RAG_ANSWER}")
+    
+    if counts_by_type.get('bad_to_corrected_example', 0) < MIN_BAD_TO_CORRECTED:
+        all_errors.append(f"Insufficient bad_to_corrected_example entries: {counts_by_type.get('bad_to_corrected_example', 0)} < {MIN_BAD_TO_CORRECTED}")
+    
+    if counts_by_type.get('path_policy_example', 0) < MIN_PATH_POLICY:
+        all_errors.append(f"Insufficient path_policy_example entries: {counts_by_type.get('path_policy_example', 0)} < {MIN_PATH_POLICY}")
+    
+    if counts_by_status.get('reviewed', 0) < MIN_REVIEWED:
+        all_errors.append(f"Insufficient reviewed examples: {counts_by_status.get('reviewed', 0)} < {MIN_REVIEWED}")
+    
+    # Print summary
+    log_message(log_file, "")
+    log_message(log_file, "=" * 70)
+    log_message(log_file, "Validation Summary")
+    log_message(log_file, "=" * 70)
+    log_message(log_file, f"Total examples: {len(all_entries)}")
+    log_message(log_file, f"Total errors: {len(all_errors)}")
+    log_message(log_file, "")
+    
+    log_message(log_file, "Counts by type:")
+    for ex_type, count in sorted(counts_by_type.items()):
+        log_message(log_file, f"  {ex_type}: {count}")
+    log_message(log_file, "")
+    
+    log_message(log_file, "Counts by status:")
+    for status, count in sorted(counts_by_status.items()):
+        log_message(log_file, f"  {status}: {count}")
+    log_message(log_file, "")
+    
+    # Write manifest
+    result = "FAIL" if all_errors else "PASS"
+    manifest_path = write_manifest(log_file, all_entries, all_errors, result)
+    log_message(log_file, f"Manifest written to: {manifest_path}")
+    log_message(log_file, f"Log written to: {log_file}")
+    
+    # Print errors if any
+    if all_errors:
+        log_message(log_file, "")
+        log_message(log_file, "Validation Errors:")
+        for error in all_errors:
+            log_message(log_file, f"  - {error}")
+        log_message(log_file, "")
+        log_message(log_file, f"Result: FAIL ({len(all_errors)} errors)")
+        return 1
+    else:
+        log_message(log_file, "")
+        log_message(log_file, "Result: PASS")
+        return 0
+
+
+if __name__ == "__main__":
+    sys.exit(main())

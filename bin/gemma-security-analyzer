@@ -1,0 +1,421 @@
+#!/usr/bin/env bash
+set -Eeuo pipefail
+
+# gemma-security-analyzer - Advisory security analysis through Gemma
+# Runs security tools, captures output, feeds to Gemma for analysis
+# Advisory only. No automatic remediation. Human approves tool execution.
+#
+# Usage: gemma-security-analyzer [tool] [options]
+# Tools: network, processes, rootkit, firewall, usb, full
+
+TIMESTAMP=$(date +%Y%m%d-%H%M%S)
+readonly TIMESTAMP
+readonly REPORT_DIR="${HOME}/offload/security-reports/manual"
+readonly LOG_DIR="${HOME}/.local/state/bazzite-security/logs"
+readonly CAPTURE_DIR="${HOME}/.local/share/bazzite-security/captures"
+readonly MODEL="${GEMMA_MODEL:-gemma4-e4b-bazzite}"
+readonly REPORT_FILE="${REPORT_DIR}/gemma-security-analysis-${TIMESTAMP}.md"
+readonly LOG_FILE="${LOG_DIR}/gemma-security-analysis-${TIMESTAMP}.log"
+
+TOOL="${1:-full}"
+CAPTURE_DURATION="${2:-30}"
+
+check_sudo() {
+    if ! sudo -n true 2>/dev/null; then
+        echo "WARNING: sudo access required for some security tools."
+        echo "You may be prompted for your password."
+        echo ""
+    fi
+}
+
+log() {
+    echo "$(date '+%Y-%m-%d %H:%M:%S') $*" | tee -a "$LOG_FILE"
+}
+
+error_exit() {
+    log "ERROR: $*"
+    exit 1
+}
+
+usage() {
+    cat <<'USAGE'
+Usage: gemma-security-analyzer [TOOL] [DURATION]
+
+Advisory security analysis through Gemma. Tools are executed, output is
+analyzed by Gemma, and recommendations are advisory only.
+
+TOOLS:
+    network     Capture and analyze network traffic (tcpdump)
+    processes   Analyze running processes for anomalies
+    rootkit     Run rkhunter and analyze output
+    firewall    Analyze firewall rules and logs
+    usb         Analyze USB device activity
+    full        Run all available checks (default)
+
+DURATION:
+    Seconds for network capture (default: 30, min: 10, max: 300)
+
+EXAMPLES:
+    gemma-security-analyzer network 60      # 60-second network capture
+    gemma-security-analyzer rootkit         # Rootkit scan analysis
+    gemma-security-analyzer full            # Full security analysis
+
+OUTPUT:
+    Report: ~/offload/security-reports/manual/gemma-security-analysis-*.md
+    Log:    ~/.local/state/bazzite-security/logs/gemma-security-analysis-*.log
+    Capture: ~/.local/share/bazzite-security/captures/ (for network tool)
+
+SAFETY:
+    - All tools run with least privilege possible
+    - Network capture requires sudo (tcpdump)
+    - Gemma output is advisory only; no automatic remediation
+    - Review report before taking action
+USAGE
+}
+
+collect_network_data() {
+    local duration="$1"
+    local pcap_file="${CAPTURE_DIR}/capture-${TIMESTAMP}.pcap"
+    local stats_file="${CAPTURE_DIR}/stats-${TIMESTAMP}.txt"
+    
+    log "Collecting network data for ${duration}s..."
+    mkdir -p "$CAPTURE_DIR"
+    
+    # Capture with tcpdump (requires sudo)
+    if command -v tcpdump >/dev/null 2>&1; then
+        log "Running tcpdump capture..."
+        sudo timeout "$duration" tcpdump -i any -nn -w "$pcap_file" 2>/dev/null || true
+        
+        if [ -f "$pcap_file" ]; then
+            log "Analyzing capture with tshark..."
+            {
+                echo "=== Network Capture Statistics ==="
+                echo "Duration: ${duration}s"
+                echo "File: $pcap_file"
+                echo ""
+                echo "=== Protocol Summary ==="
+                tshark -r "$pcap_file" -q -z io,phs 2>/dev/null || echo "tshark not available"
+                echo ""
+                echo "=== Top Talkers (by packets) ==="
+                tshark -r "$pcap_file" -q -z conv,ip 2>/dev/null | head -30 || echo "tshark not available"
+                echo ""
+                echo "=== DNS Queries ==="
+                tshark -r "$pcap_file" -nn -Y "dns.qry.name" -T fields -e dns.qry.name 2>/dev/null | sort | uniq -c | sort -rn | head -20 || echo "No DNS queries or tshark unavailable"
+                echo ""
+                echo "=== Unusual Ports ==="
+                tshark -r "$pcap_file" -nn -T fields -e tcp.dstport -e udp.dstport 2>/dev/null | tr '\t' '\n' | grep -v '^$' | sort | uniq -c | sort -rn | head -20 || echo "No port data or tshark unavailable"
+                echo ""
+                echo "=== HTTP Hosts ==="
+                tshark -r "$pcap_file" -nn -Y "http.host" -T fields -e http.host 2>/dev/null | sort | uniq -c | sort -rn | head -10 || echo "No HTTP traffic or tshark unavailable"
+            } > "$stats_file"
+            
+            cat "$stats_file"
+        else
+            log "tcpdump capture failed or produced no output"
+            echo "tcpdump capture failed. Check sudo access."
+        fi
+    else
+        log "tcpdump not available"
+        echo "tcpdump not available. Install: sudo rpm-ostree install tcpdump (or use toolbox)"
+    fi
+}
+
+collect_process_data() {
+    log "Collecting process data..."
+    
+    {
+        echo "=== Process Summary ==="
+        echo "Generated: $(date -Iseconds)"
+        echo ""
+        echo "=== Top CPU Consumers ==="
+        ps aux --sort=-%cpu | head -15
+        echo ""
+        echo "=== Top Memory Consumers ==="
+        ps aux --sort=-%mem | head -15
+        echo ""
+        echo "=== Network-Connected Processes ==="
+        ss -tunap | grep ESTAB | head -20
+        echo ""
+        echo "=== Listening Ports ==="
+        ss -tlnp
+        echo ""
+        echo "=== Processes Running as Root ==="
+        ps aux | grep -E "^root" | head -10
+        echo ""
+        echo "=== Unusual Process States ==="
+        ps aux | awk '$8 ~ /D|Z|T/' | head -10
+        echo ""
+        echo "=== Recent Process Spawns (last 5 min) ==="
+        ps -eo pid,etime,comm,args | awk '$2 ~ /^0[0-5]:/ || $2 ~ /^00:0[0-5]/ {print}' | head -20
+    }
+}
+
+collect_rootkit_data() {
+    log "Collecting rootkit data..."
+    
+    if command -v rkhunter >/dev/null 2>&1; then
+        log "Running rkhunter --check --sk --report-warnings-only..."
+        local rkhunter_output
+        rkhunter_output=$(sudo rkhunter --check --sk --report-warnings-only 2>&1 | grep -v "egrep" || true)
+        
+        {
+            echo "=== Rootkit Scan Results ==="
+            echo "Generated: $(date -Iseconds)"
+            echo ""
+            echo "$rkhunter_output"
+            echo ""
+            echo "=== RKHunter Properties ==="
+            rkhunter --version 2>/dev/null || echo "Version check failed"
+            echo ""
+            echo "=== RKHunter Configuration ==="
+            grep -E "^(ALLOWHIDDEN|ALLOWDEVFILE|ALLOWPROCDEL|ALLOWPROMISC|PKGMGR)" /etc/rkhunter.conf 2>/dev/null | head -10 || echo "Config not accessible"
+        }
+    else
+        echo "rkhunter not available. Install: brew install rkhunter"
+    fi
+}
+
+collect_firewall_data() {
+    log "Collecting firewall data..."
+    
+    {
+        echo "=== Firewall Analysis ==="
+        echo "Generated: $(date -Iseconds)"
+        echo ""
+        echo "=== Firewalld State ==="
+        firewall-cmd --state 2>/dev/null || echo "firewalld not running"
+        echo ""
+        echo "=== Default Zone ==="
+        firewall-cmd --get-default-zone 2>/dev/null || echo "N/A"
+        echo ""
+        echo "=== Active Zones ==="
+        firewall-cmd --get-active-zones 2>/dev/null || echo "N/A"
+        echo ""
+        echo "=== All Rules ==="
+        firewall-cmd --list-all 2>/dev/null || echo "N/A"
+        echo ""
+        echo "=== Rich Rules ==="
+        firewall-cmd --list-rich-rules 2>/dev/null || echo "N/A"
+        echo ""
+        echo "=== iptables Rules ==="
+        sudo iptables -L -n 2>/dev/null | head -20 || echo "iptables not available"
+        echo ""
+        echo "=== nftables Rules ==="
+        sudo nft list ruleset 2>/dev/null | head -30 || echo "nftables not available"
+    }
+}
+
+collect_usb_data() {
+    log "Collecting USB data..."
+    
+    {
+        echo "=== USB Device Analysis ==="
+        echo "Generated: $(date -Iseconds)"
+        echo ""
+        echo "=== USBGuard Status ==="
+        systemctl is-active usbguard 2>/dev/null || echo "usbguard not active"
+        echo ""
+        echo "=== USBGuard Rules ==="
+        usbguard list-rules 2>/dev/null | head -20 || echo "usbguard not available"
+        echo ""
+        echo "=== Connected USB Devices ==="
+        usbguard list-devices 2>/dev/null || lsusb 2>/dev/null || echo "No USB tools available"
+        echo ""
+        echo "=== USB Device Details ==="
+        lsusb -v 2>/dev/null | grep -E "(idVendor|idProduct|bcdDevice|iManufacturer|iProduct)" | head -30 || echo "lsusb not available"
+    }
+}
+
+collect_full_data() {
+    log "Running full security analysis..."
+    
+    echo "=== FULL SECURITY ANALYSIS ==="
+    echo "Generated: $(date -Iseconds)"
+    echo "Hostname: $(hostname)"
+    echo "User: $(whoami)"
+    echo ""
+    
+    collect_process_data
+    echo ""
+    echo "---"
+    echo ""
+    collect_firewall_data
+    echo ""
+    echo "---"
+    echo ""
+    collect_usb_data
+    echo ""
+    echo "---"
+    echo ""
+    collect_rootkit_data
+}
+
+send_to_gemma() {
+    local tool_data="$1"
+    local temp_prompt temp_output
+    
+    temp_prompt=$(mktemp "${HOME}/.cache/bazzite-security/ollama/gemma-security-prompt-${TIMESTAMP}.XXXXXX")
+    temp_output=$(mktemp "${HOME}/.cache/bazzite-security/ollama/gemma-security-output-${TIMESTAMP}.XXXXXX")
+    
+    cat > "$temp_prompt" <<PROMPT
+You are Gemma, a local security advisor running on Bazzite/Fedora Atomic.
+You analyze security tool output and provide advisory recommendations.
+
+RULES:
+- Advisory only. Do not execute commands.
+- Flag anything suspicious or concerning.
+- Recommend next steps but mark them as advisory.
+- Be concise but thorough.
+- Prioritize by severity: CRITICAL, HIGH, MEDIUM, LOW, INFO.
+- For network captures, look for: unexpected connections, unusual ports, suspicious DNS, beaconing patterns
+- For processes, look for: high CPU/memory, network connections from unexpected processes, root processes, zombie processes
+- For rootkit scans, flag any warnings or suspicious files
+- For firewall, verify rules match expected configuration
+- For USB, verify only expected devices are connected
+
+TOOL OUTPUT:
+${tool_data}
+
+Provide your analysis in this format:
+
+## Security Analysis
+
+### Overall Risk Level
+[CRITICAL/HIGH/MEDIUM/LOW/INFO]
+
+### Findings
+
+#### [Severity] [Category]: [Title]
+- **Finding**: [description]
+- **Recommendation**: [advisory recommendation]
+
+### Summary
+[brief summary of overall security posture]
+
+### Next Safe Actions
+1. [action 1]
+2. [action 2]
+...
+PROMPT
+
+    log "Sending to Gemma for analysis..."
+    if ollama run "$MODEL" --hidethinking < "$temp_prompt" > "$temp_output" 2>> "$LOG_FILE"; then
+        cat "$temp_output"
+        rm -f "$temp_prompt" "$temp_output"
+    else
+        rm -f "$temp_prompt" "$temp_output"
+        error_exit "Gemma analysis failed"
+    fi
+}
+
+main() {
+    mkdir -p "$REPORT_DIR" "$LOG_DIR" "$CAPTURE_DIR" "${HOME}/.cache/bazzite-security/ollama"
+    
+    if [[ "${1:-}" == "-h" || "${1:-}" == "--help" ]]; then
+        usage
+        exit 0
+    fi
+    
+    # Validate duration
+    if ! [[ "$CAPTURE_DURATION" =~ ^[0-9]+$ ]] || [ "$CAPTURE_DURATION" -lt 10 ] || [ "$CAPTURE_DURATION" -gt 300 ]; then
+        error_exit "Duration must be 10-300 seconds"
+    fi
+    
+    log "=== Gemma Security Analyzer ==="
+    log "Tool: $TOOL"
+    log "Duration: ${CAPTURE_DURATION}s"
+    log "Model: $MODEL"
+    log "Report: $REPORT_FILE"
+    
+    local tool_data=""
+    
+    case "$TOOL" in
+        network)
+            check_sudo
+            tool_data=$(collect_network_data "$CAPTURE_DURATION")
+            ;;
+        processes)
+            tool_data=$(collect_process_data)
+            ;;
+        rootkit)
+            check_sudo
+            tool_data=$(collect_rootkit_data)
+            ;;
+        firewall)
+            tool_data=$(collect_firewall_data)
+            ;;
+        usb)
+            tool_data=$(collect_usb_data)
+            ;;
+        full)
+            check_sudo
+            tool_data=$(collect_full_data)
+            ;;
+        *)
+            usage
+            error_exit "Unknown tool: $TOOL"
+            ;;
+    esac
+    
+    # Send to Gemma for analysis
+    local gemma_analysis
+    gemma_analysis=$(send_to_gemma "$tool_data")
+    
+    # Generate report
+    {
+        echo "# Gemma Security Analysis Report"
+        echo ""
+        echo "Generated: $(date -Iseconds)"
+        echo "Tool: $TOOL"
+        echo "Duration: ${CAPTURE_DURATION}s"
+        echo "Model: $MODEL"
+        echo "Hostname: $(hostname)"
+        echo ""
+        echo "---"
+        echo ""
+        echo "## Raw Tool Output"
+        echo '```'
+        echo "$tool_data"
+        echo '```'
+        echo ""
+        echo "---"
+        echo ""
+        echo "## Gemma Advisory Analysis"
+        echo "$gemma_analysis"
+        echo ""
+        echo "---"
+        echo ""
+        echo "## Disclaimer"
+        echo "This analysis is advisory only. Gemma cannot execute commands or make system changes."
+        echo "Review all recommendations before taking action."
+        echo ""
+        echo "Report: $REPORT_FILE"
+        echo "Log: $LOG_FILE"
+    } > "$REPORT_FILE"
+    
+    log "Report written to: $REPORT_FILE"
+    log "Log written to: $LOG_FILE"
+    
+    # Display summary
+    echo ""
+    echo "========================================"
+    echo "Gemma Security Analysis Complete"
+    echo "========================================"
+    echo ""
+    echo "$gemma_analysis" | head -50
+    echo ""
+    echo "Full report: $REPORT_FILE"
+    echo "Log: $LOG_FILE"
+    echo ""
+    
+    # Show capture file if network tool was used
+    if [ "$TOOL" == "network" ] && [ -f "${CAPTURE_DIR}/capture-${TIMESTAMP}.pcap" ]; then
+        echo "Capture file: ${CAPTURE_DIR}/capture-${TIMESTAMP}.pcap"
+        echo "Stats file: ${CAPTURE_DIR}/stats-${TIMESTAMP}.txt"
+        echo ""
+        echo "To analyze in Wireshark:"
+        echo "  flatpak run org.wireshark.Wireshark ${CAPTURE_DIR}/capture-${TIMESTAMP}.pcap"
+    fi
+}
+
+main "$@"

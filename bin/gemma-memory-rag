@@ -1,0 +1,232 @@
+#!/usr/bin/env python3
+"""gemma-memory-rag: Supervised RAG using RuVector and Stage 3A.
+
+Usage: gemma-memory-rag "query"
+"""
+
+import datetime as dt
+import json
+import os
+import re
+import subprocess
+import sys
+import urllib.error
+import urllib.request
+from pathlib import Path
+
+# Paths
+HOME = Path.home()
+TIMESTAMP = dt.datetime.now().strftime("%Y%m%d-%H%M%S")
+REPORT_DIR = HOME / "offload/security-reports/manual"
+LOG_FILE = HOME / f".local/state/bazzite-security/logs/gemma-memory-rag-{TIMESTAMP}.log"
+
+# Env overrides
+MODEL = os.environ.get("GEMMA_MEMORY_RAG_MODEL", "gemma4-e4b-bazzite:latest")
+TIMEOUT = max(30, min(600, int(os.environ.get("GEMMA_MEMORY_RAG_TIMEOUT_SEC", 180))))
+NUM_CTX = max(2048, min(4096, int(os.environ.get("GEMMA_MEMORY_RAG_NUM_CTX", 4096))))
+NUM_PREDICT = max(128, min(768, int(os.environ.get("GEMMA_MEMORY_RAG_NUM_PREDICT", 384))))
+TEMPERATURE = max(0.0, min(0.7, float(os.environ.get("GEMMA_MEMORY_RAG_TEMPERATURE", 0.2))))
+TOP_N = max(1, min(5, int(os.environ.get("GEMMA_MEMORY_RAG_TOP_N", 4))))
+CHARS_PER_CHUNK = max(800, min(2500, int(os.environ.get("GEMMA_MEMORY_RAG_CHARS_PER_CHUNK", 1800))))
+
+OLLAMA_URL = "http://127.0.0.1:11434/api/chat"
+
+def log(msg: str):
+    LOG_FILE.parent.mkdir(parents=True, exist_ok=True)
+    with LOG_FILE.open("a", encoding="utf-8") as f:
+        f.write(f"{dt.datetime.now().strftime('%Y-%m-%d %H:%M:%S')} {msg}\n")
+
+def call_ollama(prompt_text: str) -> tuple[str, bool]:
+    payload = json.dumps({
+        "model": MODEL,
+        "messages": [{"role": "user", "content": prompt_text}],
+        "options": {
+            "num_ctx": NUM_CTX,
+            "num_predict": NUM_PREDICT,
+            "temperature": TEMPERATURE,
+        },
+        "stream": False
+    }).encode("utf-8")
+    req = urllib.request.Request(
+        OLLAMA_URL,
+        data=payload,
+        headers={"Content-Type": "application/json"},
+        method="POST"
+    )
+    try:
+        with urllib.request.urlopen(req, timeout=TIMEOUT) as resp:
+            data = json.loads(resp.read().decode("utf-8"))
+            return data.get("message", {}).get("content", ""), False
+    except TimeoutError:
+        return "ERROR: Ollama request timed out.", True
+    except Exception as e:
+        return f"ERROR: Ollama request failed: {e}", True
+
+def run_search(query: str):
+    cmd = [str(HOME / ".local/bin/gemma-memory-search"), query]
+    try:
+        res = subprocess.run(cmd, capture_output=True, text=True, timeout=TIMEOUT)
+        return res.stdout, res.stderr, res.returncode
+    except subprocess.TimeoutExpired:
+        return "", "Timeout running gemma-memory-search", 1
+    except Exception as e:
+        return "", str(e), 1
+
+def extract_tables_from_report(report_text: str):
+    """Extract excerpts from report - use table cells which contain relevant context."""
+    ruv_excerpts = []
+    stage3a_excerpts = []
+    
+    current_section = None
+    for line in report_text.splitlines():
+        if "## RuVector Result Summary" in line:
+            current_section = "ruv"
+        elif "## Stage 3A Parsed Result Summary" in line:
+            current_section = "stage3a"
+        elif "## " in line and line.startswith("## ") and "Summary" not in line:
+            current_section = None
+            
+        # Extract from markdown table cells - get the full cell content
+        if line.startswith("| ") and "Rank" not in line and "------" not in line:
+            parts = [p.strip() for p in line.split("|")[1:-1]]
+            if current_section == "ruv" and len(parts) >= 6:
+                # Rank | Similarity | Source | Family | Answerability | Type | Excerpt
+                # Get the last column (excerpt) - it's already in the table
+                excerpt = parts[-1]
+                # Clean up trailing truncation if present, keep the content
+                if excerpt.endswith("..."):
+                    # The table shows truncated but we keep what we have
+                    ruv_excerpts.append(excerpt)
+                else:
+                    ruv_excerpts.append(excerpt)
+            elif current_section == "stage3a" and len(parts) >= 6:
+                stage3a_excerpts.append(parts[-1])
+    
+    return ruv_excerpts[:TOP_N], stage3a_excerpts[:TOP_N]
+
+def main():
+    if len(sys.argv) < 2:
+        print("Usage: gemma-memory-rag <query>")
+        sys.exit(1)
+        
+    query = sys.argv[1].strip()
+    log("=== gemma-memory-rag ===")
+    log(f"Query: {query}")
+    
+    out, err, code = run_search(query)
+    
+    rec_match = re.search(r"final_recommendation:\s*([^\n]+)", out)
+    conf_match = re.search(r"confidence=([a-z]+)", out)
+    report_match = re.search(r"report_path:\s*([^\n]+)", out)
+    
+    recommendation = rec_match.group(1).strip() if rec_match else "insufficient_evidence"
+    confidence = conf_match.group(1).strip() if conf_match else "low"
+    search_report_path = report_match.group(1).strip() if report_match else ""
+    
+    log(f"Search recommendation: {recommendation}, confidence: {confidence}")
+    
+    ruv_excerpts = []
+    stage3a_excerpts = []
+    if search_report_path and os.path.exists(search_report_path):
+        with open(search_report_path, "r", encoding="utf-8") as f:
+            report_text = f.read()
+            ruv_excerpts, stage3a_excerpts = extract_tables_from_report(report_text)
+            
+            # Extract missing if missing from stdout
+            if not rec_match:
+                rm = re.search(r"\*\*Final Recommendation:\*\*\s*`([^`]+)`", report_text)
+                if rm: recommendation = rm.group(1)
+            if not conf_match:
+                cm = re.search(r"Recommendation confidence:\s*`([^`]+)`", report_text)
+                if cm: confidence = cm.group(1)
+    
+    context_source = "insufficient_evidence"
+    excerpts_to_use = []
+    
+    if recommendation == "stop_human_review_required":
+        context_source = "stopped_for_human_review"
+    elif recommendation in ["use_ruvector_context", "use_ruvector_primary_with_stage3a_support"]:
+        context_source = "ruvector_primary"
+        excerpts_to_use = ruv_excerpts
+    elif recommendation in ["use_stage3a_context", "ruvector_unavailable_use_stage3a"]:
+        context_source = "stage3a_fallback"
+        excerpts_to_use = stage3a_excerpts
+    elif recommendation == "insufficient_evidence":
+        if stage3a_excerpts:
+            context_source = "stage3a_fallback"
+            excerpts_to_use = stage3a_excerpts
+        else:
+            context_source = "insufficient_evidence"
+            
+    is_missing = False
+    if context_source in ["insufficient_evidence", "stopped_for_human_review"]:
+        answer = "MISSING EVIDENCE."
+        is_timeout = False
+    else:
+        context_text = "\n\n".join(excerpts_to_use)
+        if len(context_text) > CHARS_PER_CHUNK * TOP_N:
+            context_text = context_text[:CHARS_PER_CHUNK * TOP_N] + "..."
+            
+        sys_prompt = f"""You are answering using only supplied context.
+Prefer Bazzite/Fedora Atomic terminology.
+Do not recommend apt, apt-get, ufw, Ubuntu-host assumptions, unattended OpenCode implementation, autonomous remediation, or system changes without explicit review.
+If context is insufficient, say MISSING EVIDENCE.
+Keep answer concise.
+
+CONTEXT:
+{context_text}
+
+QUESTION: {query}"""
+        
+        log(f"Calling Ollama with context length: {len(context_text)}")
+        answer, is_timeout = call_ollama(sys_prompt)
+        
+    print(f"question: {query}")
+    print(f"retrieval recommendation: {recommendation}")
+    print(f"confidence: {confidence}")
+    print(f"context source selected: {context_source}")
+    print(f"short answer preview: {answer[:100].replace(chr(10), ' ')}")
+    
+    report_path = REPORT_DIR / f"gemma-memory-rag-{TIMESTAMP}.md"
+    print(f"report path: {report_path}")
+    print(f"log path: {LOG_FILE}")
+    
+    REPORT_DIR.mkdir(parents=True, exist_ok=True)
+    with report_path.open("w", encoding="utf-8") as f:
+        f.write(f"# gemma-memory-rag Report\n\n")
+        f.write(f"**Timestamp:** {dt.datetime.now().strftime('%Y-%m-%d %H:%M:%S')}\n")
+        f.write(f"**Question:** {query}\n")
+        f.write(f"**Model:** {MODEL} (ctx={NUM_CTX}, predict={NUM_PREDICT}, temp={TEMPERATURE})\n")
+        f.write(f"**Retrieval recommendation:** {recommendation}\n")
+        f.write(f"**Confidence:** {confidence}\n")
+        f.write(f"**Selected context source:** {context_source}\n")
+        f.write(f"**Timeout/Failure:** {is_timeout}\n")
+        f.write(f"**Missing evidence note:** {'Yes' if 'MISSING EVIDENCE' in answer else 'No'}\n\n")
+        
+        f.write("## RuVector Result Summary\n")
+        for i, ex in enumerate(ruv_excerpts):
+            f.write(f"- {ex[:200]}...\n")
+        
+        f.write("\n## Stage 3A Result Summary\n")
+        for i, ex in enumerate(stage3a_excerpts):
+            f.write(f"- {ex[:200]}...\n")
+            
+        f.write("\n## Prompt Context Summary\n")
+        if excerpts_to_use:
+            f.write(f"Used {len(excerpts_to_use)} excerpts from {context_source}. Total chars: ~{len(''.join(excerpts_to_use))}\n")
+        else:
+            f.write("No context provided.\n")
+            
+        f.write("\n## Answer\n")
+        f.write(f"{answer}\n")
+        
+        f.write("\n## Boundaries Preserved\n")
+        f.write("- No memory ingestion occurred\n")
+        f.write("- No RuVector indexing occurred\n")
+        f.write("- No existing wrapper behavior changed\n")
+        f.write("- No autonomous memory/learning loop enabled\n")
+        f.write("- No production default replacement occurred\n")
+        f.write("- Stage 3A fallback preserved\n")
+
+if __name__ == "__main__":
+    main()

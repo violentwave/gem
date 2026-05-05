@@ -4,134 +4,86 @@
 
 ## Purpose
 
-This is the coordination repository for the broader Bazzite Local AI Operations Stack. It tracks architecture, prompts, inventory summaries, and integration plans for local AI tooling.
+Source of truth for the Bazzite Local AI Operations Stack. This repo contains all product source code, documentation, and the install script needed to reproduce the system on a fresh Bazzite/Fedora Atomic host.
 
-This repo does **not** replace live canonical files. It coordinates them.
+## Repo Structure
 
-## What This Repo Tracks
+| Directory | Contents |
+|-----------|----------|
+| `bin/` | Product source code — all `gemma-*` executables |
+| `docs/` | Architecture, roadmaps, operational docs, maintenance guides |
+| `artifacts/` | Compressed archives of completed phases and historical prototypes |
+| `tests/` | Test fixtures |
+| `install.sh` | One-command installer — copies `bin/*` to `~/.local/bin/` |
 
-- **Architecture & Design:** System architecture, capability levels, integration patterns
-- **Planning:** Roadmaps, integration plans, assessment documents
-- **Prompts:** OpenCode/Codex prompts for future phases
-- **Inventory:** Sanitized summaries of live system state
-- **Documentation:** Current state, canonical paths, operational notes
-
-## Live Canonical Paths (Source of Truth)
-
-These paths remain the live system source-of-truth and are not moved:
-
-- `~/.config/bazzite-security/` - Config docs, policies, runbooks
-- `~/.local/bin/` - Helper scripts (gemma-*, bazzite-*)
-- `~/.local/share/bazzite-security/` - Persistent state, evals, knowledge packs
-- `~/.local/state/bazzite-security/logs/` - Logs
-- `~/.cache/bazzite-security/` - Runtime cache
-- `~/offload/security-reports/` - Generated reports
-
-## Current Completed State
-
-### Stage 1: Profile Teaching
-- Custom Gemma profile with Bazzite/Fedora Atomic context
-- Location: `~/.config/bazzite-security/ollama/Modelfile.gemma4-e4b-bazzite`
-
-### Stage 2: Curated Knowledge Pack
-- Approved docs copied to knowledge pack
-- RAG-enabled via deterministic retrieval
-
-### Stage 3A: Deterministic Retrieval
-- JSONL chunk index
-- Keyword-based search (no embeddings)
-- Bounded RAG queries
-
-### Stage 4A-G: Eval & Example System
-- 19 eval cases for regression testing
-- 22 supervised examples (100% reviewed)
-- Status reporting, draft review, validation tools
-- All validators passing
-
-## Current Phase: Phase 6 ✅ Complete
-
-### Phase 5A: Repo Bootstrap ✅
-- Create coordination repo (this work)
-- Bootstrap documentation structure
-- Create inventory and planning artifacts
-
-### Phase 5B: Architecture Expansion ✅
-- Define integration architecture
-- Document capability levels
-- Plan progressive expansion
-
-### Phase 5C: Agent Zero Inventory ✅
-- Verify A0 installation
-- Assess connector state
-- Plan integration approach
-
-### Phase 5D: RuVector Assessment ✅
-- Review RuVector architecture
-- Assess local-only operation feasibility
-- Plan integration or alternative
-
-### Phase 5E: Space Agent Assessment ✅
-- Research Space Agent availability
-- Assess Linux/Bazzite compatibility
-- Plan integration approach
-
-### Phase 5F: Integration Design ✅
-- Unified operator layer design
-- Component routing matrix
-- Data flow and state map
-- Autonomy graduation plan
-- Phase 6 sandbox plan
-- Integration decisions documented
-
-### Phase 5G: Unified Terminal UI ✅
-- Single entry point `gemma-ui` (and alias `gemma-agent`) routing to all helpers
-- 10 modes: general, security, memory, repo, voice, reports, tools, health, help, quit
-- 22-helper registry with graceful handling of missing helpers
-- Delegates to existing helpers rather than duplicating logic
-- Keeps `gemma-security-chat` and all other helpers working independently
-- Uses Python stdlib + Rich (already installed)
-- Config: `~/.config/bazzite-security/gemma-ui.json`
-- Docs: `docs/gemma-ui.md`
-
-## Operating Model
-
-### Current State
-- **Gemma wrappers:** L1 advisory, L2 report writing, RAG queries
-- **Gemma UI:** `gemma-ui` / `gemma-agent` unified terminal router (10 modes, 22 helpers)
-- **OpenCode/Codex:** Implementation work, repo operations
-- **Agent Zero:** Not yet integrated (assessment phase)
-- **RuVector:** Not yet integrated (assessment phase)
-- **Space Agent:** Not yet integrated (assessment phase)
-
-### Future Goal
-Progressive local AI operations platform spanning:
-- Advisory models (Gemma)
-- Implementation agents (OpenCode)
-- Operator layer (Agent Zero)
-- Memory/vector layer (RuVector)
-- Workspace UI (Space Agent)
-
-## Safe Validation Commands
+## Install
 
 ```bash
-# Check repo structure
-find ~/projects/gem -type f -name "*.md" | head -20
-
-# Run validators
-gemma-examples-check
-gemma-evals-check
-gemma-evals-status
-
-# Launch unified terminal UI
-gemma-ui --help
-gemma-ui --list-modes
-
-# Check inventory
-ls -la ~/projects/gem/inventory/
-
-# Check git status
-cd ~/projects/gem && git status --short
+cd ~/projects/gem
+./install.sh
 ```
+
+Dry-run to preview:
+
+```bash
+./install.sh --dry-run
+```
+
+Ensure `~/.local/bin` is in your `PATH`, then:
+
+```bash
+gemma-ui --help
+gemma-ui --dashboard
+```
+
+## Product Components
+
+### Core UI
+- `gemma-ui` — Unified terminal router (10 modes, 20+ helpers)
+- `gemma-agent` — Alias wrapper for `gemma-ui`
+- `gemma-security-chat` — Interactive security tool console
+- `gemma-voice-chat` — Voice chat with intent routing
+
+### Chat & Search
+- `gemma-bazzite` — General chat with local Gemma
+- `gemma-bazzite-health` — Safe system status checks
+- `gemma-memory-search` — RuVector semantic search
+- `gemma-memory-rag` — RuVector RAG helper
+- `gemma-knowledge-search` — Knowledge base search
+- `gemma-knowledge-rag` — Knowledge base RAG
+
+### Repo & File Tools
+- `gemma-repo-brief` — Repository summaries
+- `gemma-file-brief` — File analysis
+- `gemma-command-review` — Command safety review
+- `gemma-security-analyzer` — Security analysis wrapper
+
+### Monitoring & Dashboard
+- `gemma-monitor-daily` — Daily health check
+- `gemma-monitor-drift` — Configuration drift detection
+- `gemma-monitor-weekly` — Weekly summary
+- `gemma-dashboard` — Static dashboard generator
+
+### Quality Assurance
+- `gemma-evals-check` — Eval case validation
+- `gemma-examples-check` — Example quality checks
+
+## Configuration
+
+Product configuration lives outside the repo at canonical paths:
+
+- `~/.config/bazzite-security/` — Config files, policies, runbooks
+- `~/.local/share/bazzite-security/` — Persistent state, indexes
+- `~/.local/state/bazzite-security/logs/` — Logs
+- `~/.cache/bazzite-security/` — Runtime cache
+- `~/offload/security-reports/` — Generated reports
+
+## Documentation
+
+- `docs/gemma-ui.md` — Main UI specification
+- `docs/roadmap/ROADMAP.md` — Full roadmap
+- `docs/live-system/CURRENT_STATE.md` — Current system state
+- `docs/ARCHIVE_INDEX.md` — How to access archived phase docs
 
 ## Security Boundaries
 
@@ -139,25 +91,7 @@ cd ~/projects/gem && git status --short
 - No `.env` files
 - No raw logs
 - No private code
-- No browser data
 - Runtime artifacts stay in canonical paths
-
-## Next Steps
-
-See `docs/roadmap/ROADMAP.md` for full roadmap.
-
-### Phase 6: Sandbox Prototypes ✅ Complete
-- Phase 6A: Agent Zero sandbox readiness ✅
-- Phase 6B: RuVector sandbox readiness ✅
-- Phase 6C: Space Agent sandbox readiness ✅
-- Phase 6D: Integration smoke test ✅
-
-See `docs/phase6/PHASE6_CLOSEOUT.md` for details.
-
-### Phase 7: Local Ops Bridge (Upcoming)
-- Phase 7A: Agent Zero L5 Integration
-- Phase 7B: RuVector L6 Memory Prototype
-- Phase 7C: Space Agent L7 Manual UI Workflows
 
 ## License
 

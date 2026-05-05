@@ -1,0 +1,92 @@
+#!/bin/bash
+
+source ~/.local/lib/gemma-monitor-lib.sh
+
+START=$(date +%s)
+PASS_COUNT=0
+WARN_COUNT=0
+FAIL_COUNT=0
+
+monitor_header "Drift Monitor"
+
+monitor_section "Documentation Drift"
+
+STATE_FILE="$HOME/projects/gem/docs/live-system/CURRENT_STATE.md"
+if [ -f "${STATE_FILE}" ]; then
+    STATE_AGE=$(( ($(date +%s) - $(stat -c %Y "${STATE_FILE}")) / 86400 ))
+    if [ ${STATE_AGE} -lt 7 ]; then
+        monitor_pass "CURRENT_STATE.md: ${STATE_AGE} days old"
+    else
+        monitor_warn "CURRENT_STATE.md: ${STATE_AGE} days old (may be stale)"
+    fi
+else
+    monitor_warn "CURRENT_STATE.md: not found"
+fi
+
+ROADMAP_FILE="$HOME/projects/gem/docs/roadmap/ROADMAP.md"
+if [ -f "${ROADMAP_FILE}" ]; then
+    ROADMAP_AGE=$(( ($(date +%s) - $(stat -c %Y "${ROADMAP_FILE}")) / 86400 ))
+    if [ ${ROADMAP_AGE} -lt 7 ]; then
+        monitor_pass "ROADMAP.md: ${ROADMAP_AGE} days old"
+    else
+        monitor_warn "ROADMAP.md: ${ROADMAP_AGE} days old (may be stale)"
+    fi
+else
+    monitor_warn "ROADMAP.md: not found"
+fi
+
+monitor_section "Config Drift"
+
+MODELFILE="$HOME/.config/bazzite-security/ollama/Modelfile.gemma4-e4b-bazzite"
+if [ -f "${MODELFILE}" ]; then
+    monitor_pass "Modelfile: exists"
+    
+    MODFILE_AGE=$(( ($(date +%s) - $(stat -c %Y "${MODELFILE}")) / 86400 ))
+    if [ ${MODFILE_AGE} -lt 30 ]; then
+        monitor_pass "Modelfile: ${MODFILE_AGE} days old"
+    else
+        monitor_info "Modelfile: ${MODFILE_AGE} days old (stable)"
+    fi
+else
+    monitor_warn "Modelfile: not found"
+fi
+
+monitor_section "Helper Drift"
+
+MANIFEST_HELPERS=22
+ACTUAL_HELPERS=$(ls ~/.local/bin/gemma-* 2>/dev/null | wc -l)
+if [ ${ACTUAL_HELPERS} -eq ${MANIFEST_HELPERS} ]; then
+    monitor_pass "Helpers: ${ACTUAL_HELPERS}/${MANIFEST_HELPERS} match manifest"
+else
+    monitor_warn "Helpers: ${ACTUAL_HELPERS}/${MANIFEST_HELPERS} (drift detected)"
+fi
+
+NEW_HELPERS=$(find ~/.local/bin -name 'gemma-*' -newer ~/projects/gem/docs/phase15/PHASE15A_MANIFEST_SCHEMA_AND_HELPER_ROLLOUT_PLAN.md 2>/dev/null)
+if [ -n "${NEW_HELPERS}" ]; then
+    monitor_warn "New helpers since manifest:"
+    echo "${NEW_HELPERS}" | while read -r helper; do
+        monitor_info "  - $(basename "${helper}")"
+    done
+fi
+
+monitor_section "Knowledge Drift"
+
+KNOWLEDGE_DIR="$HOME/.local/share/bazzite-security/gemma-knowledge/docs"
+if [ -d "${KNOWLEDGE_DIR}" ]; then
+    DOC_COUNT=$(find "${KNOWLEDGE_DIR}" -type f 2>/dev/null | wc -l)
+    monitor_pass "Knowledge docs: ${DOC_COUNT} files"
+    
+    INDEX_DIR="$HOME/.local/share/bazzite-security/gemma-knowledge/index"
+    if [ -f "${INDEX_DIR}/chunks.jsonl" ]; then
+        INDEX_CHUNKS=$(wc -l < "${INDEX_DIR}/chunks.jsonl" 2>/dev/null)
+        monitor_pass "Knowledge index: ${INDEX_CHUNKS} chunks"
+    else
+        monitor_warn "Knowledge index: not found"
+    fi
+else
+    monitor_warn "Knowledge docs: directory not found"
+fi
+
+DURATION=$(( $(date +%s) - START ))
+monitor_summary ${DURATION}
+exit $?

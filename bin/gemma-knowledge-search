@@ -1,0 +1,123 @@
+#!/usr/bin/env python3
+"""Search the deterministic local Gemma knowledge JSONL index."""
+
+from __future__ import annotations
+
+import datetime as dt
+import json
+import re
+import sys
+from pathlib import Path
+
+
+HOME = Path.home()
+TIMESTAMP = dt.datetime.now().strftime("%Y%m%d-%H%M%S")
+INDEX_FILE = HOME / ".local/share/bazzite-security/gemma-knowledge/index/chunks.jsonl"
+LOG_FILE = HOME / f".local/state/bazzite-security/logs/gemma-knowledge-search-{TIMESTAMP}.log"
+TOP_N = 5
+BAZZITE_TERMS = {"bazzite", "fedora", "atomic", "firewalld", "rpm-ostree", "flatpak", "homebrew", "distrobox", "opencode", "gemma", "ollama"}
+TRIGGER_TERMS = {"security", "secure", "safe", "os", "update", "tool", "tooling", "system", "firewall", "package", "model", "agent"}
+
+
+def log(message: str = "") -> None:
+    line = f"{dt.datetime.now().strftime('%Y-%m-%d %H:%M:%S')} {message}"
+    with LOG_FILE.open("a", encoding="utf-8") as handle:
+        handle.write(line + "\n")
+
+
+def terms(text: str) -> list[str]:
+    return [term for term in re.findall(r"[a-z0-9][a-z0-9_.-]*", text.lower()) if len(term) > 1]
+
+
+def load_chunks() -> list[dict[str, object]]:
+    if not INDEX_FILE.is_file():
+        raise FileNotFoundError(f"Index missing: {INDEX_FILE}")
+    chunks = []
+    with INDEX_FILE.open("r", encoding="utf-8") as handle:
+        for line in handle:
+            line = line.strip()
+            if line:
+                chunks.append(json.loads(line))
+    return chunks
+
+
+def score_chunk(chunk: dict[str, object], query: str) -> float:
+    query_lc = query.lower()
+    query_terms = terms(query)
+    text = str(chunk.get("text", ""))
+    heading = str(chunk.get("heading_path", ""))
+    source = Path(str(chunk.get("source_file", ""))).name
+    text_lc = text.lower()
+    heading_lc = heading.lower()
+    source_lc = source.lower()
+
+    score = 0.0
+    if query_lc and query_lc in text_lc:
+        score += 50.0
+    for term in query_terms:
+        score += text_lc.count(term) * 3.0
+        score += heading_lc.count(term) * 8.0
+        score += source_lc.count(term) * 6.0
+    if TRIGGER_TERMS.intersection(query_terms):
+        score += sum(4.0 for term in BAZZITE_TERMS if term in text_lc or term in heading_lc or term in source_lc)
+    return score
+
+
+def excerpt(text: str, query: str, limit: int = 420) -> str:
+    compact = re.sub(r"\s+", " ", text).strip()
+    query_terms = terms(query)
+    positions = [compact.lower().find(term) for term in query_terms if compact.lower().find(term) >= 0]
+    start = max(min(positions) - 120, 0) if positions else 0
+    snippet = compact[start : start + limit]
+    if start > 0:
+        snippet = "..." + snippet
+    if start + limit < len(compact):
+        snippet += "..."
+    return snippet
+
+
+def search(query: str, limit: int = TOP_N) -> list[tuple[float, dict[str, object]]]:
+    ranked = [(score_chunk(chunk, query), chunk) for chunk in load_chunks()]
+    ranked = [item for item in ranked if item[0] > 0]
+    ranked.sort(key=lambda item: (-item[0], str(item[1].get("id", ""))))
+    return ranked[:limit]
+
+
+def main() -> int:
+    LOG_FILE.parent.mkdir(parents=True, exist_ok=True)
+    if len(sys.argv) != 2 or not sys.argv[1].strip():
+        print('Usage: gemma-knowledge-search "query"', file=sys.stderr)
+        return 1
+
+    query = sys.argv[1].strip()
+    log("=== Gemma Knowledge Search ===")
+    log(f"Query: {query}")
+    try:
+        results = search(query)
+    except FileNotFoundError as error:
+        print(f"ERROR: {error}", file=sys.stderr)
+        print("Run gemma-knowledge-index first.", file=sys.stderr)
+        return 1
+
+    if not results:
+        print("No matching chunks found.")
+        log("No matching chunks found")
+        return 0
+
+    for rank, (score, chunk) in enumerate(results, start=1):
+        source = Path(str(chunk.get("source_file", ""))).name
+        heading = str(chunk.get("heading_path", "Document"))
+        text = str(chunk.get("text", ""))
+        print(f"## Result {rank}")
+        print(f"score: {score:.2f}")
+        print(f"source: {source}")
+        print(f"heading: {heading}")
+        print(f"excerpt: {excerpt(text, query)}")
+        print()
+        log(f"Result {rank}: score={score:.2f} source={source} heading={heading}")
+    log(f"Log written to: {LOG_FILE}")
+    return 0
+
+
+if __name__ == "__main__":
+    sys.exit(main())

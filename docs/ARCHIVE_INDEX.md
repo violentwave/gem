@@ -25,6 +25,8 @@ Completed phase documentation, maintenance trackers, temporary export artifacts,
 | `maintenance-trackers.tar.gz` | `docs/maintenance/M*.md` + `MAINTENANCE_ROADMAP_M1_M6.md` | Completed maintenance trackers (M0, M7–M21) superseded by ROADMAP | `tar -tzf artifacts/doc-archives/maintenance-trackers.tar.gz` |
 | `notion-update-packets.tar.gz` | `docs/*/notion-update-packets/` | Temporary Notion export/import artifacts, never referenced by code | `tar -tzf artifacts/doc-archives/notion-update-packets.tar.gz` |
 | `ruvector-memory.tar.gz` | `prototypes/ruvector-memory/` | Phase 7B RuVector semantic search prototype (superseded by production `gemma-memory-search` / `gemma-memory-rag`) | `tar -xOzf artifacts/prototype-archives/ruvector-memory.tar.gz prototypes/ruvector-memory/README.md \| less` |
+| `legacy-binaries.tar.gz` | `~/.local/bin/gemma-*` (orphaned) | Legacy scripts no longer referenced by the main product (eval-status, knowledge-index, security-summary, etc.) | `tar -tzf artifacts/legacy-binaries/legacy-binaries.tar.gz` |
+| `prompt-archives.tar.gz` | `prompts/opencode/` | Historical OpenCode/Codex prompts used to drive development phases | `tar -tzf artifacts/prompt-archives/prompt-archives.tar.gz` |
 
 ## How to Search Inside Archives
 

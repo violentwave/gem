@@ -1,0 +1,6 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+# gemma-agent — wrapper that delegates to gemma-ui
+# This exists so gemma-agent and gemma-ui are interchangeable
+exec "$(dirname "$0")/gemma-ui" "$@"

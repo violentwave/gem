@@ -1,0 +1,820 @@
+#!/usr/bin/env python3
+"""
+gemma-voice-chat — Local Push-to-Talk Voice Agent for Gemma
+
+A terminal-based voice interface that wraps local STT and TTS.
+Records audio on demand, transcribes with whisper.cpp, sends to
+local Gemma via Ollama, and speaks responses with piper.
+
+Usage:
+    gemma-voice-chat                    # Start voice session
+    gemma-voice-chat --status           # Show component status
+    gemma-voice-chat --test-output      # Test TTS output
+    gemma-voice-chat --setup            # Download/build voice components
+    gemma-voice-chat --keep-audio       # Keep recordings after session
+    gemma-voice-chat --help             # Show help
+
+Safety:
+    - Push-to-talk only. No always-listening.
+    - No wake word. No daemon.
+    - No cloud APIs. No LiveKit.
+    - Audio deleted after transcription (unless --keep-audio).
+    - Does not bypass gemma-ui or gemma-security-chat gates.
+"""
+
+from __future__ import annotations
+
+import json
+import os
+import shutil
+import subprocess
+import sys
+import tempfile
+import time
+import urllib.request
+from datetime import datetime
+from pathlib import Path
+from typing import Dict, List, Optional, Tuple
+
+# ── Configuration ────────────────────────────────────────────────────────────
+HOME = Path.home()
+VOICE_DIR = HOME / ".local/share/bazzite-security/voice"
+CACHE_DIR = HOME / ".cache/bazzite-security/voice"
+LOG_DIR = HOME / ".local/state/bazzite-security/logs"
+BIN_DIR = HOME / ".local/bin"
+
+MODEL = os.environ.get("GEMMA_MODEL", "gemma4-e4b-bazzite")
+OLLAMA_HOST = os.environ.get("OLLAMA_HOST", "http://127.0.0.1:11434")
+
+WHISPER_DIR = VOICE_DIR / "whisper.cpp"
+WHISPER_MODEL = VOICE_DIR / "ggml-tiny.bin"
+PIPER_DIR = VOICE_DIR / "piper"
+PIPER_MODEL = PIPER_DIR / "en_US-lessac-medium.onnx"
+
+DEFAULT_RECORD_SECONDS = 6
+
+# ── Component Detection ──────────────────────────────────────────────────────
+
+def find_recorder() -> Optional[str]:
+    """Find available audio recorder."""
+    for cmd in ["pw-record", "parecord", "arecord"]:
+        if shutil.which(cmd):
+            return cmd
+    return None
+
+
+def find_stt() -> Optional[str]:
+    """Find available STT command."""
+    # Check homebrew whisper-cli first
+    for cmd in ["whisper-cli", "whisper"]:
+        path = shutil.which(cmd)
+        if path:
+            return path
+    # Check whisper.cpp build
+    whisper_main = WHISPER_DIR / "main"
+    if whisper_main.is_file():
+        return str(whisper_main)
+    return None
+
+
+def find_tts() -> Optional[str]:
+    """Find available TTS command."""
+    # Check piper
+    piper_bin = PIPER_DIR / "piper"
+    if piper_bin.is_file():
+        return str(piper_bin)
+    # Check system TTS
+    for cmd in ["piper", "espeak-ng", "spd-say"]:
+        path = shutil.which(cmd)
+        if path:
+            return path
+    return None
+
+
+def check_whisper_model() -> bool:
+    """Check if whisper model exists."""
+    return WHISPER_MODEL.is_file()
+
+
+def check_piper_model() -> bool:
+    """Check if piper voice model exists."""
+    return PIPER_MODEL.is_file()
+
+
+def get_status() -> Dict[str, any]:
+    """Get full component status."""
+    recorder = find_recorder()
+    stt = find_stt()
+    tts = find_tts()
+    whisper_model_ok = check_whisper_model()
+    piper_model_ok = check_piper_model()
+
+    return {
+        "recorder": {
+            "command": recorder,
+            "available": recorder is not None,
+        },
+        "stt": {
+            "command": stt,
+            "available": stt is not None and whisper_model_ok,
+            "model_ok": whisper_model_ok,
+        },
+        "tts": {
+            "command": tts,
+            "available": tts is not None and piper_model_ok,
+            "model_ok": piper_model_ok,
+        },
+        "ready": (
+            recorder is not None
+            and stt is not None
+            and whisper_model_ok
+            and tts is not None
+            and piper_model_ok
+        ),
+    }
+
+
+# ── Setup ────────────────────────────────────────────────────────────────────
+
+def setup_whisper():
+    """Download and build whisper.cpp."""
+    print("Setting up whisper.cpp...")
+    VOICE_DIR.mkdir(parents=True, exist_ok=True)
+
+    if WHISPER_DIR.is_dir():
+        print(f"  whisper.cpp already cloned at {WHISPER_DIR}")
+    else:
+        print("  Cloning whisper.cpp...")
+        subprocess.run(
+            ["git", "clone", "https://github.com/ggerganov/whisper.cpp", str(WHISPER_DIR)],
+            check=True,
+        )
+
+    # Build
+    main_bin = WHISPER_DIR / "main"
+    if not main_bin.is_file():
+        print("  Building whisper.cpp (this may take a few minutes)...")
+        subprocess.run(["make", "-C", str(WHISPER_DIR), "-j4"], check=True)
+    else:
+        print("  whisper.cpp already built.")
+
+    # Download model
+    if not WHISPER_MODEL.is_file():
+        print("  Downloading tiny model (~75 MB)...")
+        model_url = "https://huggingface.co/ggerganov/whisper.cpp/resolve/main/ggml-tiny.bin"
+        urllib.request.urlretrieve(model_url, str(WHISPER_MODEL))
+        print("  Model downloaded.")
+    else:
+        print("  Model already exists.")
+
+
+def setup_piper():
+    """Download piper and voice model."""
+    print("Setting up piper...")
+    VOICE_DIR.mkdir(parents=True, exist_ok=True)
+    PIPER_DIR.mkdir(parents=True, exist_ok=True)
+
+    # Download piper binary
+    piper_bin = PIPER_DIR / "piper"
+    if not piper_bin.is_file():
+        print("  Downloading piper (~50 MB)...")
+        # Detect architecture
+        arch = subprocess.run(["uname", "-m"], capture_output=True, text=True).stdout.strip()
+        if arch == "x86_64":
+            piper_url = "https://github.com/rhasspy/piper/releases/download/2023.11.14-2/piper_linux_x86_64.tar.gz"
+        elif arch == "aarch64":
+            piper_url = "https://github.com/rhasspy/piper/releases/download/2023.11.14-2/piper_linux_aarch64.tar.gz"
+        else:
+            print(f"  Unsupported architecture: {arch}")
+            return
+
+        tar_path = PIPER_DIR / "piper.tar.gz"
+        urllib.request.urlretrieve(piper_url, str(tar_path))
+        subprocess.run(["tar", "-xzf", str(tar_path), "-C", str(PIPER_DIR)], check=True)
+        tar_path.unlink()
+        print("  Piper extracted.")
+    else:
+        print("  Piper already exists.")
+
+    # Download voice model
+    if not PIPER_MODEL.is_file():
+        print("  Downloading voice model (~50 MB)...")
+        model_url = "https://huggingface.co/rhasspy/piper-voices/resolve/v1.0.0/en/en_US/lessac/medium/en_US-lessac-medium.onnx"
+        config_url = "https://huggingface.co/rhasspy/piper-voices/resolve/v1.0.0/en/en_US/lessac/medium/en_US-lessac-medium.onnx.json"
+        urllib.request.urlretrieve(model_url, str(PIPER_MODEL))
+        urllib.request.urlretrieve(config_url, str(PIPER_MODEL) + ".json")
+        print("  Voice model downloaded.")
+    else:
+        print("  Voice model already exists.")
+
+
+def setup_all():
+    """Setup all voice components."""
+    print("=" * 60)
+    print("Gem Voice Setup")
+    print("=" * 60)
+    print()
+    print("This will download and build:")
+    print("  - whisper.cpp (STT engine)")
+    print("  - ggml-tiny.bin model (~75 MB)")
+    print("  - piper (TTS engine)")
+    print("  - English voice model (~50 MB)")
+    print()
+    print("All files go to ~/.local/share/bazzite-security/voice/")
+    print("No sudo required. No system changes.")
+    print()
+
+    try:
+        response = input("Proceed? [y/N]: ").strip().lower()
+    except (EOFError, KeyboardInterrupt):
+        print("Cancelled.")
+        return
+
+    if response not in ("y", "yes"):
+        print("Cancelled.")
+        return
+
+    try:
+        setup_whisper()
+        setup_piper()
+        print()
+        print("=" * 60)
+        print("Setup complete!")
+        print("=" * 60)
+        print()
+        print_status()
+    except Exception as e:
+        print(f"Error during setup: {e}")
+        sys.exit(1)
+
+
+# ── Audio Operations ─────────────────────────────────────────────────────────
+
+def record_audio(output_path: Path, duration: int = DEFAULT_RECORD_SECONDS) -> bool:
+    """Record audio for N seconds. Returns True on success."""
+    recorder = find_recorder()
+    if not recorder:
+        print("No audio recorder found (tried: pw-record, parecord, arecord)")
+        return False
+
+    print(f"Recording for {duration} seconds... Press Ctrl+C to stop early.")
+
+    try:
+        if recorder == "pw-record":
+            # PipeWire: use timeout for duration control, explicit format flags
+            cmd = [
+                "timeout", str(duration),
+                recorder,
+                "--rate", "16000",
+                "--channels", "1",
+                "--format", "s16",
+                str(output_path),
+            ]
+        elif recorder == "parecord":
+            # PulseAudio: use timeout for duration control
+            cmd = [
+                "timeout", str(duration),
+                recorder,
+                "--rate=16000",
+                "--format=s16le",
+                str(output_path),
+            ]
+        elif recorder == "arecord":
+            # ALSA: has native -d duration flag
+            cmd = [recorder, "-d", str(duration), "-f", "cd", str(output_path)]
+        else:
+            return False
+
+        result = subprocess.run(cmd, check=False, timeout=duration + 5)
+        # timeout exits 124 when it kills the child after the duration — that's success for us
+        if result.returncode in (0, 124):
+            return True
+        print(f"Recording failed with exit code {result.returncode}")
+        return False
+    except subprocess.TimeoutExpired:
+        print("Recording timed out.")
+        return False
+    except KeyboardInterrupt:
+        print("Recording stopped.")
+        return True
+    except Exception as e:
+        print(f"Recording failed: {e}")
+        return False
+
+
+def transcribe_audio(audio_path: Path) -> Optional[str]:
+    """Transcribe audio file to text."""
+    stt = find_stt()
+    if not stt:
+        return None
+
+    if WHISPER_DIR.is_dir() and (WHISPER_DIR / "main").is_file():
+        # whisper.cpp
+        try:
+            result = subprocess.run(
+                [stt, "-m", str(WHISPER_MODEL), "-f", str(audio_path), "--no-timestamps", "-otxt"],
+                capture_output=True,
+                text=True,
+                timeout=30,
+            )
+            # Output file is audio_path.txt
+            txt_path = Path(str(audio_path) + ".txt")
+            if txt_path.is_file():
+                text = txt_path.read_text().strip()
+                txt_path.unlink()
+                return text
+            # Fallback: parse stdout
+            return result.stdout.strip()
+        except Exception as e:
+            print(f"Transcription error: {e}")
+            return None
+    else:
+        # Generic whisper
+        try:
+            result = subprocess.run(
+                [stt, str(audio_path)],
+                capture_output=True,
+                text=True,
+                timeout=60,
+            )
+            return result.stdout.strip()
+        except Exception as e:
+            print(f"Transcription error: {e}")
+            return None
+
+
+def speak_text(text: str) -> bool:
+    """Speak text using available TTS."""
+    tts = find_tts()
+    if not tts:
+        return False
+
+    tts_name = Path(tts).name
+
+    try:
+        if tts_name == "piper":
+            # Piper: generate wav then play
+            wav_path = CACHE_DIR / "tts_output.wav"
+            piper_proc = subprocess.Popen(
+                [tts, "--model", str(PIPER_MODEL), "--output_file", str(wav_path)],
+                stdin=subprocess.PIPE,
+                stdout=subprocess.DEVNULL,
+                stderr=subprocess.DEVNULL,
+            )
+            piper_proc.communicate(text.encode(), timeout=30)
+
+            if wav_path.is_file():
+                # Play with available player
+                for player in ["paplay", "aplay", "pw-play"]:
+                    if shutil.which(player):
+                        subprocess.run([player, str(wav_path)], check=False, timeout=60)
+                        wav_path.unlink()
+                        return True
+                print("No audio player found (tried: paplay, aplay, pw-play)")
+                return False
+        elif tts_name in ("espeak-ng", "espeak"):
+            subprocess.run([tts, text], check=False, timeout=30)
+            return True
+        elif tts_name == "spd-say":
+            subprocess.run([tts, text], check=False, timeout=30)
+            return True
+    except Exception as e:
+        print(f"TTS error: {e}")
+        return False
+
+    return False
+
+
+# ── Intent Router ────────────────────────────────────────────────────────────
+
+ROUTE_KEYWORDS = {
+    "security": [
+        "firewall", "security", "usb", "rootkit", "audit", "clamav", "lynis",
+        "scan", "threat", "intrusion", "malware", "check firewall",
+        "check security", "security tools", "usbguard", "selinux",
+    ],
+    "memory": [
+        "memory ask", "search memory", "memory search", "compare memory",
+        "deterministic memory", "stage 3a", "stage three a",
+        "memory", "remember", "what did we decide", "recall", "past decision",
+    ],
+    "reports": [
+        "show reports", "recent reports", "open report", "list reports",
+    ],
+    "repo": [
+        "repo ", "repository", "git status", "codebase", "project brief",
+        "repo gem", "repo bazzite", "repo status",
+    ],
+    "health": [
+        "health", "system health", "status check", "check system",
+        "system status", "health check",
+    ],
+}
+
+
+def route_intent(text: str) -> Tuple[str, str, str]:
+    """Route voice/text transcript to the appropriate gemma-ui mode.
+
+    Returns (mode, subcmd, reason) where mode is one of:
+    general, security, memory, repo, reports, health.
+
+    subcmd is the extracted subcommand for memory routing.
+
+    Deterministic keyword matching — no model inference.
+    Security routing does NOT execute tools; it hands off to the
+    existing confirmation flow in gemma-security-chat.
+    """
+    lowered = text.lower().strip()
+
+    for mode, keywords in ROUTE_KEYWORDS.items():
+        for kw in keywords:
+            if kw in lowered:
+                # Extract subcommand for memory mode
+                subcmd = ""
+                if mode == "memory":
+                    idx = lowered.find(kw)
+                    subcmd = text[idx + len(kw):].strip()
+                    prefix_map = {
+                        "memory ask": "ask",
+                        "search memory": "search",
+                        "memory search": "search",
+                        "compare memory": "compare",
+                        "deterministic memory": "stage3a",
+                        "stage 3a": "stage3a",
+                        "stage three a": "stage3a",
+                    }
+                    if kw in prefix_map:
+                        prefix = prefix_map[kw]
+                        subcmd = prefix + (" " + subcmd if subcmd else "")
+                return mode, subcmd, f"matched keyword '{kw}'"
+
+    return "general", "", "no keyword matched (fallback)"
+
+
+def log_route(text: str, mode: str, reason: str):
+    """Log routing decision. Does not store raw transcript as training data."""
+    LOG_DIR.mkdir(parents=True, exist_ok=True)
+    log_file = LOG_DIR / "intent-router.log"
+    ts = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    # Log mode + reason only; truncate transcript to first 60 chars for privacy
+    truncated = text[:60].replace("\n", " ")
+    line = f"[{ts}] mode={mode} reason={reason} text='{truncated}'\n"
+    with open(log_file, "a") as f:
+        f.write(line)
+
+
+# ── Gemma Integration ────────────────────────────────────────────────────────
+
+def send_to_gemma(message: str) -> Optional[str]:
+    """Send message to local Gemma via Ollama."""
+    try:
+        import urllib.request
+        data = json.dumps({
+            "model": MODEL,
+            "prompt": message,
+            "stream": False,
+            "options": {"temperature": 0.3},
+        }).encode()
+
+        req = urllib.request.Request(
+            f"{OLLAMA_HOST}/api/generate",
+            data=data,
+            headers={"Content-Type": "application/json"},
+            method="POST",
+        )
+
+        with urllib.request.urlopen(req, timeout=120) as resp:
+            result = json.loads(resp.read())
+            return result.get("response", "").strip()
+    except Exception as e:
+        print(f"Gemma request failed: {e}")
+        return None
+
+
+# ── Voice Session ────────────────────────────────────────────────────────────
+
+def voice_session(keep_audio: bool = False):
+    """Main voice interaction loop."""
+    status = get_status()
+
+    print("=" * 60)
+    print("Gem Voice Chat")
+    print("=" * 60)
+    print()
+
+    if not status["ready"]:
+        print("Voice components not fully configured.")
+        print()
+        print_status()
+        print()
+        print("Run 'gemma-voice-chat --setup' to download components.")
+        print()
+        # Offer text-only fallback
+        print("Or use text input with TTS output:")
+        text_fallback()
+        return
+
+    print("Push-to-talk voice session started.")
+    print("Commands: [r] record  [t] text-only  [/quit] exit  [/help] help")
+    print()
+
+    session_id = datetime.now().strftime("%Y%m%d-%H%M%S")
+    log_file = LOG_DIR / f"gemma-voice-{session_id}.log"
+    LOG_DIR.mkdir(parents=True, exist_ok=True)
+
+    def log(msg: str):
+        ts = datetime.now().strftime("%H:%M:%S")
+        line = f"[{ts}] {msg}\n"
+        with open(log_file, "a") as f:
+            f.write(line)
+
+    log("Session started")
+
+    while True:
+        try:
+            user_input = input("[🎙️ r=record / text=type /quit=exit] > ").strip()
+        except (EOFError, KeyboardInterrupt):
+            print("\nGoodbye! 👋")
+            break
+
+        if not user_input:
+            continue
+
+        # Normalize /r -> r before command checks
+        normalized = user_input
+        if normalized.lower() == "/r":
+            normalized = "r"
+
+        if normalized.lower() in ("/quit", "/exit", "/q"):
+            print("Goodbye! 👋")
+            break
+
+        if normalized.startswith("/"):
+            if normalized == "/help":
+                print_voice_help()
+                continue
+            elif normalized == "/status":
+                print_status()
+                continue
+            else:
+                print(f"Unknown command: {normalized}")
+                continue
+
+        # Record or use typed text
+        if normalized.lower() in ("r", "record", "rec"):
+            # Record audio
+            audio_path = CACHE_DIR / f"record-{datetime.now().strftime('%H%M%S')}.wav"
+            CACHE_DIR.mkdir(parents=True, exist_ok=True)
+
+            print("🎙️  Recording... (6 seconds)")
+            if not record_audio(audio_path):
+                continue
+            print("✓ Recording complete")
+
+            print("Transcribing...")
+            transcript = transcribe_audio(audio_path)
+
+            if not transcript:
+                print("Could not transcribe audio.")
+                log("TRANSCRIPTION_FAILED")
+                if not keep_audio and audio_path.is_file():
+                    audio_path.unlink()
+                continue
+
+            print(f"You: {transcript}")
+            log(f"USER: {transcript}")
+
+            if not keep_audio and audio_path.is_file():
+                audio_path.unlink()
+        else:
+            # Typed text
+            transcript = user_input
+            print(f"You (text): {transcript}")
+
+        if not transcript:
+            continue
+
+        # Route intent
+        mode, subcmd, reason = route_intent(transcript)
+        log_route(transcript, mode, reason)
+        if mode != "general":
+            print(f"[Router] Detected '{mode}' mode ({reason})")
+            if subcmd:
+                print(f"[Router] Subcommand: {subcmd}")
+            if mode == "security":
+                print("[Router] Security tools require confirmation. Use gemma-ui --mode security.")
+            elif mode == "memory":
+                print("[Router] Memory mode is supervised. RuVector is secondary. Stage 3A is canonical fallback.")
+
+        # For memory mode with subcmd, ask confirmation before running RAG
+        if mode == "memory" and subcmd:
+            try:
+                confirm = input("[Router] Run memory helper? [y/N]: ").strip().lower()
+            except (EOFError, KeyboardInterrupt):
+                confirm = "n"
+            if confirm in ("y", "yes"):
+                # Extract the actual query from subcmd (e.g. "ask what did we decide" → "what did we decide")
+                parts = subcmd.split(None, 1)
+                if len(parts) >= 2:
+                    mem_sub, query = parts[0], parts[1]
+                else:
+                    mem_sub, query = subcmd, ""
+                helper_map = {
+                    "ask": "gemma-memory-rag",
+                    "search": "gemma-memory-search",
+                    "compare": "gemma-memory-rag",  # fallback to RAG
+                    "stage3a": "gemma-knowledge-rag",
+                }
+                helper = helper_map.get(mem_sub)
+                if helper and shutil.which(helper):
+                    print(f"[Router] Running {helper}...")
+                    subprocess.run([helper, query])
+                    print("[Router] Memory helper complete.")
+                    print()
+                    continue
+                else:
+                    print(f"[Router] Helper '{helper}' not available. Falling back to Gemma.")
+            else:
+                print("[Router] Cancelled. Falling back to Gemma.")
+
+        # Send to Gemma
+        print("Gemma is thinking...")
+        response = send_to_gemma(transcript)
+
+        if response:
+            print(f"Gemma: {response}")
+            log(f"GEMMA: {response}")
+
+            # Speak response
+            print("Speaking...")
+            if not speak_text(response):
+                print("(TTS unavailable — response printed above)")
+        else:
+            print("Gemma did not respond.")
+            log("NO_RESPONSE")
+
+        print()
+
+    log("Session ended")
+    print(f"Log saved: {log_file}")
+
+
+def text_fallback():
+    """Text input with TTS output fallback."""
+    print("Text + TTS mode. Type '/quit' to exit.")
+    print()
+
+    while True:
+        try:
+            text = input("You: ").strip()
+        except (EOFError, KeyboardInterrupt):
+            break
+
+        if text.lower() in ("/quit", "/exit", "/q"):
+            break
+
+        if not text:
+            continue
+
+        response = send_to_gemma(text)
+        if response:
+            print(f"Gemma: {response}")
+            speak_text(response)
+        else:
+            print("No response.")
+
+
+# ── Status Display ───────────────────────────────────────────────────────────
+
+def print_status():
+    """Print component status."""
+    status = get_status()
+
+    print("Voice Component Status")
+    print("-" * 40)
+
+    # Recorder
+    rec = status["recorder"]
+    if rec["available"]:
+        print(f"  [green]✓[/] Recorder: {rec['command']}")
+    else:
+        print(f"  [red]✗[/] Recorder: not found")
+
+    # STT
+    stt = status["stt"]
+    if stt["available"]:
+        print(f"  [green]✓[/] STT: {stt['command']}")
+    elif stt["command"] and not stt["model_ok"]:
+        print(f"  [yellow]⚠[/] STT: {stt['command']} (model missing)")
+    else:
+        print(f"  [red]✗[/] STT: not configured")
+        print(f"      Install: gemma-voice-chat --setup")
+
+    # TTS
+    tts = status["tts"]
+    if tts["available"]:
+        print(f"  [green]✓[/] TTS: {tts['command']}")
+    elif tts["command"] and not tts["model_ok"]:
+        print(f"  [yellow]⚠[/] TTS: {tts['command']} (model missing)")
+    else:
+        print(f"  [red]✗[/] TTS: not configured")
+        print(f"      Install: gemma-voice-chat --setup")
+
+    print()
+    if status["ready"]:
+        print("[green]Voice agent is ready.[/]")
+    else:
+        print("[yellow]Voice agent is not fully configured.[/]")
+
+
+def print_voice_help():
+    """Print voice help."""
+    print("""
+Voice Chat Commands:
+    r           Record audio (6 seconds)
+    /help       Show this help
+    /status     Show component status
+    /quit       Exit voice mode
+
+Usage:
+    Type 'r' and press Enter to record audio.
+    Or type text directly and press Enter.
+    Gemma will respond via text and TTS (if available).
+
+Setup:
+    gemma-voice-chat --setup    Download/build voice components
+""")
+
+
+# ── Test Output ──────────────────────────────────────────────────────────────
+
+def test_output():
+    """Test TTS output."""
+    print("Testing TTS output...")
+    status = get_status()
+
+    if status["tts"]["available"]:
+        print("Speaking test phrase...")
+        speak_text("Hello! This is Gemma's voice. Local text to speech is working.")
+        print("Done.")
+    elif shutil.which("espeak-ng") or shutil.which("spd-say"):
+        print("Basic TTS available. Speaking test phrase...")
+        speak_text("Hello! This is Gemma's voice.")
+        print("Done.")
+    else:
+        print("No TTS engine found.")
+        print("Run 'gemma-voice-chat --setup' to install piper.")
+
+
+# ── CLI Entry Point ──────────────────────────────────────────────────────────
+
+def main():
+    args = sys.argv[1:]
+    keep_audio = "--keep-audio" in args
+
+    if "--help" in args or "-h" in args:
+        print(__doc__)
+        print()
+        print_voice_help()
+        sys.exit(0)
+
+    if "--status" in args:
+        print_status()
+        sys.exit(0)
+
+    if "--setup" in args:
+        setup_all()
+        sys.exit(0)
+
+    if "--test-output" in args:
+        test_output()
+        sys.exit(0)
+
+    if "--route-only" in args:
+        idx = args.index("--route-only")
+        if idx + 1 < len(args):
+            text = args[idx + 1]
+            mode, subcmd, reason = route_intent(text)
+            print(f"Input:    {text}")
+            print(f"Mode:     {mode}")
+            if subcmd:
+                print(f"Subcmd:   {subcmd}")
+            print(f"Reason:   {reason}")
+            log_route(text, mode, reason)
+            if mode == "security":
+                print("Action:   Hand off to gemma-security-chat (confirmation gates remain)")
+            elif mode == "memory" and subcmd:
+                print(f"Action:   Route to gemma-ui --mode memory {subcmd}")
+            else:
+                print(f"Action:   Route to gemma-ui --mode {mode}")
+            sys.exit(0)
+        else:
+            print("Usage: gemma-voice-chat --route-only \"<text>\"")
+            sys.exit(1)
+
+    # Default: voice session
+    voice_session(keep_audio=keep_audio)
+
+
+if __name__ == "__main__":
+    main()

@@ -1,0 +1,116 @@
+#!/bin/bash
+
+source ~/.local/lib/gemma-monitor-lib.sh
+
+START=$(date +%s)
+PASS_COUNT=0
+WARN_COUNT=0
+FAIL_COUNT=0
+
+monitor_header "Weekly Deep Check"
+
+if command_exists gemma-monitor-daily; then
+    gemma-monitor-daily >/dev/null 2>&1
+    DAILY_EXIT=$?
+    if [ ${DAILY_EXIT} -eq 0 ]; then
+        monitor_pass "Daily checks: PASS"
+    elif [ ${DAILY_EXIT} -eq 1 ]; then
+        monitor_warn "Daily checks: WARN"
+    else
+        monitor_fail "Daily checks: FAIL"
+    fi
+else
+    monitor_warn "Daily checks: gemma-monitor-daily not found"
+fi
+
+monitor_section "Knowledge Pack"
+
+KNOWLEDGE_DIR="$HOME/.local/share/bazzite-security/gemma-knowledge"
+if [ -d "${KNOWLEDGE_DIR}" ]; then
+    DOC_COUNT=$(find "${KNOWLEDGE_DIR}/docs" -type f 2>/dev/null | wc -l)
+    monitor_pass "Knowledge docs: ${DOC_COUNT} files"
+    
+    if [ -f "${KNOWLEDGE_DIR}/index/chunks.jsonl" ]; then
+        INDEX_AGE=$(( ($(date +%s) - $(stat -c %Y "${KNOWLEDGE_DIR}/index/chunks.jsonl")) / 86400 ))
+        if [ ${INDEX_AGE} -lt 7 ]; then
+            monitor_pass "Knowledge index: ${INDEX_AGE} days old"
+        else
+            monitor_warn "Knowledge index: ${INDEX_AGE} days old (recommend re-index)"
+        fi
+    else
+        monitor_warn "Knowledge index: not found"
+    fi
+else
+    monitor_warn "Knowledge pack: directory not found"
+fi
+
+monitor_section "RuVector"
+
+RUVECTOR_DIR="$HOME/.local/share/bazzite-security/ruvector"
+if [ -d "${RUVECTOR_DIR}" ]; then
+    if ls "${RUVECTOR_DIR}"/manifest-*.json >/dev/null 2>&1; then
+        LATEST_MANIFEST=$(ls -t "${RUVECTOR_DIR}"/manifest-*.json 2>/dev/null | head -1)
+        if [ -n "${LATEST_MANIFEST}" ]; then
+            RUV_AGE=$(( ($(date +%s) - $(stat -c %Y "${LATEST_MANIFEST}")) / 86400 ))
+            if [ ${RUV_AGE} -lt 7 ]; then
+                monitor_pass "RuVector index: ${RUV_AGE} days old"
+            else
+                monitor_warn "RuVector index: ${RUV_AGE} days old (recommend re-index)"
+            fi
+        fi
+    else
+        monitor_warn "RuVector: no manifests found"
+    fi
+else
+    monitor_info "RuVector: not initialized (optional)"
+fi
+
+monitor_section "Eval Coverage"
+
+if command_exists gemma-evals-check; then
+    EVALS_OUTPUT=$(gemma-evals-check 2>&1)
+    EVALS_PASS=$(echo "${EVALS_OUTPUT}" | grep -o 'PASS' | wc -l)
+    if [ ${EVALS_PASS} -gt 0 ]; then
+        monitor_pass "Eval validation: PASS"
+    else
+        monitor_fail "Eval validation: FAIL"
+    fi
+else
+    monitor_warn "Eval validation: gemma-evals-check not found"
+fi
+
+monitor_section "Helper Scripts"
+
+HELPER_COUNT=$(ls ~/.local/bin/gemma-* 2>/dev/null | wc -l)
+if [ ${HELPER_COUNT} -gt 0 ]; then
+    monitor_pass "Helpers: ${HELPER_COUNT} scripts found"
+    
+    NON_EXEC=$(find ~/.local/bin/gemma-* ! -executable 2>/dev/null | wc -l)
+    if [ ${NON_EXEC} -eq 0 ]; then
+        monitor_pass "Helpers: all executable"
+    else
+        monitor_warn "Helpers: ${NON_EXEC} not executable"
+    fi
+else
+    monitor_warn "Helpers: no gemma-* scripts found"
+fi
+
+monitor_section "Reports"
+
+REPORT_DIR="$HOME/offload/security-reports/manual"
+if [ -d "${REPORT_DIR}" ]; then
+    RECENT_REPORTS=$(find "${REPORT_DIR}" -type f -mtime -7 2>/dev/null | wc -l)
+    monitor_pass "Recent reports: ${RECENT_REPORTS} (last 7 days)"
+    
+    ARCHIVE_DIR="$HOME/offload/archives"
+    if [ -d "${ARCHIVE_DIR}" ]; then
+        ARCHIVE_COUNT=$(find "${ARCHIVE_DIR}" -type f 2>/dev/null | wc -l)
+        monitor_pass "Archive: ${ARCHIVE_COUNT} items"
+    fi
+else
+    monitor_info "Reports: directory not found"
+fi
+
+DURATION=$(( $(date +%s) - START ))
+monitor_summary ${DURATION}
+exit $?

@@ -1,0 +1,224 @@
+#!/usr/bin/env python3
+"""Validate Gemma eval dataset integrity.
+
+Lightweight checker for Stage 4A eval scaffolding.
+Does NOT call Ollama, execute commands, or run OpenCode.
+Only validates eval data structure and completeness.
+"""
+
+from __future__ import annotations
+
+import datetime as dt
+import json
+import os
+import sys
+from pathlib import Path
+from typing import Any
+
+
+HOME = Path.home()
+TIMESTAMP = dt.datetime.now().strftime("%Y%m%d-%H%M%S")
+EVALS_DIR = HOME / ".local/share/bazzite-security/gemma-evals"
+CASES_DIR = EVALS_DIR / "cases"
+MANIFEST_DIR = EVALS_DIR / "manifests"
+MANIFEST_FILE = MANIFEST_DIR / f"gemma-evals-check-{TIMESTAMP}.txt"
+LOG_FILE = HOME / f".local/state/bazzite-security/logs/gemma-evals-check-{TIMESTAMP}.log"
+
+VALID_TYPES = {"command_review", "knowledge_rag", "path_policy", "forbidden_output"}
+VALID_CLASSIFICATIONS = {"Safe to run now", "Optional later", "Risky / requires manual review"}
+
+REQUIRED_MINIMUMS = {
+    "command_review": 8,
+    "knowledge_rag": 5,
+    "path_policy": 5,
+    "forbidden_output": 1,
+}
+
+
+def log(message: str = "") -> None:
+    line = f"{dt.datetime.now().strftime('%Y-%m-%d %H:%M:%S')} {message}"
+    print(line)
+    LOG_FILE.parent.mkdir(parents=True, exist_ok=True)
+    with LOG_FILE.open("a", encoding="utf-8") as f:
+        f.write(line + "\n")
+
+
+def validate_jsonl_file(filepath: Path, errors: list[str], stats: dict[str, int], seen_ids: set[str]) -> list[dict[str, Any]]:
+    """Validate a single JSONL file and return parsed cases."""
+    cases = []
+    
+    if not filepath.is_file():
+        errors.append(f"File not found: {filepath}")
+        return cases
+    
+    with filepath.open("r", encoding="utf-8") as f:
+        for line_num, line in enumerate(f, start=1):
+            line = line.strip()
+            if not line:
+                continue
+            
+            # Validate JSON
+            try:
+                case = json.loads(line)
+            except json.JSONDecodeError as e:
+                errors.append(f"{filepath}:{line_num}: Invalid JSON: {e}")
+                continue
+            
+            # Validate required fields
+            if "id" not in case:
+                errors.append(f"{filepath}:{line_num}: Missing 'id' field")
+                continue
+            
+            if "type" not in case:
+                errors.append(f"{filepath}:{line_num}: Missing 'type' field")
+                continue
+            
+            case_id = case["id"]
+            case_type = case["type"]
+            
+            # Check ID uniqueness
+            if case_id in seen_ids:
+                errors.append(f"{filepath}:{line_num}: Duplicate ID: {case_id}")
+                continue
+            seen_ids.add(case_id)
+            
+            # Validate type
+            if case_type not in VALID_TYPES:
+                errors.append(f"{filepath}:{line_num}: Invalid type '{case_type}' for ID {case_id}")
+                continue
+            
+            # Type-specific validation
+            if case_type == "forbidden_output":
+                if "forbidden_terms" not in case:
+                    errors.append(f"{filepath}:{line_num}: Missing 'forbidden_terms' for forbidden_output case {case_id}")
+                    continue
+                if not isinstance(case["forbidden_terms"], list):
+                    errors.append(f"{filepath}:{line_num}: 'forbidden_terms' must be array for case {case_id}")
+                    continue
+            else:
+                # Non-forbidden types require input
+                if "input" not in case:
+                    errors.append(f"{filepath}:{line_num}: Missing 'input' field for case {case_id}")
+                    continue
+                
+                # Validate must_include if present
+                if "must_include" in case:
+                    if not isinstance(case["must_include"], list):
+                        errors.append(f"{filepath}:{line_num}: 'must_include' must be array for case {case_id}")
+                    elif not all(isinstance(x, str) for x in case["must_include"]):
+                        errors.append(f"{filepath}:{line_num}: 'must_include' must contain only strings for case {case_id}")
+                
+                # Validate must_not_include if present
+                if "must_not_include" in case:
+                    if not isinstance(case["must_not_include"], list):
+                        errors.append(f"{filepath}:{line_num}: 'must_not_include' must be array for case {case_id}")
+                    elif not all(isinstance(x, str) for x in case["must_not_include"]):
+                        errors.append(f"{filepath}:{line_num}: 'must_not_include' must contain only strings for case {case_id}")
+                
+                # Validate expected_classification if present
+                if "expected_classification" in case:
+                    if case["expected_classification"] not in VALID_CLASSIFICATIONS:
+                        errors.append(f"{filepath}:{line_num}: Invalid classification '{case['expected_classification']}' for case {case_id}")
+            
+            cases.append(case)
+            stats[case_type] = stats.get(case_type, 0) + 1
+    
+    return cases
+
+
+def main() -> int:
+    log("=== Gemma Evals Check ===")
+    log(f"Timestamp: {TIMESTAMP}")
+    log(f"Cases dir: {CASES_DIR}")
+    log()
+    
+    # Check directories exist
+    if not EVALS_DIR.is_dir():
+        log(f"ERROR: Evals directory missing: {EVALS_DIR}")
+        return 1
+    
+    if not CASES_DIR.is_dir():
+        log(f"ERROR: Cases directory missing: {CASES_DIR}")
+        return 1
+    
+    log("PASS: Directory structure exists")
+    
+    # Find all JSONL files
+    jsonl_files = sorted(CASES_DIR.glob("*.jsonl"))
+    if not jsonl_files:
+        log("ERROR: No JSONL files found in cases directory")
+        return 1
+    
+    log(f"Found {len(jsonl_files)} JSONL file(s)")
+    
+    # Validate all files
+    errors: list[str] = []
+    stats: dict[str, int] = {}
+    seen_ids: set[str] = set()
+    all_cases: list[dict[str, Any]] = []
+    
+    for filepath in jsonl_files:
+        log(f"Validating: {filepath.name}")
+        cases = validate_jsonl_file(filepath, errors, stats, seen_ids)
+        all_cases.extend(cases)
+    
+    # Check minimum counts
+    for case_type, minimum in REQUIRED_MINIMUMS.items():
+        actual = stats.get(case_type, 0)
+        if actual < minimum:
+            errors.append(f"Insufficient {case_type} cases: {actual} < {minimum} required")
+        else:
+            log(f"PASS: {case_type} cases: {actual} (minimum: {minimum})")
+    
+    # Check forbidden terms are defined
+    forbidden_cases = [c for c in all_cases if c.get("type") == "forbidden_output"]
+    if not forbidden_cases:
+        errors.append("No forbidden_output case found")
+    else:
+        all_forbidden_terms: set[str] = set()
+        for case in forbidden_cases:
+            all_forbidden_terms.update(case.get("forbidden_terms", []))
+        log(f"PASS: Found {len(all_forbidden_terms)} forbidden terms defined")
+    
+    # Write manifest
+    MANIFEST_DIR.mkdir(parents=True, exist_ok=True)
+    with MANIFEST_FILE.open("w", encoding="utf-8") as f:
+        f.write("# Gemma Evals Check Manifest\n")
+        f.write(f"# Generated: {dt.datetime.now().isoformat()}\n\n")
+        f.write(f"Total cases: {len(all_cases)}\n")
+        f.write(f"Unique IDs: {len(seen_ids)}\n\n")
+        f.write("## Case counts by type:\n")
+        for case_type in sorted(VALID_TYPES):
+            count = stats.get(case_type, 0)
+            minimum = REQUIRED_MINIMUMS.get(case_type, 0)
+            status = "PASS" if count >= minimum else "FAIL"
+            f.write(f"- {case_type}: {count} (required: {minimum}) [{status}]\n")
+        f.write("\n## Files validated:\n")
+        for filepath in jsonl_files:
+            f.write(f"- {filepath.name}\n")
+        if errors:
+            f.write("\n## Errors:\n")
+            for error in errors:
+                f.write(f"- {error}\n")
+        else:
+            f.write("\n## Result: PASS\n")
+    
+    log(f"\nManifest written to: {MANIFEST_FILE}")
+    
+    # Report results
+    if errors:
+        log("\nERRORS:")
+        for error in errors:
+            log(f"  - {error}")
+        log("\nRESULT: FAIL")
+        log(f"Log written to: {LOG_FILE}")
+        return 1
+    else:
+        log("\nAll validations passed")
+        log("RESULT: PASS")
+        log(f"Log written to: {LOG_FILE}")
+        return 0
+
+
+if __name__ == "__main__":
+    sys.exit(main())

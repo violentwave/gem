@@ -1,0 +1,2056 @@
+#!/usr/bin/env python3
+"""
+gemma-ui — Unified Terminal UI for the Bazzite Local AI Operations Stack
+
+A single entry point that routes to all Gemma helpers and security tools.
+Each mode delegates to existing helpers instead of duplicating logic.
+
+Usage:
+    gemma-ui                              # Interactive mode selector
+    gemma-ui --mode general               # Start in general chat mode
+    gemma-ui --mode security              # Start in security tool mode
+    gemma-ui --mode memory                # Start in memory search mode
+    gemma-ui --mode repo                  # Start in repo brief mode
+    gemma-ui --mode reports               # Show recent reports
+    gemma-ui --mode health                # Run safe health checks
+    gemma-ui --demo-ui                   # Render demo without running tools
+    gemma-ui --list-modes                 # List available modes
+    gemma-ui --help                       # Show help
+
+Modes:
+    [1] general    Normal local Gemma chat (gemma-bazzite)
+    [2] security   Security tool console (gemma-security-chat)
+    [3] memory     RuVector/Stage 3A memory search
+    [4] repo       Repo commands for gem and bazzite-laptop
+    [5] voice      Voice mode (setup/explain)
+    [6] reports    Show recent generated reports
+    [7] health     Safe health/status checks
+
+UI Commands:
+    /help       Show help
+    /mode       Show mode selector
+    /clear      Clear the screen
+    /save       Save current session state
+    /quit       Exit
+
+Safety:
+    - Advisory only. No autonomous actions.
+    - No sudo without explicit user confirmation.
+    - Missing helpers shown as "not configured" rather than failing.
+    - Delegates to existing helpers; does not replace them.
+
+Canonical Paths:
+    - Scripts:     ~/.local/bin/
+    - Config:      ~/.config/bazzite-security/gemma-ui.json
+    - Logs:        ~/.local/state/bazzite-security/logs/
+    - Reports:     ~/offload/security-reports/manual/
+    - Cache:       ~/.cache/bazzite-security/
+"""
+
+from __future__ import annotations
+
+import json
+import os
+import shutil
+import subprocess
+import sys
+import urllib.request
+from datetime import datetime
+from pathlib import Path
+from typing import Dict, List, Optional
+
+# Rich for beautiful UI
+from rich.console import Console
+from rich.panel import Panel
+from rich.table import Table
+from rich.text import Text
+from rich.rule import Rule
+from rich.align import Align
+from rich.markdown import Markdown
+from rich.columns import Columns
+
+console = Console(highlight=True)
+
+# ── Configuration ────────────────────────────────────────────────────────────
+HOME = Path.home()
+CONFIG_FILE = HOME / ".config/bazzite-security/gemma-ui.json"
+INTEGRATIONS_FILE = HOME / ".config/bazzite-security/gemma-ui-integrations.json"
+BIN_DIR = HOME / ".local/bin"
+REPORT_DIR = HOME / "offload/security-reports/manual"
+LOG_DIR = HOME / ".local/state/bazzite-security/logs"
+
+MODEL = os.environ.get("GEMMA_MODEL", "gemma4-e4b-bazzite")
+OLLAMA_HOST = os.environ.get("OLLAMA_HOST", "http://127.0.0.1:11434")
+
+# ── State ────────────────────────────────────────────────────────────────────
+_CURRENT_MODE = "welcome"
+
+# ── Helper Registry ──────────────────────────────────────────────────────────
+# Each helper: (path, type, description, args_style, risk)
+RISK_SAFE = "SAFE READ-ONLY"
+RISK_CONFIRM = "CONFIRM REQUIRED"
+RISK_SUDO = "SUDO / MANUAL REVIEW"
+RISK_UNAVAILABLE = "UNAVAILABLE"
+
+HELPERS = {
+    "gemma-bazzite": {
+        "path": BIN_DIR / "gemma-bazzite",
+        "type": "shell",
+        "description": "General chat with local Gemma",
+        "args_style": "ollama_message",
+        "risk": RISK_SAFE,
+        "category": "General",
+    },
+    "gemma-security-chat": {
+        "path": BIN_DIR / "gemma-security-chat",
+        "type": "python",
+        "description": "Interactive security tool console",
+        "args_style": "interactive",
+        "risk": RISK_CONFIRM,
+        "category": "Security",
+    },
+    "gemma-security-analyzer": {
+        "path": BIN_DIR / "gemma-security-analyzer",
+        "type": "shell",
+        "description": "Security tool analysis wrapper",
+        "args_style": "tool_args",
+        "risk": RISK_CONFIRM,
+        "category": "Security",
+    },
+    "gemma-memory-search": {
+        "path": BIN_DIR / "gemma-memory-search",
+        "type": "python",
+        "description": "RuVector semantic search with Stage 3A fallback",
+        "args_style": "query",
+        "risk": RISK_SAFE,
+        "category": "Memory",
+    },
+    "gemma-memory-rag": {
+        "path": BIN_DIR / "gemma-memory-rag",
+        "type": "python",
+        "description": "RuVector RAG with Ollama generation",
+        "args_style": "query",
+        "risk": RISK_SAFE,
+        "category": "Memory",
+    },
+    "gemma-knowledge-search": {
+        "path": BIN_DIR / "gemma-knowledge-search",
+        "type": "python",
+        "description": "Deterministic Stage 3A knowledge search",
+        "args_style": "query",
+        "risk": RISK_SAFE,
+        "category": "Memory",
+    },
+    "gemma-knowledge-rag": {
+        "path": BIN_DIR / "gemma-knowledge-rag",
+        "type": "python",
+        "description": "Stage 3A RAG with Ollama generation",
+        "args_style": "query",
+        "risk": RISK_SAFE,
+        "category": "Memory",
+    },
+    "gemma-command-review": {
+        "path": BIN_DIR / "gemma-command-review",
+        "type": "shell",
+        "description": "Advisory command safety review",
+        "args_style": "command_string",
+        "risk": RISK_SAFE,
+        "category": "Security",
+    },
+    "gemma-repo-brief": {
+        "path": BIN_DIR / "gemma-repo-brief",
+        "type": "shell",
+        "description": "Bounded advisory repo summary",
+        "args_style": "repo_path",
+        "risk": RISK_SAFE,
+        "category": "Repo",
+    },
+    "gemma-file-brief": {
+        "path": BIN_DIR / "gemma-file-brief",
+        "type": "shell",
+        "description": "Advisory local file summary",
+        "args_style": "file_path",
+        "risk": RISK_SAFE,
+        "category": "Repo",
+    },
+    "gemma-bazzite-health": {
+        "path": BIN_DIR / "gemma-bazzite-health",
+        "type": "shell",
+        "description": "Gemma model health check",
+        "args_style": "no_args",
+        "risk": RISK_SAFE,
+        "category": "Diagnostics",
+    },
+    "gemma-dashboard-build": {
+        "path": BIN_DIR / "gemma-dashboard-build",
+        "type": "shell",
+        "description": "Build security dashboard HTML",
+        "args_style": "optional_args",
+        "risk": RISK_SAFE,
+        "category": "Diagnostics",
+    },
+    "gemma-monitor-daily": {
+        "path": BIN_DIR / "gemma-monitor-daily",
+        "type": "shell",
+        "description": "Daily system health monitor",
+        "args_style": "no_args",
+        "risk": RISK_SAFE,
+        "category": "Diagnostics",
+    },
+    "gemma-monitor-drift": {
+        "path": BIN_DIR / "gemma-monitor-drift",
+        "type": "shell",
+        "description": "Drift detection monitor",
+        "args_style": "no_args",
+        "risk": RISK_SAFE,
+        "category": "Diagnostics",
+    },
+    "gemma-voice-chat": {
+        "path": BIN_DIR / "gemma-voice-chat",
+        "type": "unknown",
+        "description": "Voice-controlled chat interface",
+        "args_style": "interactive",
+        "risk": RISK_SAFE,
+        "category": "Voice",
+    },
+}
+
+
+# ── Helper Detection ─────────────────────────────────────────────────────────
+
+def detect_helpers() -> Dict[str, bool]:
+    """Return dict of helper_name -> is_available."""
+    return {name: info["path"].is_file() for name, info in HELPERS.items()}
+
+
+def helper_status(name: str) -> str:
+    """Return colored status string for a helper."""
+    info = HELPERS.get(name, {})
+    if not info:
+        return "[dim]unknown[/]"
+    if info["path"].is_file():
+        return "[bright_green]✓[/]"
+    return "[bright_red]✗[/]"
+
+
+def helper_risk_label(name: str) -> str:
+    """Return styled risk label for a helper."""
+    info = HELPERS.get(name, {})
+    risk = info.get("risk", RISK_SAFE)
+    if risk == RISK_SAFE:
+        return "[dim green]SAFE[/]"
+    elif risk == RISK_CONFIRM:
+        return "[dim yellow]CONFIRM[/]"
+    elif risk == RISK_SUDO:
+        return "[dim bright_red]SUDO[/]"
+    else:
+        return "[dim]N/A[/]"
+
+
+# ── Config ───────────────────────────────────────────────────────────────────
+
+DEFAULT_CONFIG = {
+    "version": "1.2.0",
+    "default_mode": "general",
+    "theme": "default",
+    "accent": "cyan",
+    "show_icons": True,
+    "show_timestamps": True,
+    "compact_mode": False,
+    "confirm_tools": True,
+    "confirm_sudo_tools": True,
+    "features": {
+        "general": True,
+        "security": True,
+        "memory": True,
+        "repo": True,
+        "voice": True,
+        "reports": True,
+        "health": True,
+        "dashboard": False,
+        "web_ui": False,
+        "livekit": False,
+    },
+    "voice": {
+        "duration_seconds": 6,
+        "delete_audio_by_default": True,
+        "recorder_preference": "auto",
+        "stt_preference": "auto",
+        "tts_preference": "auto",
+    },
+    "paths": {
+        "helpers_dir": str(BIN_DIR),
+        "reports_dir": str(REPORT_DIR),
+        "logs_dir": str(LOG_DIR),
+        "config_dir": str(CONFIG_FILE.parent),
+    },
+    "ollama": {
+        "host": "127.0.0.1",
+        "port": 11434,
+        "model": "gemma4-e4b-bazzite:latest",
+    },
+    "last_run": None,
+}
+
+
+def _deep_merge(base: dict, overlay: dict) -> dict:
+    """Deep merge overlay into base, preserving base structure."""
+    result = base.copy()
+    for key, value in overlay.items():
+        if key in result and isinstance(result[key], dict) and isinstance(value, dict):
+            result[key] = _deep_merge(result[key], value)
+        else:
+            result[key] = value
+    return result
+
+
+def load_config() -> dict:
+    """Load gemma-ui config with backfill of missing keys.
+
+    Preserves user-set values. Adds missing keys from DEFAULT_CONFIG.
+    If file is missing or invalid, returns full defaults.
+    """
+    if not CONFIG_FILE.is_file():
+        return DEFAULT_CONFIG.copy()
+
+    try:
+        with open(CONFIG_FILE) as f:
+            stored = json.load(f)
+    except (json.JSONDecodeError, IOError):
+        console.print("[yellow]Warning: config file unreadable, using defaults.[/]")
+        return DEFAULT_CONFIG.copy()
+
+    # Deep merge: defaults as base, user values overlay on top
+    merged = _deep_merge(DEFAULT_CONFIG, stored)
+    return merged
+
+
+def validate_config(config: dict) -> List[str]:
+    """Validate config and return list of warning strings."""
+    warnings = []
+
+    # Check for disabled unsafe features
+    features = config.get("features", {})
+    if features.get("web_ui"):
+        warnings.append("features.web_ui is enabled but not supported in this version")
+    if features.get("livekit"):
+        warnings.append("features.livekit is enabled but not supported in this version")
+
+    # Check voice settings
+    voice = config.get("voice", {})
+    duration = voice.get("duration_seconds", 6)
+    if not isinstance(duration, int) or duration < 1 or duration > 30:
+        warnings.append(f"voice.duration_seconds ({duration}) out of range 1-30, using 6")
+        voice["duration_seconds"] = 6
+
+    # Check types
+    for key, expected in (
+        ("show_icons", bool),
+        ("show_timestamps", bool),
+        ("compact_mode", bool),
+        ("confirm_tools", bool),
+        ("confirm_sudo_tools", bool),
+    ):
+        if key in config and not isinstance(config[key], expected):
+            warnings.append(f"{key} should be {expected.__name__}, got {type(config[key]).__name__}")
+
+    return warnings
+
+
+def save_config(config: dict):
+    """Save gemma-ui config."""
+    CONFIG_FILE.parent.mkdir(parents=True, exist_ok=True)
+    try:
+        with open(CONFIG_FILE, "w") as f:
+            json.dump(config, f, indent=2)
+    except IOError:
+        console.print(f"[red]Error: could not write config to {CONFIG_FILE}[/]")
+
+
+def load_integrations() -> dict:
+    """Load integration metadata config if present.
+
+    Returns empty dict if file missing or unreadable.
+    This is display-only — no enforcement occurs from this file.
+    """
+    if not INTEGRATIONS_FILE.is_file():
+        return {}
+    try:
+        with open(INTEGRATIONS_FILE) as f:
+            return json.load(f)
+    except (json.JSONDecodeError, IOError):
+        return {}
+
+
+def print_config():
+    """Print current config in a readable format."""
+    config = load_config()
+    console.print("[bright_yellow bold]gemma-ui Configuration[/]")
+    console.print()
+    console.print(json.dumps(config, indent=2))
+    console.print()
+
+
+def check_config():
+    """Validate config and print results."""
+    config = load_config()
+    warnings = validate_config(config)
+
+    console.print("[bright_yellow bold]Config Check[/]")
+    console.print()
+
+    if warnings:
+        for w in warnings:
+            console.print(f"[yellow]⚠ {w}[/]")
+    else:
+        console.print("[green]✓ Config is valid[/]")
+
+    console.print()
+    console.print(f"[dim]Config file:[/] {CONFIG_FILE}")
+    console.print(f"[dim]Version:[/]    {config.get('version', 'unknown')}")
+    console.print()
+
+    # Show feature flags
+    features = config.get("features", {})
+    console.print("[bright_cyan]Feature Flags:[/]")
+    for name, enabled in sorted(features.items()):
+        status = "[green]✓[/]" if enabled else "[red]✗[/]"
+        console.print(f"  {status} {name}")
+    console.print()
+
+    # Show voice settings
+    voice = config.get("voice", {})
+    console.print("[bright_cyan]Voice Settings:[/]")
+    for name, value in sorted(voice.items()):
+        console.print(f"  {name}: {value}")
+    console.print()
+
+
+def print_integration_status():
+    """Print integration metadata status — display-only, no enforcement."""
+    integrations = load_integrations()
+
+    console.print("[bright_yellow bold]🔗 Integration Metadata[/]")
+    console.print()
+
+    if not integrations:
+        console.print("  [dim]Integration metadata not configured.[/]")
+        console.print("  [dim]File:[/] {0}".format(INTEGRATIONS_FILE))
+        console.print()
+        console.print("[dim]Integration metadata is display-only. No enforcement occurs.[/]")
+        return
+
+    # Overall status
+    status = integrations.get("status", "unknown")
+    console.print("  [bright_cyan]Status:[/]       {0}".format(status))
+    console.print("  [bright_cyan]Version:[/]      {0}".format(integrations.get("version", "unknown")))
+    console.print()
+
+    # bazzite-laptop section
+    bl = integrations.get("bazzite_laptop", {})
+    if bl:
+        console.print("  [bright_cyan bold]bazzite-laptop[/]")
+        console.print("  [bright_cyan]  Role:[/]         {0}".format(bl.get("role", "unknown")))
+        console.print("  [bright_cyan]  Import status:[/] {0}".format(bl.get("config_import_status", "unknown")))
+        console.print("  [bright_cyan]  Display-only:[/]  {0}".format("yes" if bl.get("display_only") else "no"))
+        console.print("  [bright_cyan]  MCP routing:[/]   {0}".format("enabled" if bl.get("mcp_routing_enabled") else "disabled"))
+        console.print()
+
+        # Allowed display files
+        allowed = bl.get("allowed_display_files", {})
+        if allowed:
+            console.print("  [bright_cyan]  Allowed display files:[/]")
+            for name, path_tpl in allowed.items():
+                path = Path(path_tpl.replace("~", str(HOME))).expanduser()
+                exists = "[green]present[/]" if path.is_file() else "[yellow]missing[/]"
+                console.print("    {0}: {1} ({2})".format(name, path_tpl, exists))
+            console.print()
+
+        # Forbidden list
+        forbidden = bl.get("forbidden", [])
+        if forbidden:
+            console.print("  [bright_cyan]  Forbidden imports:[/]")
+            for item in forbidden:
+                console.print("    [red]✗[/] {0}".format(item))
+            console.print()
+
+    console.print("[dim]Integration metadata is display-only.[/]")
+    console.print("[dim]bazzite-laptop remains legacy/reference only.[/]")
+    console.print("[dim]No config import has been performed.[/]")
+    console.print("[dim]MCP routing remains disabled.[/]")
+    console.print()
+
+
+# ── System Status ────────────────────────────────────────────────────────────
+
+def get_ollama_status() -> tuple:
+    """Return (status_str, color, detail) for Ollama."""
+    try:
+        req = urllib.request.Request(f"{OLLAMA_HOST}/api/tags", method="GET")
+        with urllib.request.urlopen(req, timeout=3) as resp:
+            data = json.loads(resp.read())
+            models = data.get("models", [])
+            count = len(models)
+            return ("online", "bright_green", f"{count} models")
+    except Exception:
+        return ("offline", "bright_red", "unreachable")
+
+
+def get_tool_summary(detected: Dict[str, bool]) -> str:
+    """Return brief tool availability summary."""
+    available = sum(1 for v in detected.values() if v)
+    total = len(HELPERS)
+    return f"{available}/{total}"
+
+
+def get_voice_status(detected: Dict[str, bool]) -> tuple:
+    """Return (status_str, color)."""
+    if detected.get("gemma-voice-chat"):
+        return ("ready", "bright_green")
+    return ("not configured", "dim")
+
+
+def get_memory_status(detected: Dict[str, bool]) -> tuple:
+    """Return (status_str, color)."""
+    if detected.get("gemma-memory-search"):
+        return ("RuVector ready", "bright_green")
+    elif detected.get("gemma-knowledge-search"):
+        return ("Stage 3A only", "bright_yellow")
+    return ("not configured", "dim")
+
+
+# ── Welcome Screen ───────────────────────────────────────────────────────────
+
+def print_welcome_screen(detected: Dict[str, bool]):
+    """Print polished welcome screen."""
+    config = load_config()
+    ollama_status, ollama_color, ollama_detail = get_ollama_status()
+    voice_status, voice_color = get_voice_status(detected)
+    mem_status, mem_color = get_memory_status(detected)
+    tool_summary = get_tool_summary(detected)
+
+    # Build status lines
+    status_lines = [
+        f"[bright_cyan]Model:[/]     [bright_white]{MODEL}[/]",
+        f"[bright_cyan]Ollama:[/]    [{ollama_color}]{ollama_status}[/{ollama_color}]  [dim]({ollama_detail})[/]",
+        f"[bright_cyan]Tools:[/]      [bright_white]{tool_summary}[/] available",
+        f"[bright_cyan]Memory:[/]    [{mem_color}]{mem_status}[/{mem_color}]",
+        f"[bright_cyan]Voice:[/]     [{voice_color}]{voice_status}[/{voice_color}]",
+        "",
+        "[dim]Local  ·  Advisory  ·  Human-confirmed tools[/]",
+    ]
+
+    # Compact welcome panel
+    welcome_text = "\n".join([
+        "[bright_yellow bold]Gem[/][bright_white bold]ma[/] [bright_yellow bold]Local Agent[/]",
+        "[dim]Bazzite assistant — terminal UI[/]",
+        "",
+    ] + status_lines)
+
+    console.print(Panel(
+        welcome_text,
+        border_style="bright_cyan",
+        padding=(1, 2),
+        title="[bright_black]Bazzite Local AI Operations Stack[/]",
+        title_align="left",
+    ))
+    console.print()
+
+
+# ── Status Bar ───────────────────────────────────────────────────────────────
+
+def print_status_bar(detected: Dict[str, bool], current_mode: str = "welcome"):
+    """Print compact top status bar."""
+    ollama_status, ollama_color, _ = get_ollama_status()
+    voice_status, voice_color = get_voice_status(detected)
+    mem_status, mem_color = get_memory_status(detected)
+    tool_summary = get_tool_summary(detected)
+
+    parts = [
+        f"[dim]mode[/] [bright_cyan]{current_mode}[/]",
+        f"[dim]ollama[/] [{ollama_color}]{ollama_status}[/]",
+        f"[dim]tools[/] [bright_white]{tool_summary}[/]",
+        f"[dim]mem[/] [{mem_color}]{mem_status.split()[0]}[/]",
+        f"[dim]voice[/] [{voice_color}]{voice_status}[/]",
+    ]
+    bar = "  [bright_black]|[/]  ".join(parts)
+    console.print(f"[bright_black]─[/] {bar} [bright_black]─[/]")
+    console.print()
+
+
+# ── Mode Selector ────────────────────────────────────────────────────────────
+
+def print_mode_selector(detected: Dict[str, bool]):
+    """Print numbered mode selector."""
+    modes = [
+        ("1", "general",  "💬", "General Chat",              "gemma-bazzite",       "Chat with local Gemma"),
+        ("2", "security", "🛡️", "Security Console",          "gemma-security-chat", "Run security tools & analysis"),
+        ("3", "memory",   "🧠", "Memory / RuVector",         "gemma-memory-search", "Semantic search & RAG"),
+        ("4", "repo",     "📁", "Repo Mode",                 "gemma-repo-brief",    "Repo summaries"),
+        ("5", "voice",    "🎙️", "Voice",                     "gemma-voice-chat",    "Voice chat (type r to record)"),
+        ("6", "reports",  "📊", "Reports",                   None,                  "Browse generated reports"),
+        ("7", "health",   "🏥", "Health Check",              "gemma-bazzite-health", "Safe status checks"),
+    ]
+
+    table = Table(
+        show_header=True,
+        header_style="bright_magenta bold",
+        border_style="bright_black",
+        expand=False,
+        box=None,
+        padding=(0, 1),
+    )
+    table.add_column("", style="bright_black", width=3, justify="right")
+    table.add_column("Mode", style="bright_cyan bold", width=18)
+    table.add_column("", style="", width=3)
+    table.add_column("Description", style="dim")
+    table.add_column("Status", style="", width=14, justify="right")
+
+    for num, key, icon, name, helper_name, desc in modes:
+        if helper_name:
+            if helper_name in HELPERS and detected.get(helper_name):
+                status = "[green]ready[/]"
+            elif helper_name in HELPERS:
+                status = "[dim]not configured[/]"
+            else:
+                status = "[dim]built-in[/]"
+        else:
+            status = "[dim]built-in[/]"
+        table.add_row(f"[{num}]", name, icon, desc, status)
+
+    console.print(table)
+    console.print()
+
+
+# ── Footer ───────────────────────────────────────────────────────────────────
+
+def print_footer():
+    """Print consistent footer hint."""
+    console.print("[bright_black]─[/] [dim]/help[/]  [dim]/mode[/]  [dim]/back[/]  [dim]/quit[/] [bright_black]─[/]")
+    console.print()
+
+
+# ── Transcript Output ────────────────────────────────────────────────────────
+
+def print_user_message(text: str, config: dict = None):
+    """Print a user message in transcript style."""
+    if config is None:
+        config = load_config()
+    ts = ""
+    if config.get("show_timestamps", True):
+        ts = f"[dim]{datetime.now().strftime('%H:%M:%S')}[/] "
+    console.print(Panel(
+        f"{ts}[bright_cyan bold]You[/]\n{text}",
+        border_style="bright_cyan",
+        padding=(0, 1),
+    ))
+
+
+def print_gemma_message(text: str, config: dict = None):
+    """Print a Gemma message in transcript style."""
+    if config is None:
+        config = load_config()
+    ts = ""
+    if config.get("show_timestamps", True):
+        ts = f"[dim]{datetime.now().strftime('%H:%M:%S')}[/] "
+    console.print(Panel(
+        f"{ts}[bright_green bold]Gemma[/]\n{text}",
+        border_style="bright_green",
+        padding=(0, 1),
+    ))
+
+
+def print_tool_suggestion(tool_name: str, description: str, risk: str = RISK_SAFE):
+    """Print a tool suggestion with risk label."""
+    risk_style = "dim green"
+    if risk == RISK_CONFIRM:
+        risk_style = "dim yellow"
+    elif risk == RISK_SUDO:
+        risk_style = "dim bright_red"
+    console.print(Panel(
+        f"[bright_yellow bold]Tool Suggestion:[/] [cyan]{tool_name}[/]\n"
+        f"[dim]{description}[/]\n"
+        f"[{risk_style}]Risk: {risk}[/{risk_style}]",
+        border_style="bright_yellow",
+        padding=(0, 1),
+    ))
+
+
+def print_tool_result(tool_name: str, output: str, success: bool = True):
+    """Print a tool result in transcript style."""
+    status_color = "bright_green" if success else "bright_red"
+    status_text = "success" if success else "failed"
+    console.print(Panel(
+        f"[bright_yellow bold]{tool_name}[/]  [{status_color}]{status_text}[/{status_color}]\n"
+        f"[dim]{output[:500]}{'...' if len(output) > 500 else ''}[/]",
+        border_style="bright_yellow",
+        padding=(0, 1),
+    ))
+
+
+def print_error_panel(message: str):
+    """Print a clear error panel."""
+    console.print(Panel(
+        f"[bright_red bold]Error[/]\n{message}",
+        border_style="bright_red",
+        padding=(0, 1),
+    ))
+
+
+def print_info_panel(message: str):
+    """Print an info panel."""
+    console.print(Panel(
+        f"[bright_blue bold]Info[/]\n{message}",
+        border_style="bright_blue",
+        padding=(0, 1),
+    ))
+
+
+# ── Intent Router ────────────────────────────────────────────────────────────
+
+ROUTE_KEYWORDS = {
+    "security": [
+        "firewall", "security", "usb", "rootkit", "audit", "clamav", "lynis",
+        "scan", "threat", "intrusion", "malware", "check firewall",
+        "check security", "security tools", "usbguard", "selinux",
+    ],
+    "memory": [
+        "memory ask", "search memory", "memory search", "compare memory",
+        "deterministic memory", "stage 3a", "stage three a",
+        "memory", "remember", "what did we decide", "recall", "past decision",
+    ],
+    "reports": [
+        "show reports", "recent reports", "open report", "list reports",
+    ],
+    "repo": [
+        "repo ", "repository", "git status", "codebase", "project brief",
+        "repo gem", "repo bazzite", "repo status",
+    ],
+    "health": [
+        "health", "system health", "status check", "check system",
+        "system status", "health check",
+    ],
+}
+
+
+def route_intent(text: str) -> Tuple[str, str, str]:
+    """Route voice/text transcript to the appropriate gemma-ui mode.
+
+    Returns (mode, subcmd, reason) where mode is one of:
+    general, security, memory, repo, reports, health.
+
+    subcmd is the extracted subcommand for memory routing
+    (e.g. "ask what did we decide about RuVector").
+
+    Deterministic keyword matching — no model inference.
+    Security routing does NOT execute tools; it hands off to the
+    existing confirmation flow in gemma-security-chat.
+    """
+    lowered = text.lower().strip()
+
+    for mode, keywords in ROUTE_KEYWORDS.items():
+        for kw in keywords:
+            if kw in lowered:
+                # Extract subcommand for memory mode
+                subcmd = ""
+                if mode == "memory":
+                    idx = lowered.find(kw)
+                    subcmd = text[idx + len(kw):].strip()
+                    # Normalize subcommand prefix
+                    prefix_map = {
+                        "memory ask": "ask",
+                        "search memory": "search",
+                        "memory search": "search",
+                        "compare memory": "compare",
+                        "deterministic memory": "stage3a",
+                        "stage 3a": "stage3a",
+                        "stage three a": "stage3a",
+                    }
+                    if kw in prefix_map:
+                        prefix = prefix_map[kw]
+                        subcmd = prefix + (" " + subcmd if subcmd else "")
+                return mode, subcmd, f"matched keyword '{kw}'"
+
+    return "general", "", "no keyword matched (fallback)"
+
+
+# ── Help ─────────────────────────────────────────────────────────────────────
+
+def print_help():
+    """Print comprehensive help."""
+    detected = detect_helpers()
+
+    help_text = """[bright_yellow bold]Gem[/][bright_white bold]ma[/] [bright_yellow bold]Local Agent[/] — Help
+
+[bright_cyan]USAGE[/]
+    gemma-ui                              Interactive mode selector
+    gemma-ui --mode general               Start in general chat
+    gemma-ui --mode security              Start in security console
+    gemma-ui --mode memory                Start in memory search
+    gemma-ui --mode repo                  Start in repo brief
+    gemma-ui --mode reports               Show recent reports
+    gemma-ui --mode health                Run health checks
+    gemma-ui --mode voice status          Show voice component status
+    gemma-ui --voice-status               Alias for voice status
+    gemma-ui --memory-status              Show memory mode status
+    gemma-ui --memory-dashboard           Show memory quality dashboard
+    gemma-ui --memory-search "<q>"        RuVector semantic search
+    gemma-ui --memory-ask "<q>"           RuVector RAG
+    gemma-ui --memory-stage3a "<q>"       Stage 3A deterministic fallback
+    gemma-ui --memory-compare "<q>"       Compare RuVector and Stage 3A
+    gemma-ui --integration-status         Show integration metadata (display-only)
+    gemma-ui --demo-ui                    Render demo without tools
+    gemma-ui --list-modes                 List available modes
+    gemma-ui --help                       Show this help
+
+[bright_cyan]MODES[/]
+    [1] general    Chat with local Gemma via Ollama
+    [2] security   Run security tools (firewall, rootkit, network, etc.)
+    [3] memory     Search RuVector memory or Stage 3A knowledge
+    [4] repo       Generate repo summaries for gem and bazzite-laptop
+    [5] voice      Voice chat (type 'r' to record, STT + TTS)
+    [6] reports    Browse recently generated reports
+    [7] health     Run safe health/status checks
+    [8] dashboard  Read-only status dashboard
+
+[bright_cyan]MEMORY COMMANDS[/]
+    /memory              Show memory status and help
+    /memory status       Show memory mode status
+    /memory dashboard    Show memory quality dashboard
+    /memory quality      Alias for dashboard
+    /memory search <q>   RuVector semantic search (supervised)
+    /memory ask <q>      RuVector RAG with Ollama (supervised)
+    /memory stage3a <q>  Stage 3A deterministic fallback
+    /memory compare <q>  Run both and summarize differences
+    /memory help         Show memory help
+
+[bright_cyan]VOICE COMMANDS[/]
+    /voice              Show voice status and prompt to start
+    /voice status       Show voice component status
+    /voice start        Start voice session
+    /voice test-output  Test TTS output
+    /voice help         Show voice help
+    /voice stop         Stop voice session
+
+[bright_cyan]UI COMMANDS[/]
+    /help        Show this help
+    /mode        Show mode selector
+    /dashboard   Show read-only status dashboard
+    /status      Alias for /dashboard
+    /integration Show integration metadata (display-only)
+    /clear       Clear the screen
+    /save        Save current session state
+    /quit        Exit
+
+[bright_cyan]RISK LABELS[/]
+    [green]SAFE READ-ONLY[/]     No system changes, no sudo
+    [yellow]CONFIRM REQUIRED[/]   May prompt before action
+    [bright_red]SUDO / MANUAL[/]    Requires explicit sudo or manual review
+    [dim]UNAVAILABLE[/]          Helper not configured
+"""
+    console.print(help_text)
+
+    console.print("[bright_cyan]DETECTED HELPERS[/]")
+    for name, info in HELPERS.items():
+        status = "[green]✓[/]" if detected.get(name) else "[red]✗[/]"
+        risk = info.get("risk", RISK_SAFE)
+        risk_label = helper_risk_label(name)
+        console.print(f"  {status} [cyan]{name:<30}[/] {info['description']:<45} {risk_label}")
+
+    console.print()
+    console.print("[dim]Helpers marked ✗ are not configured or not in ~/.local/bin/[/]")
+    console.print("[dim]The UI will handle missing helpers gracefully.[/]")
+
+
+# ── Reports ──────────────────────────────────────────────────────────────────
+
+def print_reports():
+    """List recent reports."""
+    if not REPORT_DIR.is_dir():
+        print_error_panel(f"Report directory not found:\n{REPORT_DIR}")
+        return
+
+    reports = sorted(REPORT_DIR.glob("*.md"), key=lambda p: p.stat().st_mtime, reverse=True)
+
+    if not reports:
+        print_info_panel("No reports found.")
+        return
+
+    table = Table(
+        show_header=True,
+        header_style="bright_magenta bold",
+        border_style="bright_black",
+        expand=False,
+        box=None,
+        padding=(0, 1),
+    )
+    table.add_column("#", style="dim", width=3, justify="right")
+    table.add_column("Report", style="bright_cyan")
+    table.add_column("Size", style="dim", width=10, justify="right")
+    table.add_column("Date", style="dim", width=16)
+
+    for i, report in enumerate(reports[:15], 1):
+        size = report.stat().st_size
+        size_str = f"{size / 1024:.1f} KB" if size > 1024 else f"{size} B"
+        mtime = datetime.fromtimestamp(report.stat().st_mtime).strftime("%Y-%m-%d %H:%M")
+        table.add_row(str(i), report.name, size_str, mtime)
+
+    console.print(table)
+    console.print(f"[dim]Total: {len(reports)} reports in {REPORT_DIR}[/]")
+
+
+# ── Tools Display ────────────────────────────────────────────────────────────
+
+def print_tools():
+    """List tools by category with risk labels."""
+    categories = {
+        "General": ["gemma-bazzite"],
+        "Security": ["gemma-security-chat", "gemma-security-analyzer", "gemma-command-review"],
+        "Memory": ["gemma-memory-search", "gemma-memory-rag", "gemma-knowledge-search", "gemma-knowledge-rag"],
+        "Repo": ["gemma-repo-brief", "gemma-file-brief"],
+        "Voice": ["gemma-voice-chat"],
+        "Diagnostics": ["gemma-bazzite-health", "gemma-dashboard-build", "gemma-monitor-daily", "gemma-monitor-drift"],
+    }
+
+    detected = detect_helpers()
+
+    for cat, names in categories.items():
+        console.print(f"\n[bright_magenta bold]{cat}[/]")
+        for name in names:
+            if name in HELPERS:
+                status = "[green]✓[/]" if detected.get(name) else "[red]✗[/]"
+                risk_label = helper_risk_label(name)
+                avail = "[green]ready[/]" if detected.get(name) else "[dim]not configured[/]"
+                console.print(f"  {status} [cyan]{name:<30}[/] {HELPERS[name]['description']:<45} {risk_label}  {avail}")
+
+
+# ── Mode Handlers ────────────────────────────────────────────────────────────
+
+def mode_general(message: Optional[str] = None):
+    """General chat mode — delegates to gemma-bazzite or Ollama."""
+    global _CURRENT_MODE
+    _CURRENT_MODE = "general"
+    config = load_config()
+
+    if not HELPERS["gemma-bazzite"]["path"].is_file():
+        print_error_panel(
+            "gemma-bazzite not found.\n"
+            "Falling back to direct Ollama API."
+        )
+        if message:
+            subprocess.run(["ollama", "run", MODEL, "--hidethinking", message])
+        else:
+            print_info_panel(f"Start interactive chat with: ollama run {MODEL}")
+        return
+
+    if message:
+        print_user_message(message, config)
+        subprocess.run([str(HELPERS["gemma-bazzite"]["path"]), message])
+    else:
+        print_info_panel("Starting Gemma general chat...\nType your message. Use Ctrl+D or /quit to exit.")
+        console.print()
+        subprocess.run([str(HELPERS["gemma-bazzite"]["path"])])
+
+
+def mode_security():
+    """Security mode — delegates to gemma-security-chat."""
+    global _CURRENT_MODE
+    _CURRENT_MODE = "security"
+
+    if not HELPERS["gemma-security-chat"]["path"].is_file():
+        print_error_panel(
+            "gemma-security-chat not configured.\n"
+            "Install it to use security tools."
+        )
+        return
+
+    print_info_panel("Starting Gemma Security Console...\nThis is an interactive security tool interface.")
+    console.print()
+    subprocess.run([str(HELPERS["gemma-security-chat"]["path"])])
+
+
+def _memory_run_helper(helper_name: str, query: str):
+    """Run a memory helper safely with subprocess argument array."""
+    if not HELPERS[helper_name]["path"].is_file():
+        print_error_panel(f"{helper_name} not configured.")
+        return
+    subprocess.run([str(HELPERS[helper_name]["path"]), query])
+
+
+def mode_memory(subcmd: str = ""):
+    """Memory mode — explicit supervised RuVector with Stage 3A fallback.
+
+    RuVector memory mode is explicit and supervised.
+    RuVector is not the default retrieval path.
+    Stage 3A deterministic retrieval remains the canonical fallback.
+    Memory mode performs read-only retrieval/RAG only.
+    Memory mode does not ingest new data, train the model, mutate repos,
+    or execute remediation.
+    """
+    global _CURRENT_MODE
+    _CURRENT_MODE = "memory"
+    detected = detect_helpers()
+
+    sub = subcmd.strip().lower()
+
+    if sub in ("status", "st"):
+        print_memory_status(detected)
+
+    elif sub in ("dashboard", "quality", "db", "q"):
+        print_memory_dashboard()
+
+    elif sub.startswith("search "):
+        query = sub[len("search "):].strip()
+        if query:
+            console.print("[bright_cyan]RuVector search (supervised, explicit):[/]")
+            _memory_run_helper("gemma-memory-search", query)
+        else:
+            print_error_panel("Empty query. Usage: /memory search <query>")
+
+    elif sub.startswith("ask "):
+        query = sub[len("ask "):].strip()
+        if query:
+            console.print("[bright_cyan]RuVector RAG (supervised, explicit):[/]")
+            _memory_run_helper("gemma-memory-rag", query)
+        else:
+            print_error_panel("Empty question. Usage: /memory ask <question>")
+
+    elif sub.startswith("stage3a "):
+        query = sub[len("stage3a "):].strip()
+        if query:
+            console.print("[bright_cyan]Stage 3A deterministic fallback:[/]")
+            _memory_run_helper("gemma-knowledge-rag", query)
+        else:
+            print_error_panel("Empty question. Usage: /memory stage3a <question>")
+
+    elif sub.startswith("compare "):
+        query = sub[len("compare "):].strip()
+        if query:
+            print_memory_compare(query)
+        else:
+            print_error_panel("Empty question. Usage: /memory compare <question>")
+
+    elif sub in ("help", "h", "?"):
+        print_memory_help()
+
+    else:
+        # Default: show status and prompt
+        print_memory_status(detected)
+        console.print()
+        print_memory_help()
+
+
+def print_memory_status(detected: Dict[str, bool]):
+    """Print memory mode status panel."""
+    console.print("[bright_yellow bold]🧠 Memory Mode Status[/]")
+    console.print()
+
+    table = Table(show_header=False, box=None, padding=(0, 2))
+    table.add_column("Source", style="bright_cyan")
+    table.add_column("Status", style="")
+
+    # RuVector helpers
+    table.add_row("gemma-memory-search", "[green]✓[/] available" if detected.get("gemma-memory-search") else "[yellow]⚠[/] not found")
+    table.add_row("gemma-memory-rag", "[green]✓[/] available" if detected.get("gemma-memory-rag") else "[yellow]⚠[/] not found")
+
+    # Stage 3A helpers
+    table.add_row("gemma-knowledge-search", "[green]✓[/] available" if detected.get("gemma-knowledge-search") else "[yellow]⚠[/] not found")
+    table.add_row("gemma-knowledge-rag", "[green]✓[/] available" if detected.get("gemma-knowledge-rag") else "[yellow]⚠[/] not found")
+
+    console.print(table)
+    console.print()
+
+    # Status text
+    console.print("[bright_cyan]RuVector:[/]       [dim]supervised secondary only[/]")
+    console.print("[bright_cyan]Stage 3A:[/]       [dim]canonical fallback[/]")
+    console.print("[bright_cyan]Behavior:[/]       [dim]read-only retrieval/RAG only[/]")
+    console.print("[bright_cyan]Ingestion:[/]      [dim]not performed[/]")
+    console.print()
+
+    # Index path
+    ruvector_index = HOME / ".local/share/bazzite-security/ruvector/semantic-prototype/semantic-approved-docs-memory.json"
+    stage3a_index = HOME / ".local/share/bazzite-security/gemma-knowledge/index/chunks.jsonl"
+    console.print("[bright_cyan]Index Paths:[/]")
+    console.print(f"  RuVector:  {'[green]✓[/] ' + str(ruvector_index) if ruvector_index.is_file() else '[yellow]⚠[/] not found'}")
+    console.print(f"  Stage 3A:  {'[green]✓[/] ' + str(stage3a_index) if stage3a_index.is_file() else '[yellow]⚠[/] not found'}")
+    console.print()
+
+    # Manifest status (read-only, check multiple paths)
+    def _find_latest_manifest(base_dir: Path, pattern: str) -> Optional[Path]:
+        if not base_dir.is_dir():
+            return None
+        matches = sorted(base_dir.glob(pattern), key=lambda p: p.stat().st_mtime, reverse=True)
+        return matches[0] if matches else None
+
+    rv_manifest = _find_latest_manifest(
+        HOME / ".local/share/bazzite-security/ruvector/semantic-prototype", "semantic-manifest-*.json"
+    )
+    if not rv_manifest:
+        rv_manifest = _find_latest_manifest(
+            HOME / ".local/share/bazzite-security/ruvector", "manifest-*.json"
+        )
+    s3_manifest = _find_latest_manifest(
+        HOME / ".local/share/bazzite-security/gemma-knowledge/manifests", "gemma-knowledge-manifest-*.txt"
+    )
+
+    console.print("[bright_cyan]Manifests:[/]")
+    if rv_manifest and rv_manifest.is_file():
+        console.print(f"  RuVector:  [green]✓[/] {rv_manifest}")
+    else:
+        console.print("  RuVector:  [yellow]⚠[/] not found — run supervised refresh if needed")
+    if s3_manifest and s3_manifest.is_file():
+        console.print(f"  Stage 3A:  [green]✓[/] {s3_manifest}")
+    else:
+        console.print("  Stage 3A:  [yellow]⚠[/] not found — run supervised refresh if needed")
+    console.print()
+
+
+def print_memory_help():
+    """Print memory mode help."""
+    console.print("[bright_yellow bold]🧠 Memory Mode Commands[/]")
+    console.print()
+    console.print("[bright_cyan]/memory status[/]          Show memory mode status")
+    console.print("[bright_cyan]/memory dashboard[/]       Show memory quality dashboard")
+    console.print("[bright_cyan]/memory quality[/]         Alias for dashboard")
+    console.print("[bright_cyan]/memory search <query>[/]   RuVector semantic search (supervised)")
+    console.print("[bright_cyan]/memory ask <question>[/]   RuVector RAG with Ollama (supervised)")
+    console.print("[bright_cyan]/memory stage3a <q>[/]     Stage 3A deterministic fallback")
+    console.print("[bright_cyan]/memory compare <q>[/]     Run both and summarize differences")
+    console.print("[bright_cyan]/memory help[/]            Show this help")
+    console.print()
+    console.print("[dim]RuVector is the supervised secondary source.[/]")
+    console.print("[dim]Stage 3A is the canonical deterministic fallback.[/]")
+    console.print("[dim]No ingestion. No training. No repo mutation.[/]")
+
+
+def print_memory_compare(query: str):
+    """Run both RuVector RAG and Stage 3A RAG, then summarize."""
+    console.print("[bright_yellow bold]🧠 Memory Comparison[/]")
+    console.print()
+    console.print(f"[dim]Query:[/] {query}")
+    console.print()
+
+    detected = detect_helpers()
+
+    # Run RuVector RAG
+    ruvector_available = detected.get("gemma-memory-rag")
+    stage3a_available = detected.get("gemma-knowledge-rag")
+
+    if not ruvector_available and not stage3a_available:
+        print_error_panel("Neither RuVector nor Stage 3A RAG is available.")
+        return
+
+    if ruvector_available:
+        console.print("[bright_cyan]─ RuVector RAG ─[/]")
+        _memory_run_helper("gemma-memory-rag", query)
+        console.print()
+
+    if stage3a_available:
+        console.print("[bright_cyan]─ Stage 3A RAG ─[/]")
+        _memory_run_helper("gemma-knowledge-rag", query)
+        console.print()
+
+    console.print("[bright_yellow]─ Comparison Summary ─[/]")
+    console.print("  [dim]• RuVector found better semantic context when concepts are similar but wording differs.[/]")
+    console.print("  [dim]• Stage 3A is more direct when keywords match exactly.[/]")
+    console.print("  [dim]• Where they agree: high confidence.[/]")
+    console.print("  [dim]• Missing evidence: check both sources independently.[/]")
+    console.print()
+    console.print("[dim]RuVector remains supervised secondary. Stage 3A remains canonical fallback.[/]")
+
+
+def print_memory_dashboard():
+    """Print read-only RuVector quality dashboard. No ingestion. No scans."""
+    console.print("[bright_yellow bold]🧠 Memory Quality Dashboard[/]")
+    console.print("[dim]Read-only. No ingestion. No default promotion.[/]")
+    console.print()
+
+    detected = detect_helpers()
+
+    # ── 1. Helper Availability ───────────────────────────────────────────────
+    console.print("[bright_cyan bold]1. Helper Availability[/]")
+    avail_table = Table(show_header=False, box=None, padding=(0, 2))
+    avail_table.add_column("Helper", style="bright_cyan")
+    avail_table.add_column("Status", style="")
+    avail_table.add_column("Role", style="dim")
+
+    helpers = [
+        ("gemma-memory-search", "RuVector semantic search"),
+        ("gemma-memory-rag", "RuVector RAG"),
+        ("gemma-knowledge-search", "Stage 3A keyword search"),
+        ("gemma-knowledge-rag", "Stage 3A RAG fallback"),
+    ]
+    for name, role in helpers:
+        ok = detected.get(name, False)
+        avail_table.add_row(
+            name,
+            "[green]✓[/] available" if ok else "[yellow]⚠[/] not found",
+            role,
+        )
+    console.print(avail_table)
+    console.print()
+
+    # ── 2. Known Policy Status ───────────────────────────────────────────────
+    console.print("[bright_cyan bold]2. Known Policy Status[/]")
+    policy_table = Table(show_header=False, box=None, padding=(0, 2))
+    policy_table.add_column("Source", style="bright_cyan")
+    policy_table.add_column("Status", style="")
+    policy_table.add_column("Note", style="dim")
+
+    policy_table.add_row(
+        "RuVector",
+        "[yellow]supervised secondary[/]",
+        "Explicit mode only. Not default.",
+    )
+    policy_table.add_row(
+        "Stage 3A",
+        "[green]canonical fallback[/]",
+        "Deterministic retrieval. No embeddings.",
+    )
+    policy_table.add_row(
+        "Promotion",
+        "[red]denied / not default[/]",
+        "RuVector remains supervised prototype.",
+    )
+    console.print(policy_table)
+    console.print()
+
+    # ── 3. Current Index State ───────────────────────────────────────────────
+    console.print("[bright_cyan bold]3. Current Index State[/]")
+    idx_table = Table(show_header=False, box=None, padding=(0, 2))
+    idx_table.add_column("Index", style="bright_cyan")
+    idx_table.add_column("Path", style="")
+    idx_table.add_column("Size", style="")
+
+    ruvector_index = HOME / ".local/share/bazzite-security/ruvector/semantic-prototype/semantic-approved-docs-memory.json"
+    stage3a_index = HOME / ".local/share/bazzite-security/gemma-knowledge/index/chunks.jsonl"
+
+    # RuVector index
+    if ruvector_index.is_file():
+        rv_size = ruvector_index.stat().st_size
+        rv_size_str = f"{rv_size / 1024 / 1024:.1f} MB" if rv_size > 1024 * 1024 else f"{rv_size / 1024:.1f} KB"
+        rv_mtime = datetime.fromtimestamp(ruvector_index.stat().st_mtime).strftime("%Y-%m-%d %H:%M")
+        idx_table.add_row("RuVector", str(ruvector_index), f"[green]✓[/] {rv_size_str} (modified {rv_mtime})")
+    else:
+        idx_table.add_row("RuVector", str(ruvector_index), "[yellow]⚠[/] not found")
+
+    # Stage 3A index
+    if stage3a_index.is_file():
+        s3_size = stage3a_index.stat().st_size
+        s3_size_str = f"{s3_size / 1024 / 1024:.1f} MB" if s3_size > 1024 * 1024 else f"{s3_size / 1024:.1f} KB"
+        line_count = 0
+        try:
+            with open(stage3a_index, "r", encoding="utf-8") as f:
+                for _ in f:
+                    line_count += 1
+        except Exception:
+            pass
+        s3_mtime = datetime.fromtimestamp(stage3a_index.stat().st_mtime).strftime("%Y-%m-%d %H:%M")
+        idx_table.add_row("Stage 3A", str(stage3a_index), f"[green]✓[/] {s3_size_str} ({line_count} chunks, modified {s3_mtime})")
+    else:
+        idx_table.add_row("Stage 3A", str(stage3a_index), "[yellow]⚠[/] not found")
+
+    # Manifests — check multiple likely paths read-only
+    def _find_latest_manifest(base_dir: Path, pattern: str) -> Optional[Path]:
+        if not base_dir.is_dir():
+            return None
+        matches = sorted(base_dir.glob(pattern), key=lambda p: p.stat().st_mtime, reverse=True)
+        return matches[0] if matches else None
+
+    # RuVector manifest candidates
+    rv_manifest = _find_latest_manifest(
+        HOME / ".local/share/bazzite-security/ruvector/semantic-prototype", "semantic-manifest-*.json"
+    )
+    if not rv_manifest:
+        rv_manifest = _find_latest_manifest(
+            HOME / ".local/share/bazzite-security/ruvector", "manifest-*.json"
+        )
+
+    # Stage 3A manifest candidates
+    s3_manifest = _find_latest_manifest(
+        HOME / ".local/share/bazzite-security/gemma-knowledge/manifests", "gemma-knowledge-manifest-*.txt"
+    )
+
+    console.print(idx_table)
+    console.print()
+
+    # Manifest status table
+    manifest_table = Table(show_header=False, box=None, padding=(0, 2))
+    manifest_table.add_column("Manifest", style="bright_cyan")
+    manifest_table.add_column("Path", style="")
+    manifest_table.add_column("Status", style="")
+
+    if rv_manifest and rv_manifest.is_file():
+        rv_msize = rv_manifest.stat().st_size
+        rv_msize_str = f"{rv_msize / 1024:.1f} KB"
+        rv_mmtime = datetime.fromtimestamp(rv_manifest.stat().st_mtime).strftime("%Y-%m-%d %H:%M")
+        manifest_table.add_row("RuVector", str(rv_manifest), f"[green]✓[/] {rv_msize_str} (modified {rv_mmtime})")
+    else:
+        note = "not found — index exists; run a supervised manifest refresh only if needed"
+        manifest_table.add_row("RuVector", "—", f"[yellow]⚠[/] {note}")
+
+    if s3_manifest and s3_manifest.is_file():
+        s3_msize = s3_manifest.stat().st_size
+        s3_msize_str = f"{s3_msize / 1024:.1f} KB"
+        s3_mmtime = datetime.fromtimestamp(s3_manifest.stat().st_mtime).strftime("%Y-%m-%d %H:%M")
+        manifest_table.add_row("Stage 3A", str(s3_manifest), f"[green]✓[/] {s3_msize_str} (modified {s3_mmtime})")
+    else:
+        note = "not found — index exists; run a supervised manifest refresh only if needed"
+        manifest_table.add_row("Stage 3A", "—", f"[yellow]⚠[/] {note}")
+
+    console.print(manifest_table)
+    console.print()
+
+    # ── 4. Recommended Use ───────────────────────────────────────────────────
+    console.print("[bright_cyan bold]4. Recommended Use[/]")
+    console.print("  [green]•[/] Use [bright_cyan]RuVector[/] for semantic recall questions.")
+    console.print("    [dim]  Examples: \"what did we decide about...?\", \"how does X relate to Y?\"")
+    console.print("  [green]•[/] Use [bright_cyan]Stage 3A[/] for exact path/policy/command questions.")
+    console.print("    [dim]  Examples: \"what is the canonical path for...?\", \"show me the firewall rule...\"")
+    console.print("  [green]•[/] Use [bright_cyan]compare mode[/] when uncertain.")
+    console.print("    [dim]  Runs both and lets you evaluate side-by-side.")
+    console.print()
+
+    # ── 5. Warnings ──────────────────────────────────────────────────────────
+    console.print("[bright_cyan bold]5. Warnings[/]")
+    console.print("  [yellow]⚠[/] No ingestion in this mode.")
+    console.print("  [yellow]⚠[/] No raw logs or transcripts displayed.")
+    console.print("  [yellow]⚠[/] No default promotion. RuVector stays supervised.")
+    console.print("  [yellow]⚠[/] Stage 3A fallback preserved.")
+    console.print()
+
+    console.print("[dim]Dashboard is read-only. No scans run. No system changes. No ingestion.[/]")
+
+
+def mode_repo():
+    """Repo brief mode — delegates to gemma-repo-brief."""
+    global _CURRENT_MODE
+    _CURRENT_MODE = "repo"
+
+    if not HELPERS["gemma-repo-brief"]["path"].is_file():
+        print_error_panel("gemma-repo-brief not configured.")
+        return
+
+    print_info_panel("Repo Brief Mode\nRead-only repo summaries. No edits.")
+    console.print()
+
+    # Detect available repos
+    projects_dir = HOME / "projects"
+    if projects_dir.is_dir():
+        repos = [d for d in projects_dir.iterdir() if d.is_dir() and (d / ".git").is_dir()]
+        if repos:
+            console.print("[bright_cyan]Detected repos:[/]")
+            for i, repo in enumerate(repos[:10], 1):
+                console.print(f"  [green]{i}.[/] {repo.name}")
+            console.print()
+
+    try:
+        repo_path = console.input("[bright_yellow]Enter repo path (or press Enter for ~/projects/gem): [/]").strip()
+    except (EOFError, KeyboardInterrupt):
+        console.print("[dim]Cancelled.[/]")
+        return
+
+    if not repo_path:
+        repo_path = str(HOME / "projects/gem")
+
+    repo_path = os.path.expanduser(repo_path)
+    if not os.path.isdir(repo_path):
+        print_error_panel(f"Not a directory: {repo_path}")
+        return
+
+    print_user_message(f"Repo brief: {repo_path}")
+    subprocess.run([str(HELPERS["gemma-repo-brief"]["path"]), repo_path])
+
+
+def print_voice_status():
+    """Print voice component status panel."""
+    detected = detect_helpers()
+
+    if detected.get("gemma-voice-chat"):
+        # Delegate to voice helper for detailed status
+        subprocess.run([str(HELPERS["gemma-voice-chat"]["path"]), "--status"])
+        return
+
+    # Fallback status
+    console.print("[bright_yellow bold]🎙️ Voice Mode Status[/]")
+    console.print()
+    console.print("  [red]✗[/] gemma-voice-chat not configured")
+    console.print("  [dim]Run: gemma-voice-chat --setup[/]")
+
+
+def mode_voice(subcmd: str = ""):
+    """Voice mode — handle voice subcommands or launch session."""
+    global _CURRENT_MODE
+    _CURRENT_MODE = "voice"
+    detected = detect_helpers()
+
+    if not detected.get("gemma-voice-chat"):
+        print_info_panel(
+            "Voice mode is not configured.\n\n"
+            "To enable voice control for Gemma, run:\n"
+            "  gemma-voice-chat --setup\n\n"
+            "This will download whisper.cpp (STT) and piper (TTS).\n"
+            "No sudo required. No system changes."
+        )
+        return
+
+    # Parse subcommand
+    sub = subcmd.strip().lower()
+
+    if sub in ("status", "st"):
+        print_voice_status()
+
+    elif sub in ("start", "go", "begin"):
+        print_info_panel("Starting voice session...\nType 'r' and press Enter to record (6s). Type text to send directly. /quit to exit.")
+        console.print()
+        subprocess.run([str(HELPERS["gemma-voice-chat"]["path"])])
+
+    elif sub in ("help", "h", "?"):
+        console.print("[bright_yellow bold]🎙️ Voice Mode Help[/]")
+        console.print()
+        console.print("Voice mode wraps local STT and TTS for Gemma.")
+        console.print()
+        console.print("[bright_cyan]Commands:[/]")
+        console.print("  /voice status       Show component status")
+        console.print("  /voice start        Start voice session")
+        console.print("  /voice test-output  Test TTS output")
+        console.print("  /voice help         Show this help")
+        console.print("  /voice stop         Stop voice session (alias for /quit)")
+        console.print()
+        console.print("[bright_cyan]Behavior:[/]")
+        console.print("  - Type 'r' and press Enter to record 6 seconds")
+        console.print("  - Or type text directly and press Enter to send")
+        console.print("  - Audio is transcribed to text")
+        console.print("  - Text is sent to Gemma via Ollama")
+        console.print("  - Gemma's response is spoken via TTS")
+        console.print("  - Raw audio is deleted after transcription")
+        console.print()
+        console.print("[dim]Gemma is text-only; voice mode wraps local STT and TTS.[/]")
+        console.print("[dim]Voice mode does not bypass gemma-ui or gemma-security-chat gates.[/]")
+
+    elif sub in ("test-output", "test", "tts"):
+        console.print("[bright_yellow]Testing TTS output...[/]")
+        subprocess.run([str(HELPERS["gemma-voice-chat"]["path"]), "--test-output"])
+
+    elif sub in ("stop", "end", "quit"):
+        console.print("[dim]Voice session stopped.[/]")
+
+    else:
+        # Default: show status and prompt to start
+        print_voice_status()
+        console.print()
+        try:
+            confirm = console.input("[bright_yellow]Start voice session? [y/N]: [/]").strip().lower()
+        except (EOFError, KeyboardInterrupt):
+            confirm = "n"
+
+        if confirm in ("y", "yes"):
+            subprocess.run([str(HELPERS["gemma-voice-chat"]["path"])])
+
+
+def mode_health():
+    """Health mode — run safe health checks."""
+    global _CURRENT_MODE
+    _CURRENT_MODE = "health"
+
+    print_info_panel("Health Check Mode\nSafe read-only status checks. No system changes.")
+    console.print()
+
+    checks = []
+
+    # Ollama
+    try:
+        req = urllib.request.Request(f"{OLLAMA_HOST}/api/tags", method="GET")
+        with urllib.request.urlopen(req, timeout=5) as resp:
+            models = json.loads(resp.read())
+            model_count = len(models.get("models", []))
+            checks.append(("Ollama API", "[green]✓[/]", f"{model_count} models loaded"))
+    except Exception as e:
+        checks.append(("Ollama API", "[red]✗[/]", str(e)))
+
+    # Gemma model
+    try:
+        req = urllib.request.Request(f"{OLLAMA_HOST}/api/tags", method="GET")
+        with urllib.request.urlopen(req, timeout=5) as resp:
+            models = json.loads(resp.read())
+            model_names = [m.get("name", "") for m in models.get("models", [])]
+            if MODEL in model_names or any(MODEL in n for n in model_names):
+                checks.append(("Gemma Model", "[green]✓[/]", MODEL))
+            else:
+                checks.append(("Gemma Model", "[yellow]⚠[/]", f"{MODEL} not found"))
+    except Exception as e:
+        checks.append(("Gemma Model", "[red]✗[/]", str(e)))
+
+    # System services
+    for svc_name in ["firewalld", "usbguard", "auditd", "clamd"]:
+        try:
+            result = subprocess.run(["systemctl", "is-active", svc_name], capture_output=True, text=True, timeout=5)
+            active = result.returncode == 0
+            checks.append((svc_name, "[green]✓[/]" if active else "[yellow]⚠[/]", result.stdout.strip()))
+        except Exception as e:
+            checks.append((svc_name, "[red]✗[/]", str(e)))
+
+    # Helpers
+    detected = detect_helpers()
+    available = sum(1 for v in detected.values() if v)
+    checks.append(("Helpers", "[green]✓[/]" if available > 5 else "[yellow]⚠[/]", f"{available}/{len(HELPERS)} available"))
+
+    # Disk
+    try:
+        result = subprocess.run(["df", "-h", "/"], capture_output=True, text=True, timeout=5)
+        line = result.stdout.strip().split("\n")[-1]
+        checks.append(("Disk /", "[green]✓[/]", line))
+    except Exception as e:
+        checks.append(("Disk /", "[red]✗[/]", str(e)))
+
+    # Memory
+    try:
+        result = subprocess.run(["free", "-h"], capture_output=True, text=True, timeout=5)
+        mem_line = [l for l in result.stdout.split("\n") if l.startswith("Mem:")]
+        if mem_line:
+            checks.append(("Memory", "[green]✓[/]", " ".join(mem_line[0].split()[1:4])))
+    except Exception as e:
+        checks.append(("Memory", "[red]✗[/]", str(e)))
+
+    # Display
+    table = Table(
+        show_header=True,
+        header_style="bright_magenta bold",
+        border_style="bright_black",
+        expand=False,
+        box=None,
+        padding=(0, 1),
+    )
+    table.add_column("Component", style="bright_cyan")
+    table.add_column("Status", style="", width=6, justify="center")
+    table.add_column("Details", style="dim")
+
+    for name, status, details in checks:
+        table.add_row(name, status, str(details))
+
+    console.print(table)
+
+    # Run gemma-bazzite-health if available
+    if detected.get("gemma-bazzite-health"):
+        console.print()
+        console.print("[bright_green]Running gemma-bazzite-health...[/]")
+        subprocess.run([str(HELPERS["gemma-bazzite-health"]["path"])])
+
+
+def mode_dashboard():
+    """Dashboard mode — safe read-only status view. No scans, no sudo."""
+    global _CURRENT_MODE
+    _CURRENT_MODE = "dashboard"
+
+    console.print("[bright_yellow bold]📊 Status Dashboard[/]")
+    console.print()
+
+    detected = detect_helpers()
+    config = load_config()
+
+    # ── Core ─────────────────────────────────────────────────────────────────
+    console.print("[bright_cyan bold]Core[/]")
+    core_table = Table(show_header=False, box=None, padding=(0, 2))
+    core_table.add_column("Item", style="bright_cyan")
+    core_table.add_column("Status", style="")
+
+    # Ollama
+    try:
+        req = urllib.request.Request(f"{OLLAMA_HOST}/api/tags", method="GET")
+        with urllib.request.urlopen(req, timeout=3) as resp:
+            data = json.loads(resp.read())
+            models = data.get("models", [])
+            core_table.add_row("Ollama API", "[green]✓ online[/] ({0} models)".format(len(models)))
+    except Exception:
+        core_table.add_row("Ollama API", "[red]✗ offline[/]")
+
+    # Current model
+    core_table.add_row("Model", config.get("ollama", {}).get("model", MODEL))
+
+    # Config status
+    cfg_valid = CONFIG_FILE.is_file()
+    core_table.add_row("Config", "[green]✓[/] {0}".format(CONFIG_FILE) if cfg_valid else "[red]✗ missing[/]")
+
+    # Helpers
+    available = sum(1 for v in detected.values() if v)
+    core_table.add_row("Helpers", "{0}/{1} available".format(available, len(HELPERS)))
+
+    console.print(core_table)
+    console.print()
+
+    # ── Voice ────────────────────────────────────────────────────────────────
+    console.print("[bright_cyan bold]Voice[/]")
+    voice_table = Table(show_header=False, box=None, padding=(0, 2))
+    voice_table.add_column("Item", style="bright_cyan")
+    voice_table.add_column("Status", style="")
+
+    voice_table.add_row("Recorder", "[green]✓[/] pw-record" if shutil.which("pw-record") else "[yellow]⚠[/] not found")
+    voice_table.add_row("STT", "[green]✓[/] whisper-cli" if shutil.which("whisper-cli") else "[yellow]⚠[/] not found")
+    voice_table.add_row("TTS", "[green]✓[/] piper" if detected.get("gemma-voice-chat") else "[yellow]⚠[/] not configured")
+    voice_table.add_row("Mode", "[dim]push-to-talk only[/]")
+
+    console.print(voice_table)
+    console.print()
+
+    # ── Memory ───────────────────────────────────────────────────────────────
+    console.print("[bright_cyan bold]Memory[/]")
+    mem_table = Table(show_header=False, box=None, padding=(0, 2))
+    mem_table.add_column("Item", style="bright_cyan")
+    mem_table.add_column("Status", style="")
+
+    mem_table.add_row("gemma-memory-search", "[green]✓[/]" if detected.get("gemma-memory-search") else "[yellow]⚠[/] not found")
+    mem_table.add_row("gemma-memory-rag", "[green]✓[/]" if detected.get("gemma-memory-rag") else "[yellow]⚠[/] not found")
+    mem_table.add_row("gemma-knowledge-rag", "[green]✓[/]" if detected.get("gemma-knowledge-rag") else "[yellow]⚠[/] not found")
+    mem_table.add_row("RuVector", "[dim]supervised secondary only[/]")
+    mem_table.add_row("Stage 3A", "[dim]canonical fallback[/]")
+
+    console.print(mem_table)
+    console.print()
+
+    # ── Repo ─────────────────────────────────────────────────────────────────
+    console.print("[bright_cyan bold]Repo[/]")
+    repo_table = Table(show_header=False, box=None, padding=(0, 2))
+    repo_table.add_column("Item", style="bright_cyan")
+    repo_table.add_column("Status", style="")
+
+    gem_repo = Path.home() / "projects/gem"
+    bazzite_repo = Path.home() / "projects/bazzite-laptop"
+    repo_table.add_row("gem repo", "[green]✓[/] {0}".format(gem_repo) if gem_repo.is_dir() else "[yellow]⚠[/] not found")
+    repo_table.add_row("bazzite-laptop repo", "[green]✓[/] {0}".format(bazzite_repo) if bazzite_repo.is_dir() else "[yellow]⚠[/] not found")
+    repo_table.add_row("Mode", "[dim]read-only[/]")
+
+    console.print(repo_table)
+    console.print()
+
+    # ── Safety ───────────────────────────────────────────────────────────────
+    console.print("[bright_cyan bold]Safety[/]")
+    safety_table = Table(show_header=False, box=None, padding=(0, 2))
+    safety_table.add_column("Boundary", style="bright_cyan")
+    safety_table.add_column("Status", style="")
+
+    safety_table.add_row("Advisory only", "[green]✓[/] enabled")
+    safety_table.add_row("Human-confirmed tools", "[green]✓[/] enabled")
+    safety_table.add_row("No always-listening daemon", "[green]✓[/] confirmed")
+    safety_table.add_row("No LiveKit runtime", "[green]✓[/] confirmed")
+    safety_table.add_row("No web server", "[green]✓[/] confirmed")
+
+    console.print(safety_table)
+    console.print()
+
+    # ── Feature Flags ────────────────────────────────────────────────────────
+    console.print("[bright_cyan bold]Feature Flags[/]")
+    features = config.get("features", {})
+    feat_table = Table(show_header=False, box=None, padding=(0, 2))
+    feat_table.add_column("Feature", style="bright_cyan")
+    feat_table.add_column("Enabled", style="", width=8, justify="center")
+
+    for name in ("general", "security", "memory", "repo", "voice", "reports", "health", "dashboard", "web_ui", "livekit"):
+        enabled = features.get(name, False)
+        feat_table.add_row(name, "[green]✓[/]" if enabled else "[red]✗[/]")
+
+    console.print(feat_table)
+    console.print()
+
+    # ── Integration Metadata ─────────────────────────────────────────────────
+    console.print("[bright_cyan bold]Integration Metadata[/]")
+    integ_table = Table(show_header=False, box=None, padding=(0, 2))
+    integ_table.add_column("Item", style="bright_cyan")
+    integ_table.add_column("Status", style="")
+
+    integrations = load_integrations()
+    if integrations:
+        bl = integrations.get("bazzite_laptop", {})
+        integ_table.add_row("bazzite-laptop role", bl.get("role", "unknown"))
+        integ_table.add_row("Config import status", bl.get("config_import_status", "unknown"))
+        integ_table.add_row("Display-only", "yes" if bl.get("display_only") else "no")
+        integ_table.add_row("MCP routing", "disabled" if not bl.get("mcp_routing_enabled") else "[red]enabled[/]")
+        # Check file presence
+        allowed = bl.get("allowed_display_files", {})
+        for name, path_tpl in allowed.items():
+            path = Path(path_tpl.replace("~", str(HOME))).expanduser()
+            exists = "[green]present[/]" if path.is_file() else "[yellow]missing[/]"
+            integ_table.add_row(f"  {name}", exists)
+    else:
+        integ_table.add_row("Status", "[dim]not configured[/]")
+
+    console.print(integ_table)
+    console.print()
+
+    console.print("[dim]Dashboard is read-only. No scans run. No system changes.[/]")
+
+
+# ── Demo UI ──────────────────────────────────────────────────────────────────
+
+def demo_ui():
+    """Render the UI without running any tools."""
+    detected = detect_helpers()
+    config = load_config()
+
+    print_welcome_screen(detected)
+    print_status_bar(detected, "welcome")
+    print_mode_selector(detected)
+    print_footer()
+
+    console.print()
+    console.print("[dim]─ Demo: General Chat ─[/]")
+    print_user_message("Check my firewall status", config)
+    print_gemma_message("firewalld is active. Default zone: public. Default target: DROP.", config)
+
+    console.print()
+    console.print("[dim]─ Demo: Tool Suggestion ─[/]")
+    print_tool_suggestion("firewall_status", "Check firewall rules and status", RISK_SAFE)
+
+    console.print()
+    console.print("[dim]─ Demo: Security Tool ─[/]")
+    print_tool_result("firewall_status", "firewalld: active\nzone: public\ntarget: DROP", success=True)
+
+    console.print()
+    console.print("[dim]─ Demo: Error Panel ─[/]")
+    print_error_panel("gemma-voice-chat is not configured.\nInstall it to use voice mode.")
+
+    console.print()
+    console.print("[dim]─ Demo: Info Panel ─[/]")
+    print_info_panel("Session state saved.")
+
+    console.print()
+    console.print("[dim]─ Demo: Tool Categories ─[/]")
+    print_tools()
+
+    console.print()
+    console.print("[dim]─ Demo: Reports ─[/]")
+    print_reports()
+
+
+# ── Interactive Router ───────────────────────────────────────────────────────
+
+def interactive_router():
+    """Main interactive loop — mode selection."""
+    global _CURRENT_MODE
+    config = load_config()
+    detected = detect_helpers()
+
+    print_welcome_screen(detected)
+    print_status_bar(detected, "welcome")
+    print_mode_selector(detected)
+    print_footer()
+
+    while True:
+        try:
+            user_input = console.input("[bright_cyan bold]gemma-ui ❯ [/]").strip()
+        except (EOFError, KeyboardInterrupt):
+            console.print("\n[dim]Goodbye! 👋[/]")
+            break
+
+        if not user_input:
+            continue
+
+        # Normalize input
+        cmd = user_input.lower()
+        if not cmd.startswith("/"):
+            cmd = "/" + cmd
+
+        # Route to mode
+        if cmd in ("/quit", "/exit", "/q"):
+            console.print("[dim]Goodbye! 👋[/]")
+            break
+
+        elif cmd == "/general" or cmd == "/1":
+            mode_general()
+            print_status_bar(detected, "general")
+            print_footer()
+
+        elif cmd == "/security" or cmd == "/2":
+            mode_security()
+            print_status_bar(detected, "security")
+            print_footer()
+
+        elif cmd == "/memory" or cmd == "/3":
+            mode_memory()
+            print_status_bar(detected, "memory")
+            print_footer()
+
+        elif cmd.startswith("/memory "):
+            subcmd = cmd[len("/memory "):].strip()
+            mode_memory(subcmd)
+            print_status_bar(detected, "memory")
+            print_footer()
+
+        elif cmd == "/repo" or cmd == "/4":
+            mode_repo()
+            print_status_bar(detected, "repo")
+            print_footer()
+
+        elif cmd == "/voice" or cmd == "/5":
+            mode_voice()
+            print_status_bar(detected, "voice")
+            print_footer()
+
+        elif cmd.startswith("/voice "):
+            subcmd = cmd[len("/voice "):].strip()
+            mode_voice(subcmd)
+            print_status_bar(detected, "voice")
+            print_footer()
+
+        elif cmd == "/reports" or cmd == "/6":
+            print_reports()
+            console.print()
+            print_footer()
+
+        elif cmd == "/health" or cmd == "/7":
+            mode_health()
+            console.print()
+            print_footer()
+
+        elif cmd in ("/dashboard", "/status", "/8"):
+            mode_dashboard()
+            console.print()
+            print_footer()
+
+        elif cmd == "/integration" or cmd == "/integrations":
+            print_integration_status()
+            console.print()
+            print_footer()
+
+        elif cmd.startswith("/integration "):
+            subcmd = cmd[len("/integration "):].strip()
+            if subcmd in ("status", "st"):
+                print_integration_status()
+            else:
+                console.print(f"[yellow]Unknown integration subcommand: {subcmd}[/]")
+            console.print()
+            print_footer()
+
+        elif cmd == "/clear":
+            console.clear()
+            print_welcome_screen(detected)
+            print_status_bar(detected, "welcome")
+            print_mode_selector(detected)
+            print_footer()
+
+        elif cmd == "/save":
+            config = load_config()
+            config["last_run"] = datetime.now().isoformat()
+            save_config(config)
+            print_info_panel("Session state saved.")
+
+        elif cmd == "/mode":
+            print_mode_selector(detected)
+            print_footer()
+
+        elif cmd in ("/help", "/h"):
+            print_help()
+            console.print()
+            print_footer()
+
+        elif cmd == "/back":
+            _CURRENT_MODE = "welcome"
+            print_status_bar(detected, "welcome")
+            print_mode_selector(detected)
+            print_footer()
+
+        elif cmd.startswith("/"):
+            # Try as a direct message to general chat
+            console.print(f"[dim]Unknown mode '{user_input}'. Routing to general chat...[/]")
+            mode_general(user_input)
+            print_status_bar(detected, "general")
+            print_footer()
+
+        else:
+            # Direct message for general chat
+            mode_general(user_input)
+            print_status_bar(detected, "general")
+            print_footer()
+
+
+# ── CLI Entry Point ──────────────────────────────────────────────────────────
+
+def list_modes():
+    """Print modes in machine-readable format."""
+    detected = detect_helpers()
+
+    modes = {
+        "general": {"available": True, "helper": "gemma-bazzite", "installed": detected.get("gemma-bazzite", False)},
+        "security": {"available": True, "helper": "gemma-security-chat", "installed": detected.get("gemma-security-chat", False)},
+        "memory": {"available": detected.get("gemma-memory-search") or detected.get("gemma-knowledge-search"), "helpers": ["gemma-memory-search", "gemma-knowledge-search"]},
+        "repo": {"available": detected.get("gemma-repo-brief"), "helper": "gemma-repo-brief"},
+        "voice": {"available": detected.get("gemma-voice-chat"), "helper": "gemma-voice-chat"},
+        "reports": {"available": True, "builtin": True},
+        "tools": {"available": True, "builtin": True},
+        "health": {"available": True, "builtin": True},
+        "dashboard": {"available": True, "builtin": True},
+    }
+
+    table = Table(
+        title="Available Modes",
+        border_style="bright_black",
+        expand=False,
+        box=None,
+        padding=(0, 1),
+    )
+    table.add_column("Mode", style="bright_cyan")
+    table.add_column("Available", style="", width=12, justify="center")
+    table.add_column("Helper", style="dim")
+    table.add_column("Installed", style="", width=12, justify="center")
+
+    for mode, info in modes.items():
+        avail = "[green]✓[/]" if info["available"] else "[red]✗[/]"
+        helper = info.get("helper", "built-in")
+        installed = "[green]yes[/]" if info.get("installed", info["available"]) else "[red]no[/]"
+        table.add_row(mode, avail, helper, installed)
+
+    console.print(table)
+
+
+def main():
+    args = sys.argv[1:]
+
+    if "--help" in args or "-h" in args:
+        print_help()
+        sys.exit(0)
+
+    if "--list-modes" in args:
+        list_modes()
+        sys.exit(0)
+
+    if "--version" in args:
+        console.print("[bright_yellow]gemma-ui[/] 1.0.0 — Unified Terminal UI for Bazzite Local AI")
+        sys.exit(0)
+
+    if "--demo-ui" in args:
+        demo_ui()
+        sys.exit(0)
+
+    if "--voice-status" in args:
+        print_voice_status()
+        sys.exit(0)
+
+    if "--config" in args:
+        print_config()
+        sys.exit(0)
+
+    if "--config-check" in args:
+        check_config()
+        sys.exit(0)
+
+    if "--integration-status" in args:
+        print_integration_status()
+        sys.exit(0)
+
+    # Memory CLI flags
+    if "--memory-status" in args:
+        detected = detect_helpers()
+        print_memory_status(detected)
+        sys.exit(0)
+
+    if "--memory-dashboard" in args:
+        print_memory_dashboard()
+        sys.exit(0)
+
+    if "--memory-search" in args:
+        idx = args.index("--memory-search")
+        if idx + 1 < len(args):
+            query = args[idx + 1]
+            console.print("[bright_cyan]RuVector search (supervised, explicit):[/]")
+            _memory_run_helper("gemma-memory-search", query)
+            sys.exit(0)
+        else:
+            console.print("[red]Usage:[/] gemma-ui --memory-search \"<query>\"")
+            sys.exit(1)
+
+    if "--memory-ask" in args:
+        idx = args.index("--memory-ask")
+        if idx + 1 < len(args):
+            query = args[idx + 1]
+            console.print("[bright_cyan]RuVector RAG (supervised, explicit):[/]")
+            _memory_run_helper("gemma-memory-rag", query)
+            sys.exit(0)
+        else:
+            console.print("[red]Usage:[/] gemma-ui --memory-ask \"<question>\"")
+            sys.exit(1)
+
+    if "--memory-stage3a" in args:
+        idx = args.index("--memory-stage3a")
+        if idx + 1 < len(args):
+            query = args[idx + 1]
+            console.print("[bright_cyan]Stage 3A deterministic fallback:[/]")
+            _memory_run_helper("gemma-knowledge-rag", query)
+            sys.exit(0)
+        else:
+            console.print("[red]Usage:[/] gemma-ui --memory-stage3a \"<question>\"")
+            sys.exit(1)
+
+    if "--memory-compare" in args:
+        idx = args.index("--memory-compare")
+        if idx + 1 < len(args):
+            query = args[idx + 1]
+            print_memory_compare(query)
+            sys.exit(0)
+        else:
+            console.print("[red]Usage:[/] gemma-ui --memory-compare \"<question>\"")
+            sys.exit(1)
+
+    if "--route-intent" in args:
+        idx = args.index("--route-intent")
+        if idx + 1 < len(args):
+            text = args[idx + 1]
+            mode, subcmd, reason = route_intent(text)
+            console.print(f"[bright_cyan]Input:[/]    {text}")
+            console.print(f"[bright_cyan]Mode:[/]     {mode}")
+            if subcmd:
+                console.print(f"[bright_cyan]Subcmd:[/]   {subcmd}")
+            console.print(f"[bright_cyan]Reason:[/]   {reason}")
+            if mode == "security":
+                console.print("[yellow]Action:[/]   Hand off to gemma-security-chat (confirmation gates remain)")
+            elif mode == "memory" and subcmd:
+                console.print(f"[green]Action:[/]   Route to gemma-ui --mode memory {subcmd}")
+            else:
+                console.print(f"[green]Action:[/]   Route to gemma-ui --mode {mode}")
+            sys.exit(0)
+        else:
+            console.print("[red]Usage:[/] gemma-ui --route-intent \"<text>\"")
+            sys.exit(1)
+
+    if "--dashboard" in args or "--status" in args:
+        mode_dashboard()
+        sys.exit(0)
+
+    # Check for --mode
+    if "--mode" in args:
+        idx = args.index("--mode")
+        if idx + 1 < len(args):
+            mode = args[idx + 1].lower()
+            # Collect remaining args as subcommand (e.g. --mode voice status help)
+            subcmd = " ".join(args[idx + 2:]) if idx + 2 < len(args) else ""
+
+            if mode == "general":
+                mode_general()
+            elif mode == "security":
+                mode_security()
+            elif mode == "memory":
+                mode_memory(subcmd)
+            elif mode == "repo":
+                mode_repo()
+            elif mode == "voice":
+                mode_voice(subcmd)
+            elif mode == "reports":
+                print_reports()
+            elif mode == "tools":
+                print_tools()
+            elif mode == "health":
+                mode_health()
+            elif mode == "dashboard":
+                mode_dashboard()
+            else:
+                console.print(f"[red]Unknown mode:[/] {mode}")
+                sys.exit(1)
+            sys.exit(0)
+        else:
+            console.print("[red]--mode requires an argument[/]")
+            sys.exit(1)
+
+    # Default: interactive router
+    interactive_router()
+
+
+if __name__ == "__main__":
+    main()

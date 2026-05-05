@@ -1,0 +1,4 @@
+#!/usr/bin/env bash
+set -Eeuo pipefail
+
+exec ollama run gemma4-e4b-bazzite --hidethinking "$@"
