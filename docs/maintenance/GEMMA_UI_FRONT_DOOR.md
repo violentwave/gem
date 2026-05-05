@@ -197,6 +197,16 @@ cat ~/.config/bazzite-security/gemma-ui.json
 
 ---
 
+## Tool Registry
+
+All tools are documented in the risk model:
+- `docs/maintenance/GEMMA_TOOL_REGISTRY_RISK_MODEL.md`
+- `~/.config/bazzite-security/gemma-tool-registry.json`
+
+Risk levels: SAFE_READ_ONLY, CONFIRM_REQUIRED, SUDO_MANUAL_REVIEW, DESIGN_ONLY, DISABLED, FORBIDDEN.
+
+---
+
 ## Changelog
 
 - **2026-05-04** — v1.0.0. Unified front door. 10 modes. 15+ helpers. gemma-agent alias. Config-driven.

@@ -407,3 +407,9 @@ cat ~/.config/bazzite-security/gemma-ui.json
   - Dashboard shows integration metadata section (display-only)
   - Tracks bazzite-laptop config import readiness without importing files
   - No enforcement. No MCP routing. No secrets. No autonomy.
+- **2026-05-05** — v1.4.5. Tool registry risk model:
+  - Documented all tools with risk levels (SAFE_READ_ONLY, CONFIRM_REQUIRED, SUDO_MANUAL_REVIEW, DESIGN_ONLY)
+  - Classified tool sources (native_gem, legacy_derived, ruvector_supervised, stage3a_canonical)
+  - Marked service_canary and thermal_check as DESIGN_ONLY (legacy references)
+  - Created machine-readable `~/.config/bazzite-security/gemma-tool-registry.json`
+  - Registry is display-only — does not drive execution.

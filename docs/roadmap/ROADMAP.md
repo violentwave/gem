@@ -729,6 +729,33 @@
 
 **Depends on:** 7R1 (bazzite-laptop config import design)
 
+### Phase 7R3: Tool Registry Risk Normalization ✅ Completed
+**Goal:** Create a normalized, documented tool registry/risk model for gemma-ui and gemma-security-chat
+
+**Tasks:**
+- Static-inspect all helper scripts (read-only, no execution)
+- Inventory all tools from gemma-ui HELPERS and gemma-security-chat TOOLS
+- Classify risk levels: SAFE_READ_ONLY, CONFIRM_REQUIRED, SUDO_MANUAL_REVIEW, DESIGN_ONLY, DISABLED, FORBIDDEN
+- Classify tool sources: native_gem, legacy_derived, ruvector_supervised, stage3a_canonical
+- Mark service_canary and thermal_check as DESIGN_ONLY (legacy references to MCP bridge/LLM proxy)
+- Define confirmation policies per risk level
+- Define required metadata fields for future tools
+- Create machine-readable `~/.config/bazzite-security/gemma-tool-registry.json`
+
+**Deliverables:**
+- `docs/maintenance/GEMMA_TOOL_REGISTRY_RISK_MODEL.md`
+- `~/.config/bazzite-security/gemma-tool-registry.json`
+- Updated `docs/gemma-ui.md`
+
+**Safety:**
+- No tool behavior changed (documentation only)
+- Confirmation gates preserved
+- Legacy-derived tools clearly labeled, not a revival of bazzite-laptop control plane
+- MCP routing remains disabled
+- Registry is display-only, not an execution source of truth
+
+**Depends on:** 7R2
+
 ## Phase 8: Operator Workflows
 
 ### Phase 8A: L5 Workflows ✅ Completed
