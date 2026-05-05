@@ -48,7 +48,7 @@ These paths remain the live system source-of-truth and are not moved:
 - Status reporting, draft review, validation tools
 - All validators passing
 
-## Current Phase: Phase 5G ✅ Complete
+## Current Phase: Phase 6 ✅ Complete
 
 ### Phase 5A: Repo Bootstrap ✅
 - Create coordination repo (this work)
@@ -146,13 +146,18 @@ cd ~/projects/gem && git status --short
 
 See `docs/roadmap/ROADMAP.md` for full roadmap.
 
-### Phase 6: Sandbox Prototypes (Upcoming)
-- Phase 6A: Agent Zero sandbox
-- Phase 6B: RuVector sandbox
-- Phase 6C: Space Agent sandbox
-- Phase 6D: Integration smoke test
+### Phase 6: Sandbox Prototypes ✅ Complete
+- Phase 6A: Agent Zero sandbox readiness ✅
+- Phase 6B: RuVector sandbox readiness ✅
+- Phase 6C: Space Agent sandbox readiness ✅
+- Phase 6D: Integration smoke test ✅
 
-See `docs/roadmap/PHASE6_SANDBOX_PLAN.md` for details.
+See `docs/phase6/PHASE6_CLOSEOUT.md` for details.
+
+### Phase 7: Local Ops Bridge (Upcoming)
+- Phase 7A: Agent Zero L5 Integration
+- Phase 7B: RuVector L6 Memory Prototype
+- Phase 7C: Space Agent L7 Manual UI Workflows
 
 ## License
 

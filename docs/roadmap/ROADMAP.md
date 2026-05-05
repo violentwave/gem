@@ -500,20 +500,40 @@
 
 **Depends on:** 5E, 5F, 12L
 
-### Phase 6D: Integration Smoke ⏳
-**Goal:** Verify L5-L7 components can coexist
+### Phase 6D: Integration Smoke Test ✅ Completed
+**Goal:** Verify L5-L7 components can coexist without enabling autonomy or mutating host state
 
 **Tasks:**
-- Check component coexistence
-- Verify no port conflicts
-- Verify no path conflicts
-- Confirm fallback chain works
+- Syntax validation (gemma-ui, gemma-voice-chat, gemma-security-chat)
+- Helper availability check (8 helpers + podman + ollama)
+- gemma-ui UI checks (--help, --list-modes, --dashboard, --memory-dashboard, --voice-status, --route-intent)
+- Port coexistence check (ss -tln)
+- Component state read-only checks (Agent Zero, RuVector, Stage 3A, Space Agent, Voice)
+- Path coexistence verification
+- Fallback chain verification
 
 **Deliverables:**
-- Integration smoke report
-- Proceed/Do not proceed decision
+- `docs/phase6/PHASE6D_INTEGRATION_SMOKE_TEST.md`
+- `docs/phase6/PHASE6_CLOSEOUT.md`
+- Integration smoke report with summary table
+- Port/path coexistence results
+- Proceed/Do not proceed decision: **PROCEED**
+
+**Smoke Results:**
+- Syntax: ALL PASS
+- Helpers: ALL AVAILABLE
+- UI checks: ALL PASS
+- Ports: NO CONFLICTS (Agent Zero 5080, Ollama 11434, bridge 4141 inactive)
+- Paths: NO CONFLICTS
+- Fallback chain: VERIFIED
 
 **Depends on:** 6A, 6B, 6C
+
+### Phase 6 Closeout ✅ Completed
+**Status:** All Phase 6 sub-phases (6A-6D) complete
+**Doc:** `docs/phase6/PHASE6_CLOSEOUT.md`
+**Decision:** PROCEED to Phase 7 readiness assessment
+**Boundaries:** All maintained (no sudo, no packages, no host changes, no authority granted)
 
 ## Phase 7: Local Ops Bridge
 

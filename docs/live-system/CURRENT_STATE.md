@@ -468,6 +468,34 @@
 - No secrets exposed
 - Boundary compliance: PASS
 
+**Phase 6D:** Integration Smoke Test (2026-05-05) — COMPLETE
+- Closeout: docs/phase6/PHASE6D_INTEGRATION_SMOKE_TEST.md
+- Syntax checks: ALL PASS (gemma-ui, gemma-voice-chat, gemma-security-chat)
+- Helper availability: ALL AVAILABLE (8 helpers + podman + ollama)
+- gemma-ui UI checks: ALL PASS (help, list-modes, dashboard, memory-dashboard, voice-status, route-intent)
+- Port coexistence: NO CONFLICTS (Agent Zero 5080, Ollama 11434, bridge 4141 inactive)
+- Path coexistence: NO CONFLICTS
+- Fallback chain: VERIFIED (L1-L7 all present)
+- Component states:
+  - Agent Zero: Running (Up 13 hours), no authority granted
+  - RuVector: 1,635 chunks, supervised secondary
+  - Stage 3A: 335 chunks, canonical fallback
+  - Space Agent: Installed, not running, manual UI only
+  - Voice: Push-to-talk ready, no recording performed
+- Decision: PROCEED to Phase 7 readiness assessment
+- No host changes
+- No authority granted
+- Boundary compliance: PASS
+
+**Phase 6 Macro:** Sandbox Prototypes Closeout (2026-05-05) — COMPLETE
+- Closeout: docs/phase6/PHASE6_CLOSEOUT.md
+- 6A Agent Zero: ✅ Complete
+- 6B RuVector: ✅ Complete
+- 6C Space Agent: ✅ Complete
+- 6D Integration Smoke: ✅ Complete
+- All boundaries maintained
+- Next: Phase 7 Local Ops Bridge (requires explicit human approval)
+
 **Phase 12I:** Notion Phase Tracker Access and Drift Audit (2026-05-02) — COMPLETE
 - Closeout: docs/phase12/PHASE12I_NOTION_PHASE_TRACKER_ACCESS_AND_DRIFT_AUDIT.md
 - Sync policy: docs/phase12/NOTION_OPENCODE_SYNC_POLICY.md
