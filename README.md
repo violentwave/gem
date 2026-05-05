@@ -33,7 +33,7 @@ Ensure `~/.local/bin` is in your `PATH`, then:
 
 ```bash
 gemma-ui --help
-gemma-ui --dashboard
+gemma-ui --dashboard       # Primary dashboard (built into TUI)
 ```
 
 ## Product Components
@@ -62,7 +62,7 @@ gemma-ui --dashboard
 - `gemma-monitor-daily` — Daily health check
 - `gemma-monitor-drift` — Configuration drift detection
 - `gemma-monitor-weekly` — Weekly summary
-- `gemma-dashboard` — Static dashboard generator
+- `gemma-dashboard` — Optional static HTML/Markdown export (legacy compatibility)
 
 ### Quality Assurance
 - `gemma-evals-check` — Eval case validation

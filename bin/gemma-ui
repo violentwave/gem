@@ -184,10 +184,10 @@ HELPERS = {
     "gemma-dashboard": {
         "path": BIN_DIR / "gemma-dashboard",
         "type": "shell",
-        "description": "Build security dashboard HTML",
+        "description": "Optional static dashboard export",
         "args_style": "optional_args",
         "risk": RISK_SAFE,
-        "category": "Diagnostics",
+        "category": "Export",
     },
     "gemma-monitor-daily": {
         "path": BIN_DIR / "gemma-monitor-daily",
@@ -909,7 +909,8 @@ def print_tools():
         "Memory": ["gemma-memory-search", "gemma-memory-rag", "gemma-knowledge-search", "gemma-knowledge-rag"],
         "Repo": ["gemma-repo-brief", "gemma-file-brief"],
         "Voice": ["gemma-voice-chat"],
-        "Diagnostics": ["gemma-bazzite-health", "gemma-dashboard", "gemma-monitor-daily", "gemma-monitor-drift"],
+        "Diagnostics": ["gemma-bazzite-health", "gemma-monitor-daily", "gemma-monitor-drift"],
+        "Export": ["gemma-dashboard"],
     }
 
     detected = detect_helpers()
@@ -1635,6 +1636,17 @@ def mode_dashboard():
     safety_table.add_row("No web server", "[green]✓[/] confirmed")
 
     console.print(safety_table)
+    console.print()
+
+    # ── Export ───────────────────────────────────────────────────────────────
+    console.print("[bright_cyan bold]Export[/]")
+    export_table = Table(show_header=False, box=None, padding=(0, 2))
+    export_table.add_column("Item", style="bright_cyan")
+    export_table.add_column("Status", style="")
+
+    export_table.add_row("Static dashboard export", "[dim]optional[/]" if detected.get("gemma-dashboard") else "[dim]not installed[/]")
+
+    console.print(export_table)
     console.print()
 
     # ── Feature Flags ────────────────────────────────────────────────────────
