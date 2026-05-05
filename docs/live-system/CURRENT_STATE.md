@@ -188,6 +188,7 @@
 - **gemma-memory-search:** Supervised RuVector semantic search with Stage 3A fallback
 - **gemma-memory-rag:** Supervised RAG using RuVector context + local Ollama generation
 - **gemma-ui memory mode:** Explicit supervised RuVector + Stage 3A fallback via `/memory` subcommands; quality dashboard (`/memory dashboard`); voice-to-memory routing with confirmation
+- **gemma-ui integration metadata:** Display-only integration status (`/integration`, `--integration-status`); tracks bazzite-laptop config import readiness without importing files; no enforcement; no MCP routing
 - **OpenCode/Codex:** Implementation work, repo operations, config editing
 - **Agent Zero:** Installed and running (container Up, assessed read-only); tool-protocol incompatible with local Gemma; no authority granted
 - **RuVector:** Supervised prototype only (L6), NOT production default

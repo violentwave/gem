@@ -701,6 +701,34 @@
 
 **Result:** OpenRouter and local Gemma/Ollama work in Space Agent. Local Gemma uses endpoint `http://127.0.0.1:11434/v1/chat/completions`, model `gemma4-e4b-bazzite:latest`, and API key placeholder `ollama`. Gemini remains optional unresolved retry with `https://generativelanguage.googleapis.com/v1beta/openai/chat/completions` and `gemini-2.5-flash` or `gemini-2.5-pro`.
 
+### Phase 7R2: gemma-ui Integration Metadata Display ✅ Completed
+**Goal:** Add display-only integration metadata support to gemma-ui without importing bazzite-laptop configs
+
+**Tasks:**
+- Create `~/.config/bazzite-security/gemma-ui-integrations.json` (display-only, no secrets)
+- Add `load_integrations()` and `print_integration_status()` to gemma-ui
+- Add integration metadata section to dashboard (`gemma-ui --dashboard`)
+- Add `--integration-status` CLI flag
+- Add `/integration` and `/integration status` interactive commands
+- Update help text with integration commands
+- Create `docs/maintenance/GEMMA_UI_INTEGRATION_METADATA.md`
+
+**Deliverables:**
+- `~/.config/bazzite-security/gemma-ui-integrations.json`
+- Updated `~/.local/bin/gemma-ui` with integration metadata display
+- `docs/maintenance/GEMMA_UI_INTEGRATION_METADATA.md`
+- Updated `docs/gemma-ui.md`
+
+**Safety:**
+- Display-only — no enforcement, no execution, no routing
+- No secrets in config file
+- MCP routing disabled (`mcp_routing_enabled: false`)
+- bazzite-laptop role: `legacy_reference_only`
+- Config import status: `not_imported`
+- No bazzite-laptop files imported in this phase
+
+**Depends on:** 7R1 (bazzite-laptop config import design)
+
 ## Phase 8: Operator Workflows
 
 ### Phase 8A: L5 Workflows ✅ Completed

@@ -401,3 +401,9 @@ cat ~/.config/bazzite-security/gemma-ui.json
   - Shows supervised refresh note when not found
   - `--memory-status` also reports manifest status
   - No ingestion. No index rebuild. No default promotion.
+- **2026-05-05** — v1.4.4. Integration metadata display:
+  - `/integration` and `/integration status` commands
+  - `--integration-status` CLI flag
+  - Dashboard shows integration metadata section (display-only)
+  - Tracks bazzite-laptop config import readiness without importing files
+  - No enforcement. No MCP routing. No secrets. No autonomy.

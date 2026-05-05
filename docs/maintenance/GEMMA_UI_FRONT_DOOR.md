@@ -47,6 +47,7 @@ gemma-security-chat remains available as the security console helper.
 | `/mode` | Show mode selector |
 | `/dashboard` | Show read-only status dashboard |
 | `/status` | Alias for `/dashboard` |
+| `/integration` | Show integration metadata (display-only) |
 | `/clear` | Clear the screen |
 | `/save` | Save current session state |
 | `/quit` | Exit |
