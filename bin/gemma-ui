@@ -15,6 +15,7 @@ Usage:
     gemma-ui --mode health                # Run safe health checks
     gemma-ui --demo-ui                   # Render demo without running tools
     gemma-ui --demo-layout               # Render polished layout mockup (no tools)
+    gemma-ui --tui                       # Launch curses persistent TUI prototype
     gemma-ui --list-modes                 # List available modes
     gemma-ui --help                       # Show help
 
@@ -1412,6 +1413,7 @@ def print_help():
     gemma-ui --integration-status         Show integration metadata (display-only)
     gemma-ui --demo-ui                    Render demo without tools
     gemma-ui --demo-layout               Render polished layout mockup (no tools)
+    gemma-ui --tui                       Launch curses persistent TUI prototype
     gemma-ui --list-modes                 List available modes
     gemma-ui --help                       Show this help
 
@@ -2672,6 +2674,16 @@ def main():
     if "--demo-layout" in args:
         demo_layout()
         sys.exit(0)
+
+    if "--tui" in args:
+        tui_path = Path(__file__).with_name("gemma-ui-tui")
+        if not tui_path.is_file():
+            tui_path = BIN_DIR / "gemma-ui-tui"
+        if not tui_path.is_file():
+            console.print("[red]gemma-ui-tui not found. Run ./install.sh or use bin/gemma-ui-tui.[/]")
+            sys.exit(1)
+        result = subprocess.run([str(tui_path)])
+        sys.exit(result.returncode)
 
     if "--voice-status" in args:
         print_voice_status()

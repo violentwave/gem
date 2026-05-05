@@ -1,0 +1,372 @@
+#!/usr/bin/env python3
+from __future__ import annotations
+
+import curses
+import json
+import shutil
+import sys
+import time
+import urllib.request
+from pathlib import Path
+
+
+HOME = Path.home()
+CONFIG_FILE = HOME / ".config/bazzite-security/gemma-ui.json"
+INTEGRATIONS_FILE = HOME / ".config/bazzite-security/gemma-ui-integrations.json"
+BIN_DIR = HOME / ".local/bin"
+REPORT_DIR = HOME / "offload/security-reports/manual"
+OLLAMA_HOST = "http://127.0.0.1:11434"
+MODEL = "gemma4-e4b-bazzite:latest"
+
+MODES = [
+    ("general", "General", "g"),
+    ("security", "Security", "s"),
+    ("memory", "Memory", "m"),
+    ("repo", "Repo", "o"),
+    ("reports", "Reports", "r"),
+    ("voice", "Voice", "v"),
+    ("health", "Health", "h"),
+    ("settings", "Settings", "t"),
+]
+
+HELPERS = [
+    "gemma-bazzite",
+    "gemma-security-chat",
+    "gemma-memory-search",
+    "gemma-memory-rag",
+    "gemma-knowledge-search",
+    "gemma-knowledge-rag",
+    "gemma-repo-brief",
+    "gemma-voice-chat",
+    "gemma-dashboard",
+]
+
+
+def _safe_addstr(win, y, x, text, attr=0):
+    height, width = win.getmaxyx()
+    if y < 0 or y >= height or x >= width:
+        return
+    if x < 0:
+        text = text[abs(x):]
+        x = 0
+    text = str(text).replace("\n", " ")
+    max_len = max(0, width - x - 1)
+    if max_len:
+        try:
+            win.addstr(y, x, text[:max_len], attr)
+        except curses.error:
+            pass
+
+
+def _load_json(path):
+    try:
+        if path.is_file():
+            return json.loads(path.read_text(encoding="utf-8"))
+    except Exception:
+        return {}
+    return {}
+
+
+def _ollama_status():
+    try:
+        req = urllib.request.Request(f"{OLLAMA_HOST}/api/tags", method="GET")
+        with urllib.request.urlopen(req, timeout=1.5) as resp:
+            data = json.loads(resp.read())
+        return f"online:{len(data.get('models', []))}"
+    except Exception:
+        return "offline"
+
+
+def _helper_count():
+    available = 0
+    for name in HELPERS:
+        if (BIN_DIR / name).is_file() or shutil.which(name):
+            available += 1
+    return f"{available}/{len(HELPERS)}"
+
+
+def _voice_status():
+    if shutil.which("pw-record") and shutil.which("whisper-cli") and ((BIN_DIR / "gemma-voice-chat").is_file() or shutil.which("gemma-voice-chat")):
+        return "ready"
+    return "manual"
+
+
+def _memory_status():
+    if (BIN_DIR / "gemma-memory-search").is_file() or shutil.which("gemma-memory-search"):
+        return "ready"
+    if (BIN_DIR / "gemma-knowledge-search").is_file() or shutil.which("gemma-knowledge-search"):
+        return "fallback"
+    return "missing"
+
+
+class GemmaTui:
+    def __init__(self, stdscr):
+        self.stdscr = stdscr
+        self.mode = "welcome"
+        self.input_text = ""
+        self.scroll = 0
+        self.lines = []
+        self.status = "Ready"
+        self.running = True
+        self.config = _load_json(CONFIG_FILE)
+        self._reset_welcome()
+
+    def _reset_welcome(self):
+        self.mode = "welcome"
+        self.lines = [
+            "Welcome to Gemma Local Agent",
+            "",
+            "Persistent curses TUI prototype. Header, mode rail, transcript, and input stay pinned.",
+            "",
+            "Try: /menu, /general, /dashboard, /memory, /settings, /clear, /quit",
+            "",
+            "This prototype does not execute security tools or bypass confirmations.",
+        ]
+        self.scroll = 0
+
+    def run(self):
+        curses.curs_set(1)
+        curses.use_default_colors()
+        curses.init_pair(1, curses.COLOR_CYAN, -1)
+        curses.init_pair(2, curses.COLOR_GREEN, -1)
+        curses.init_pair(3, curses.COLOR_YELLOW, -1)
+        curses.init_pair(4, curses.COLOR_RED, -1)
+        self.stdscr.keypad(True)
+        while self.running:
+            self.draw()
+            ch = self.stdscr.getch()
+            self.handle_key(ch)
+
+    def draw(self):
+        self.stdscr.erase()
+        height, width = self.stdscr.getmaxyx()
+        if height < 10 or width < 50:
+            _safe_addstr(self.stdscr, 0, 0, "Terminal too small for gemma-ui-tui (min 50x10)", curses.color_pair(3))
+            self.stdscr.refresh()
+            return
+        self.draw_header(width)
+        self.draw_tabs(width)
+        self.draw_body(height, width)
+        self.draw_footer(height, width)
+        self.stdscr.refresh()
+
+    def draw_header(self, width):
+        model = self.config.get("ollama", {}).get("model", MODEL)
+        if len(model) > 18:
+            model = model[:15] + "..."
+        header = f" Gemma Local Agent | model:{model} | ollama:{_ollama_status()} | mem:{_memory_status()} | voice:{_voice_status()} | tools:{_helper_count()} "
+        _safe_addstr(self.stdscr, 0, 0, header.ljust(width), curses.A_REVERSE)
+
+    def draw_tabs(self, width):
+        x = 0
+        for mode, label, key in MODES:
+            tab = f" [{key.upper()}] {label} "
+            attr = curses.color_pair(1) | curses.A_BOLD if mode == self.mode else curses.A_DIM
+            _safe_addstr(self.stdscr, 1, x, tab, attr)
+            x += len(tab) + 1
+            if x >= width - 10:
+                break
+        _safe_addstr(self.stdscr, 2, 0, "─" * (width - 1), curses.A_DIM)
+
+    def draw_body(self, height, width):
+        top = 3
+        bottom = height - 3
+        visible = max(1, bottom - top)
+        max_scroll = max(0, len(self.lines) - visible)
+        self.scroll = min(self.scroll, max_scroll)
+        start = self.scroll
+        end = start + visible
+        for row, line in enumerate(self.lines[start:end], top):
+            attr = 0
+            if line.startswith("#"):
+                attr = curses.color_pair(1) | curses.A_BOLD
+            elif line.startswith("OK"):
+                attr = curses.color_pair(2)
+            elif line.startswith("WARN") or line.startswith("MISSING"):
+                attr = curses.color_pair(3)
+            _safe_addstr(self.stdscr, row, 0, line, attr)
+        if len(self.lines) > visible:
+            marker = f" {start + 1}-{min(end, len(self.lines))}/{len(self.lines)} "
+            _safe_addstr(self.stdscr, bottom - 1, max(0, width - len(marker) - 1), marker, curses.A_DIM)
+
+    def draw_footer(self, height, width):
+        hint = " /help /menu /dashboard /memory /voice /settings /clear /quit "
+        _safe_addstr(self.stdscr, height - 2, 0, hint.ljust(width), curses.A_REVERSE)
+        prompt = f"gemma › {self.input_text}"
+        _safe_addstr(self.stdscr, height - 1, 0, prompt)
+        try:
+            self.stdscr.move(height - 1, min(len(prompt), width - 2))
+        except curses.error:
+            pass
+
+    def handle_key(self, ch):
+        if ch in (curses.KEY_RESIZE,):
+            return
+        if ch in (10, 13):
+            text = self.input_text.strip()
+            self.input_text = ""
+            if text:
+                self.handle_command(text)
+            return
+        if ch in (27,):
+            self._reset_welcome()
+            return
+        if ch in (curses.KEY_BACKSPACE, 127, 8):
+            self.input_text = self.input_text[:-1]
+            return
+        if ch == curses.KEY_UP:
+            self.scroll = max(0, self.scroll - 1)
+            return
+        if ch == curses.KEY_DOWN:
+            self.scroll += 1
+            return
+        if ch == curses.KEY_PPAGE:
+            self.scroll = max(0, self.scroll - 10)
+            return
+        if ch == curses.KEY_NPAGE:
+            self.scroll += 10
+            return
+        if 0 <= ch < 256:
+            char = chr(ch)
+            if char.isprintable():
+                self.input_text += char
+
+    def handle_command(self, text):
+        self.status = "Ready"
+        if not text.startswith("/"):
+            if self.mode != "general":
+                self.mode = "general"
+                self.lines = ["# General", "", "General chat stays inside this TUI prototype."]
+            self.lines.extend(["", f"You: {text}", "Gemma: TUI prototype captured this message without dropping to the old >>> loop."])
+            self.scroll = max(0, len(self.lines) - 1)
+            return
+        cmd = text.lower().strip()
+        if cmd in ("/quit", "/q", "/exit"):
+            self.running = False
+        elif cmd in ("/menu", "/mode", "/back", "/help", "/?", "/commands"):
+            self.show_menu()
+        elif cmd in ("/general", "/g"):
+            self.show_general()
+        elif cmd in ("/dashboard", "/status"):
+            self.show_dashboard()
+        elif cmd in ("/memory", "/m"):
+            self.show_memory()
+        elif cmd in ("/voice", "/v"):
+            self.show_voice()
+        elif cmd in ("/settings", "/t", "/theme", "/ascii", "/compact"):
+            self.show_settings(cmd)
+        elif cmd == "/clear":
+            self.lines = [f"# {self.mode.title()}", "", "Transcript cleared."]
+            self.scroll = 0
+        else:
+            self.lines.extend(["", f"WARN Unknown command: {text}", "Try /commands or /menu."])
+            self.scroll = max(0, len(self.lines) - 1)
+
+    def show_menu(self):
+        self.mode = "welcome"
+        self.lines = [
+            "# Menu",
+            "",
+            "/general or /g     General chat inside TUI",
+            "/dashboard         Read-only status dashboard",
+            "/memory or /m      Explicit supervised memory view",
+            "/voice or /v       Push-to-talk voice status view",
+            "/settings or /t    Display/UI preferences view",
+            "/clear             Clear current transcript pane",
+            "/quit              Exit cleanly",
+            "",
+            "Security tools are not executed from this first-pass TUI shell.",
+        ]
+        self.scroll = 0
+
+    def show_general(self):
+        self.mode = "general"
+        self.lines = [
+            "# General",
+            "",
+            "General chat is now represented inside the persistent TUI shell.",
+            "Type a message and press Enter to keep it in this transcript pane.",
+            "",
+            "Full helper-backed streaming can be wired after this shell is approved.",
+        ]
+        self.scroll = 0
+
+    def show_dashboard(self):
+        self.mode = "dashboard"
+        self.lines = [
+            "# Dashboard",
+            "",
+            f"Ollama: {_ollama_status()}",
+            f"Model: {self.config.get('ollama', {}).get('model', MODEL)}",
+            f"Memory: {_memory_status()}",
+            f"Voice: {_voice_status()} (push-to-talk only)",
+            f"Helpers: {_helper_count()}",
+            "Security: advisory only; confirmation gates preserved",
+            "MCP: disabled",
+            "Agent Zero authority: unchanged",
+            "gemma-dashboard: optional static export helper (not primary dashboard)",
+            "",
+            "Read-only view. No scans. No system changes.",
+        ]
+        self.scroll = 0
+
+    def show_memory(self):
+        self.mode = "memory"
+        rv = HOME / ".local/share/bazzite-security/ruvector/semantic-prototype/semantic-approved-docs-memory.json"
+        s3 = HOME / ".local/share/bazzite-security/gemma-knowledge/index/chunks.jsonl"
+        self.lines = [
+            "# Memory",
+            "",
+            f"RuVector helper: {'OK' if shutil.which('gemma-memory-search') or (BIN_DIR / 'gemma-memory-search').is_file() else 'MISSING'}",
+            f"Stage 3A helper: {'OK' if shutil.which('gemma-knowledge-rag') or (BIN_DIR / 'gemma-knowledge-rag').is_file() else 'MISSING'}",
+            f"RuVector index: {'OK' if rv.is_file() else 'MISSING'} {rv}",
+            f"Stage 3A index: {'OK' if s3.is_file() else 'MISSING'} {s3}",
+            "",
+            "Memory remains explicit/supervised. No ingestion. No promotion.",
+        ]
+        self.scroll = 0
+
+    def show_voice(self):
+        self.mode = "voice"
+        self.lines = [
+            "# Voice",
+            "",
+            f"Recorder: {'OK' if shutil.which('pw-record') else 'MISSING'} pw-record",
+            f"STT: {'OK' if shutil.which('whisper-cli') else 'MISSING'} whisper-cli",
+            f"Helper: {'OK' if shutil.which('gemma-voice-chat') or (BIN_DIR / 'gemma-voice-chat').is_file() else 'MISSING'} gemma-voice-chat",
+            "Mode: push-to-talk only",
+            "",
+            "This TUI prototype does not auto-start recording.",
+        ]
+        self.scroll = 0
+
+    def show_settings(self, cmd):
+        self.mode = "settings"
+        ui = self.config.get("ui", {})
+        self.lines = [
+            "# Settings",
+            "",
+            "Display/UI preferences only. No security policy enforcement here.",
+            "",
+            f"layout: {ui.get('layout', 'app_shell')}",
+            f"density: {ui.get('density', 'normal')}",
+            f"show_icons: {ui.get('show_icons', True)}",
+            f"use_unicode: {ui.get('use_unicode', True)}",
+            f"high_contrast: {ui.get('high_contrast', False)}",
+            "",
+            f"Command received: {cmd}",
+            "Changing persistent settings remains in gemma-ui print-loop for now.",
+        ]
+        self.scroll = 0
+
+
+def main():
+    try:
+        curses.wrapper(lambda stdscr: GemmaTui(stdscr).run())
+    except KeyboardInterrupt:
+        return 0
+    return 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())
