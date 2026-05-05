@@ -252,7 +252,7 @@ def helper_risk_label(name: str) -> str:
 # ── Config ───────────────────────────────────────────────────────────────────
 
 DEFAULT_CONFIG = {
-    "version": "1.5.3",
+    "version": "1.5.4",
     "default_mode": "general",
     "theme": "default",
     "accent": "cyan",
@@ -1466,13 +1466,21 @@ def print_help():
 
 [bright_cyan]UI COMMANDS[/]
     /help        Show this help
+    /commands    Show grouped command palette
+    /?           Alias for /commands
     /mode        Show mode selector
+    /menu        Alias for /mode
     /dashboard   Show read-only status dashboard
     /status      Alias for /dashboard
     /integration Show integration metadata (display-only)
     /clear       Clear the screen
     /save        Save current session state
     /quit        Exit
+
+[bright_cyan]SHORTCUTS[/]
+    /g  = /general    /s  = /security    /m  = /memory
+    /o  = /repo       /v  = /voice       /r  = /reports
+    /h  = /health     /t  = /settings    /q  = /quit
 
 [bright_cyan]RISK LABELS[/]
     [green]SAFE READ-ONLY[/]     No system changes, no sudo
@@ -1492,6 +1500,69 @@ def print_help():
     console.print()
     console.print("[dim]Helpers marked ✗ are not configured or not in ~/.local/bin/[/]")
     console.print("[dim]The UI will handle missing helpers gracefully.[/]")
+
+
+def print_commands_palette():
+    """Print grouped command palette."""
+    console.print("[bright_yellow bold]Command Palette[/]")
+    console.print("[dim]Quick commands grouped by category[/]")
+    console.print()
+
+    groups = [
+        ("Chat", [
+            ("/general  or /g", "Start general chat with Gemma"),
+            ("/1", "Shortcut for general"),
+        ]),
+        ("Security", [
+            ("/security  or /s", "Open security console"),
+            ("/2", "Shortcut for security"),
+        ]),
+        ("Memory", [
+            ("/memory  or /m", "Search memory (RuVector + Stage 3A)"),
+            ("/3", "Shortcut for memory"),
+            ("/memory search <q>", "RuVector semantic search"),
+            ("/memory ask <q>", "RuVector RAG with Ollama"),
+        ]),
+        ("Voice", [
+            ("/voice  or /v", "Voice mode (push-to-talk)"),
+            ("/5", "Shortcut for voice"),
+            ("/voice status", "Show voice component status"),
+        ]),
+        ("Reports", [
+            ("/reports  or /r", "Browse generated reports"),
+            ("/6", "Shortcut for reports"),
+        ]),
+        ("Settings", [
+            ("/settings  or /t", "Show settings panel"),
+            ("/9", "Shortcut for settings"),
+            ("/theme", "Toggle high-contrast theme"),
+            ("/ascii", "Toggle Unicode/ASCII markers"),
+            ("/compact", "Toggle compact density"),
+        ]),
+        ("System Status", [
+            ("/dashboard  or /8", "Read-only status dashboard"),
+            ("/health  or /h", "Run safe health checks"),
+            ("/7", "Shortcut for health"),
+            ("/integration", "Show integration metadata"),
+        ]),
+        ("Navigation", [
+            ("/menu  or /mode", "Show mode selector / welcome"),
+            ("/back", "Return to welcome screen"),
+            ("/clear", "Clear the screen"),
+            ("/save", "Save session state"),
+            ("/quit  or /q", "Exit gemma-ui"),
+        ]),
+    ]
+
+    for group_name, commands in groups:
+        console.print(f"[bright_cyan bold]{group_name}[/]")
+        for cmd, desc in commands:
+            console.print(f"  [bright_cyan]{cmd:<22}[/]  [dim]{desc}[/]")
+        console.print()
+
+    console.print("[dim]All security tools require human confirmation.[/]")
+    console.print("[dim]Voice remains push-to-talk only.[/]")
+    console.print("[dim]Memory search is explicit and supervised.[/]")
 
 
 # ── Reports ──────────────────────────────────────────────────────────────────
@@ -2520,7 +2591,7 @@ def interactive_router():
             console.print("[dim]Goodbye! 👋[/]")
             break
 
-        elif cmd == "/general" or cmd == "/1":
+        elif cmd in ("/general", "/g", "/1"):
             mode_general()
             if is_app_shell:
                 render_app_shell(detected, config, "general")
@@ -2528,7 +2599,7 @@ def interactive_router():
                 print_status_bar(detected, "general")
                 print_footer()
 
-        elif cmd == "/security" or cmd == "/2":
+        elif cmd in ("/security", "/s", "/2"):
             mode_security()
             if is_app_shell:
                 render_app_shell(detected, config, "security")
@@ -2536,7 +2607,7 @@ def interactive_router():
                 print_status_bar(detected, "security")
                 print_footer()
 
-        elif cmd == "/memory" or cmd == "/3":
+        elif cmd in ("/memory", "/m", "/3"):
             mode_memory()
             if is_app_shell:
                 render_app_shell(detected, config, "memory")
@@ -2553,7 +2624,7 @@ def interactive_router():
                 print_status_bar(detected, "memory")
                 print_footer()
 
-        elif cmd == "/repo" or cmd == "/4":
+        elif cmd in ("/repo", "/o", "/4"):
             mode_repo()
             if is_app_shell:
                 render_app_shell(detected, config, "repo")
@@ -2561,7 +2632,7 @@ def interactive_router():
                 print_status_bar(detected, "repo")
                 print_footer()
 
-        elif cmd == "/voice" or cmd == "/5":
+        elif cmd in ("/voice", "/v", "/5"):
             mode_voice()
             if is_app_shell:
                 render_app_shell(detected, config, "voice")
@@ -2578,7 +2649,7 @@ def interactive_router():
                 print_status_bar(detected, "voice")
                 print_footer()
 
-        elif cmd == "/reports" or cmd == "/6":
+        elif cmd in ("/reports", "/r", "/6"):
             print_reports()
             console.print()
             if is_app_shell:
@@ -2586,7 +2657,7 @@ def interactive_router():
             else:
                 print_footer()
 
-        elif cmd == "/health" or cmd == "/7":
+        elif cmd in ("/health", "/h", "/7"):
             mode_health()
             console.print()
             if is_app_shell:
@@ -2602,7 +2673,7 @@ def interactive_router():
             else:
                 print_footer()
 
-        elif cmd == "/settings" or cmd == "/9":
+        elif cmd in ("/settings", "/t", "/9"):
             mode_settings()
             console.print()
             if is_app_shell:
@@ -2673,11 +2744,17 @@ def interactive_router():
             save_config(config)
             print_info_panel("Session state saved.")
 
-        elif cmd == "/mode":
+        elif cmd in ("/mode", "/menu"):
             if is_app_shell:
                 render_app_shell(detected, config, "welcome")
             else:
                 print_mode_selector(detected)
+                print_footer()
+
+        elif cmd in ("/commands", "/?"):
+            print_commands_palette()
+            console.print()
+            if not is_app_shell:
                 print_footer()
 
         elif cmd in ("/help", "/h"):
@@ -2772,7 +2849,7 @@ def main():
         sys.exit(0)
 
     if "--version" in args:
-        console.print("[bright_yellow]gemma-ui[/] 1.5.3 — Unified Terminal UI for Bazzite Local AI")
+        console.print("[bright_yellow]gemma-ui[/] 1.5.4 — Unified Terminal UI for Bazzite Local AI")
         sys.exit(0)
 
     if "--demo-ui" in args:

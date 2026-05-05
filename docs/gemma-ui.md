@@ -443,3 +443,11 @@ cat ~/.config/bazzite-security/gemma-ui.json
   - ASCII mode replaces decorative icons with plain text (OK/MISSING/WARN)
   - Config backfill preserves existing values and adds missing keys only
   - Invalid config warns, does not crash
+- **2026-05-05** — v1.5.4. Interactive Navigation:
+  - Added single-letter aliases: `/g`, `/s`, `/m`, `/o`, `/v`, `/r`, `/h`, `/t`, `/q`
+  - Added `/commands` and `/?` command palette with grouped commands
+  - Added `/menu` alias for `/mode`
+  - All security commands remain human-confirmed
+  - Voice remains push-to-talk only
+  - Memory remains explicit/supervised
+  - MCP routing remains disabled
