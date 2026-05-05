@@ -1,6 +1,6 @@
 # Doc Archive Index
 
-Completed phase documentation, maintenance trackers, and temporary export artifacts have been compressed into `artifacts/doc-archives/`. This index lists what was archived, why, and how to inspect it without extracting.
+Completed phase documentation, maintenance trackers, temporary export artifacts, and historical prototypes have been compressed into `artifacts/doc-archives/` and `artifacts/prototype-archives/`. This index lists what was archived, why, and how to inspect it without extracting.
 
 ## Quick Reference
 
@@ -24,6 +24,7 @@ Completed phase documentation, maintenance trackers, and temporary export artifa
 | `phase25.tar.gz` | `docs/phase25/` | Completed phase — optional advanced model work review | `tar -xOzf artifacts/doc-archives/phase25.tar.gz docs/phase25/PHASE25_OPTIONAL_ADVANCED_MODEL_WORK_REVIEW.md \| less` |
 | `maintenance-trackers.tar.gz` | `docs/maintenance/M*.md` + `MAINTENANCE_ROADMAP_M1_M6.md` | Completed maintenance trackers (M0, M7–M21) superseded by ROADMAP | `tar -tzf artifacts/doc-archives/maintenance-trackers.tar.gz` |
 | `notion-update-packets.tar.gz` | `docs/*/notion-update-packets/` | Temporary Notion export/import artifacts, never referenced by code | `tar -tzf artifacts/doc-archives/notion-update-packets.tar.gz` |
+| `ruvector-memory.tar.gz` | `prototypes/ruvector-memory/` | Phase 7B RuVector semantic search prototype (superseded by production `gemma-memory-search` / `gemma-memory-rag`) | `tar -xOzf artifacts/prototype-archives/ruvector-memory.tar.gz prototypes/ruvector-memory/README.md \| less` |
 
 ## How to Search Inside Archives
 

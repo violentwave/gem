@@ -44,6 +44,8 @@ build/
 *.tar.gz
 !artifacts/doc-archives/
 !artifacts/doc-archives/*.tar.gz
+!artifacts/prototype-archives/
+!artifacts/prototype-archives/*.tar.gz
 *.zip
 
 # Generated reports (large)
@@ -64,8 +66,7 @@ yarn-error.log*
 package-lock.json
 yarn.lock
 
-# Track the repo-local RuVector prototype lockfile for reproducibility
-!prototypes/ruvector-memory/package-lock.json
+
 
 # Python
 venv/
