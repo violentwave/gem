@@ -40,7 +40,10 @@ __pycache__/
 dist/
 build/
 *.tgz
+# Ignore tarballs except tracked doc archives
 *.tar.gz
+!artifacts/doc-archives/
+!artifacts/doc-archives/*.tar.gz
 *.zip
 
 # Generated reports (large)
