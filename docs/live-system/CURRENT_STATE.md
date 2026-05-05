@@ -191,7 +191,7 @@
 - **OpenCode/Codex:** Implementation work, repo operations, config editing
 - **Agent Zero:** Installed and running (container Up, assessed read-only); tool-protocol incompatible with local Gemma; no authority granted
 - **RuVector:** Supervised prototype only (L6), NOT production default
-- **Space Agent:** Manual UI only (L7), not autonomous
+- **Space Agent:** Manual UI only (L7), v0.66.0 AppImage installed, not currently running
 
 ### Security Boundaries (Updated 2026-05-01)
 - No unattended Gemma implementation
@@ -430,7 +430,7 @@
 - OpenCode bridge final status: operational at 127.0.0.1:4141; local-only; no LAN exposure
 - Direct bridge fallback: operational for simple prompts
 - Local Gemma/Ollama final status: operational for direct API; Agent Zero format mismatch documented
-- Space Agent final status: NOT INSTALLED; Phase 12C1 blocked
+- Space Agent final status: INSTALLED (v0.66.0 AppImage); not currently running; Phase 6C complete
 - Future optional prompts created:
   - prompts/opencode/phase12g1-optional-bridge-timeout-patch-review.prompt.txt
   - prompts/opencode/phase12c2-space-agent-installation-readiness.prompt.txt
@@ -449,6 +449,21 @@
 - RuVector status: Supervised secondary only (NOT default)
 - No new ingestion performed
 - No index rebuilt
+- No authority granted
+- No secrets exposed
+- Boundary compliance: PASS
+
+**Phase 6C:** Space Agent Sandbox Readiness (2026-05-05) — COMPLETE
+- Closeout: docs/phase6/PHASE6C_SPACE_AGENT_SANDBOX_READINESS.md
+- AppImage status: Installed (129 MB, v0.66.0, ~/Applications/Space-Agent.AppImage)
+- Runtime status: Not currently running
+- Config dir: ~/.config/space-agent/ (Electron app data)
+- Security findings: No system install required, no background service, no host network exposure when closed
+- Warnings: Writable config dir, auto-update check on launch, Electron/Chromium attack surface
+- Known limitation (M20): Local LLM panel is Hugging Face/Transformers.js loader — NOT compatible with Ollama model tags
+- Provider settings: OpenRouter and local Ollama (via OpenAI-compatible endpoint) confirmed working in prior phases
+- Space Agent role: Manual UI only
+- No launch performed
 - No authority granted
 - No secrets exposed
 - Boundary compliance: PASS

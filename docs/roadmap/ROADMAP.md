@@ -474,20 +474,31 @@
 
 **Depends on:** 5D, 5F
 
-### Phase 6C: Space Agent Sandbox ⏳
-**Goal:** Test Space Agent in isolated environment
+### Phase 6C: Space Agent Sandbox Readiness ✅ Completed
+**Goal:** Read-only sandbox readiness review for Space Agent
 
 **Tasks:**
-- Download AppImage to temp
-- Test launch (don't leave running)
-- Identify config/state paths
-- Verify local inference options
+- Inspect AppImage (read-only): 129 MB, v0.66.0, ELF 64-bit
+- Verify runtime state: not currently running
+- Identify config/state paths: `~/.config/space-agent/` (Electron app data)
+- Review prior docs: M16, M20, Phase 12K, 12L, 12C, 7E.1
+- Document known limitations: Local LLM panel is HF loader (not Ollama chat)
+- Distinguish Local LLM panel vs Provider settings
 
 **Deliverables:**
-- Space Agent test results
-- Compatibility report
+- `docs/phase6/PHASE6C_SPACE_AGENT_SANDBOX_READINESS.md`
+- Security findings: no system install, no background service, no host network exposure when closed
+- Warnings: writable config dir, auto-update check, Electron attack surface
+- Local LLM panel limitation documented (M20)
+- Provider settings (OpenRouter, local Ollama) confirmed working in prior phases
+- Space Agent remains manual UI only
 
-**Depends on:** 5F
+**Security Verdict:**
+- ✅ Ready for manual UI use
+- ⚠️ Limitations: Local LLM panel not for Ollama, Electron surface, writable config
+- ❌ Not ready for autonomous or security control plane use
+
+**Depends on:** 5E, 5F, 12L
 
 ### Phase 6D: Integration Smoke ⏳
 **Goal:** Verify L5-L7 components can coexist
