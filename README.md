@@ -29,6 +29,12 @@ Dry-run to preview:
 ./install.sh --dry-run
 ```
 
+Run rendering tests:
+
+```bash
+python3 -m unittest discover -s tests
+```
+
 Ensure `~/.local/bin` is in your `PATH`, then:
 
 ```bash
