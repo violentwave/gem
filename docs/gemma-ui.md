@@ -436,3 +436,10 @@ cat ~/.config/bazzite-security/gemma-ui.json
   - Prompt changed to `gemma ›`
   - Footer shows command shortcuts: `/help /menu /dashboard /memory /voice /quit`
   - Context-aware main panel shows different content per mode
+- **2026-05-05** — v1.5.3. Settings View:
+  - Added Settings mode (`/settings`) with display/UI preferences only
+  - Added commands: `/settings`, `/theme`, `/ascii`, `/compact`
+  - Added `ui.use_unicode` and `ui.high_contrast` config keys
+  - ASCII mode replaces decorative icons with plain text (OK/MISSING/WARN)
+  - Config backfill preserves existing values and adds missing keys only
+  - Invalid config warns, does not crash

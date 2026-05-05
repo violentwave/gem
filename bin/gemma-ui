@@ -225,14 +225,14 @@ def detect_helpers() -> Dict[str, bool]:
     return {name: info["path"].is_file() for name, info in HELPERS.items()}
 
 
-def helper_status(name: str) -> str:
+def helper_status(name: str, use_unicode: bool = True) -> str:
     """Return colored status string for a helper."""
     info = HELPERS.get(name, {})
     if not info:
         return "[dim]unknown[/]"
     if info["path"].is_file():
-        return "[bright_green]✓[/]"
-    return "[bright_red]✗[/]"
+        return "[bright_green]OK[/]" if not use_unicode else "[bright_green]✓[/]"
+    return "[bright_red]MISSING[/]" if not use_unicode else "[bright_red]✗[/]"
 
 
 def helper_risk_label(name: str) -> str:
@@ -252,7 +252,7 @@ def helper_risk_label(name: str) -> str:
 # ── Config ───────────────────────────────────────────────────────────────────
 
 DEFAULT_CONFIG = {
-    "version": "1.5.2",
+    "version": "1.5.3",
     "default_mode": "general",
     "theme": "default",
     "accent": "cyan",
@@ -262,11 +262,13 @@ DEFAULT_CONFIG = {
     "confirm_tools": True,
     "confirm_sudo_tools": True,
     "ui": {
-        "layout": "app_shell",  # "app_shell" or "classic"
-        "density": "normal",    # "compact" or "normal"
+        "layout": "app_shell",       # "app_shell" or "classic"
+        "density": "normal",         # "compact" or "comfortable"
         "show_mode_rail": True,
         "show_icons": True,
         "show_timestamps": True,
+        "use_unicode": True,         # False = ASCII-only markers
+        "high_contrast": False,      # True = high-contrast theme
     },
     "features": {
         "general": True,
@@ -914,8 +916,32 @@ def _render_app_shell_main_panel(width: int, current_mode: str) -> list[Text]:
         lines.append(Text("│", style="bright_black"))
         line2 = Text()
         line2.append("│ ", style="bright_black")
-        line2.append("Configuration options. (Settings panel coming soon.)", style="dim")
+        line2.append("Display/UI preferences only. No security or system changes.", style="dim")
         lines.append(line2)
+        lines.append(Text("│", style="bright_black"))
+
+        # Show current settings
+        config = load_config()
+        ui = config.get("ui", {})
+        settings_lines = [
+            f"  layout:        {ui.get('layout', 'app_shell')}",
+            f"  density:       {ui.get('density', 'normal')}",
+            f"  use_unicode:   {'yes' if ui.get('use_unicode', True) else 'no'}",
+            f"  high_contrast: {'yes' if ui.get('high_contrast', False) else 'no'}",
+            f"  show_icons:    {'yes' if ui.get('show_icons', True) else 'no'}",
+        ]
+        for sl in settings_lines:
+            line = Text()
+            line.append("│ ", style="bright_black")
+            line.append(sl, style="bright_white")
+            lines.append(line)
+        lines.append(Text("│", style="bright_black"))
+
+        # Commands
+        cmds_line = Text()
+        cmds_line.append("│ ", style="bright_black")
+        cmds_line.append("Commands: /theme  /ascii  /compact  /settings layout", style="dim")
+        lines.append(cmds_line)
 
     else:
         line1 = Text()
@@ -1427,6 +1453,16 @@ def print_help():
     /voice test-output  Test TTS output
     /voice help         Show voice help
     /voice stop         Stop voice session
+
+[bright_cyan]SETTINGS COMMANDS[/]
+    /settings            Show settings panel
+    /settings theme      Toggle high-contrast theme
+    /settings ascii      Toggle Unicode/ASCII markers
+    /settings compact    Toggle compact/comfortable density
+    /settings layout     Toggle app-shell/classic layout
+    /theme               Shortcut for /settings theme
+    /ascii               Shortcut for /settings ascii
+    /compact             Shortcut for /settings compact
 
 [bright_cyan]UI COMMANDS[/]
     /help        Show this help
@@ -2292,6 +2328,117 @@ def mode_dashboard():
     console.print("[dim]Dashboard is read-only. No scans run. No system changes.[/]")
 
 
+def mode_settings(subcmd: str = ""):
+    """Settings mode — display/UI preferences only.
+
+    This does not change security policy, helper behavior,
+    or system configuration. Only UI display settings.
+    """
+    global _CURRENT_MODE
+    _CURRENT_MODE = "settings"
+
+    config = load_config()
+    ui = config.setdefault("ui", {})
+
+    sub = subcmd.strip().lower()
+
+    if sub in ("theme", "th"):
+        # Toggle between default and high_contrast
+        current = ui.get("high_contrast", False)
+        ui["high_contrast"] = not current
+        save_config(config)
+        state = "enabled" if ui["high_contrast"] else "disabled"
+        console.print(f"[bright_cyan]High-contrast theme {state}.[/]")
+
+    elif sub in ("ascii", "a"):
+        # Toggle Unicode markers
+        current = ui.get("use_unicode", True)
+        ui["use_unicode"] = not current
+        save_config(config)
+        state = "Unicode" if ui["use_unicode"] else "ASCII"
+        console.print(f"[bright_cyan]Display mode: {state}.[/]")
+
+    elif sub in ("compact", "c"):
+        # Toggle density
+        current = ui.get("density", "normal")
+        ui["density"] = "comfortable" if current == "compact" else "compact"
+        save_config(config)
+        console.print(f"[bright_cyan]Density set to {ui['density']}.[/]")
+
+    elif sub in ("layout", "l"):
+        # Toggle layout
+        current = ui.get("layout", "app_shell")
+        ui["layout"] = "classic" if current == "app_shell" else "app_shell"
+        save_config(config)
+        state = "app-shell" if ui["layout"] == "app_shell" else "classic"
+        console.print(f"[bright_cyan]Layout set to {state}.[/]")
+        console.print("[dim]Restart gemma-ui to see the change.[/]")
+
+    elif sub in ("help", "h", "?", ""):
+        # Show settings panel
+        _print_settings_panel(config)
+
+    else:
+        console.print(f"[yellow]Unknown settings subcommand: {subcmd}[/]")
+        console.print("[dim]Try: /settings theme, /settings ascii, /settings compact, /settings layout[/]")
+
+
+def _print_settings_panel(config: dict):
+    """Print the settings panel."""
+    ui = config.get("ui", {})
+
+    console.print("[bright_yellow bold]⚙ Settings[/]")
+    console.print("[dim]Display/UI preferences only. No security or system changes.[/]")
+    console.print()
+
+    table = Table(show_header=False, box=None, padding=(0, 2))
+    table.add_column("Setting", style="bright_cyan")
+    table.add_column("Value", style="")
+    table.add_column("Description", style="dim")
+
+    table.add_row(
+        "layout",
+        ui.get("layout", "app_shell"),
+        "app_shell or classic"
+    )
+    table.add_row(
+        "density",
+        ui.get("density", "normal"),
+        "compact or comfortable"
+    )
+    table.add_row(
+        "show_icons",
+        "yes" if ui.get("show_icons", True) else "no",
+        "Show icons in mode rail"
+    )
+    table.add_row(
+        "use_unicode",
+        "yes" if ui.get("use_unicode", True) else "no",
+        "Unicode markers (✓/✗) or ASCII (OK/MISSING)"
+    )
+    table.add_row(
+        "high_contrast",
+        "yes" if ui.get("high_contrast", False) else "no",
+        "High-contrast theme"
+    )
+    table.add_row(
+        "show_timestamps",
+        "yes" if ui.get("show_timestamps", True) else "no",
+        "Show timestamps in chat"
+    )
+
+    console.print(table)
+    console.print()
+
+    console.print("[bright_cyan]Commands:[/]")
+    console.print("  [bright_cyan]/settings theme[/]    Toggle high-contrast theme")
+    console.print("  [bright_cyan]/settings ascii[/]    Toggle Unicode/ASCII markers")
+    console.print("  [bright_cyan]/settings compact[/]  Toggle compact/comfortable density")
+    console.print("  [bright_cyan]/settings layout[/]   Toggle app-shell/classic layout")
+    console.print()
+    console.print("[dim]Shortcuts: /theme, /ascii, /compact[/]")
+
+
 # ── Demo UI ──────────────────────────────────────────────────────────────────
 
 def demo_ui():
@@ -2455,6 +2602,47 @@ def interactive_router():
             else:
                 print_footer()
 
+        elif cmd == "/settings" or cmd == "/9":
+            mode_settings()
+            console.print()
+            if is_app_shell:
+                render_app_shell(detected, config, "settings")
+            else:
+                print_footer()
+
+        elif cmd.startswith("/settings "):
+            subcmd = cmd[len("/settings "):].strip()
+            mode_settings(subcmd)
+            console.print()
+            if is_app_shell:
+                render_app_shell(detected, config, "settings")
+            else:
+                print_footer()
+
+        elif cmd == "/theme":
+            mode_settings("theme")
+            console.print()
+            if is_app_shell:
+                render_app_shell(detected, config, "settings")
+            else:
+                print_footer()
+
+        elif cmd == "/ascii":
+            mode_settings("ascii")
+            console.print()
+            if is_app_shell:
+                render_app_shell(detected, config, "settings")
+            else:
+                print_footer()
+
+        elif cmd == "/compact":
+            mode_settings("compact")
+            console.print()
+            if is_app_shell:
+                render_app_shell(detected, config, "settings")
+            else:
+                print_footer()
+
         elif cmd == "/integration" or cmd == "/integrations":
             print_integration_status()
             console.print()
@@ -2584,7 +2772,7 @@ def main():
         sys.exit(0)
 
     if "--version" in args:
-        console.print("[bright_yellow]gemma-ui[/] 1.5.2 — Unified Terminal UI for Bazzite Local AI")
+        console.print("[bright_yellow]gemma-ui[/] 1.5.3 — Unified Terminal UI for Bazzite Local AI")
         sys.exit(0)
 
     if "--demo-ui" in args:
