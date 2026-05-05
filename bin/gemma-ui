@@ -181,8 +181,8 @@ HELPERS = {
         "risk": RISK_SAFE,
         "category": "Diagnostics",
     },
-    "gemma-dashboard-build": {
-        "path": BIN_DIR / "gemma-dashboard-build",
+    "gemma-dashboard": {
+        "path": BIN_DIR / "gemma-dashboard",
         "type": "shell",
         "description": "Build security dashboard HTML",
         "args_style": "optional_args",
@@ -267,7 +267,7 @@ DEFAULT_CONFIG = {
         "voice": True,
         "reports": True,
         "health": True,
-        "dashboard": False,
+        "dashboard": True,
         "web_ui": False,
         "livekit": False,
     },
@@ -909,7 +909,7 @@ def print_tools():
         "Memory": ["gemma-memory-search", "gemma-memory-rag", "gemma-knowledge-search", "gemma-knowledge-rag"],
         "Repo": ["gemma-repo-brief", "gemma-file-brief"],
         "Voice": ["gemma-voice-chat"],
-        "Diagnostics": ["gemma-bazzite-health", "gemma-dashboard-build", "gemma-monitor-daily", "gemma-monitor-drift"],
+        "Diagnostics": ["gemma-bazzite-health", "gemma-dashboard", "gemma-monitor-daily", "gemma-monitor-drift"],
     }
 
     detected = detect_helpers()
@@ -1616,7 +1616,7 @@ def mode_dashboard():
     gem_repo = Path.home() / "projects/gem"
     bazzite_repo = Path.home() / "projects/bazzite-laptop"
     repo_table.add_row("gem repo", "[green]✓[/] {0}".format(gem_repo) if gem_repo.is_dir() else "[yellow]⚠[/] not found")
-    repo_table.add_row("bazzite-laptop repo", "[green]✓[/] {0}".format(bazzite_repo) if bazzite_repo.is_dir() else "[yellow]⚠[/] not found")
+    repo_table.add_row("bazzite-laptop repo", "[green]✓[/] {0}".format(bazzite_repo) if bazzite_repo.is_dir() else "[dim]optional / not present[/]")
     repo_table.add_row("Mode", "[dim]read-only[/]")
 
     console.print(repo_table)
