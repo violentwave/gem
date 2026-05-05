@@ -103,7 +103,7 @@ All components were evaluated read-only with no authority granted, no host chang
 
 | Item | Priority | Notes |
 |------|----------|-------|
-| bazzite-laptop config import design | Medium | Requires human approval |
+| bazzite-laptop config import design | Medium | ✅ COMPLETE — see `docs/research/BAZZITE_LAPTOP_CONFIG_IMPORT_DESIGN.md` |
 | gemma-ui safety/budget config display | Low | UI enhancement |
 | tool registry risk normalization | Medium | Documentation |
 | read-only bazzite-laptop tool review | Medium | Assessment phase |
