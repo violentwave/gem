@@ -3,7 +3,7 @@
 **Host:** Bazzite/Fedora Atomic Desktop
 **User:** lch
 **Home Path:** `/var/home/lch`
-**Date:** 2026-05-02
+**Date:** 2026-05-05
 
 ## Hardware
 
@@ -241,7 +241,7 @@
 - **Status:** Supervised prototype (not production)
 - **Index:** `~/.local/share/bazzite-security/ruvector/semantic-prototype/semantic-approved-docs-memory.json`
 - **Model:** nomic-embed-text:latest (768d)
-- **Chunks:** 398
+- **Chunks:** 1,635 (expanded 2026-05-04)
 - **Usage:** gemma-memory-search/rag only — NOT global default
 
 ### GitHub Remote
@@ -436,6 +436,20 @@
   - prompts/opencode/phase12c2-space-agent-installation-readiness.prompt.txt
 - No configs modified
 - No services started
+- No secrets exposed
+- Boundary compliance: PASS
+
+**Phase 6B:** RuVector Sandbox Readiness (2026-05-05) — COMPLETE
+- Closeout: docs/phase6/PHASE6B_RUVECTOR_SANDBOX_READINESS.md
+- Prototype status: Operational (1,635 chunks, 36 MB, nomic-embed-text 768d)
+- Security findings: No network exposure, no system writes, scoped ingestion only
+- Warnings: Large index file (36 MB), stale manifests accumulating, writable data dir
+- Helpers verified: `gemma-memory-search`, `gemma-memory-rag`
+- Stage 3A fallback: PRESERVED
+- RuVector status: Supervised secondary only (NOT default)
+- No new ingestion performed
+- No index rebuilt
+- No authority granted
 - No secrets exposed
 - Boundary compliance: PASS
 

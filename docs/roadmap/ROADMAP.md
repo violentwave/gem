@@ -450,38 +450,29 @@
 
 **Depends on:** 5F, M15
 
-### Phase 6B: RuVector Sandbox
-**Goal:** Test A0 in isolated environment
+### Phase 6B: RuVector Sandbox Readiness ✅ Completed
+**Goal:** Read-only sandbox readiness review for RuVector
 
 **Tasks:**
-- Create Distrobox sandbox
-- Install A0 in sandbox
-- Test A0 CLI connector
-- Test agent definitions
-- Validate security boundaries
+- Inspect prototype package and dependencies (read-only)
+- Verify semantic index state (1,635 chunks, 36 MB)
+- Check helper scripts (`gemma-memory-search`, `gemma-memory-rag`)
+- Review security posture (no network exposure, no daemon, scoped ingestion)
+- Document known limitations and risks
+- Compare with Stage 3A fallback
 
 **Deliverables:**
-- A0 sandbox test results
-- Security validation report
-- Integration refinement
+- `docs/phase6/PHASE6B_RUVECTOR_SANDBOX_READINESS.md`
+- Security findings: no network exposure, no system writes, scoped ingestion
+- Warnings: large index file (36 MB), stale manifests accumulating, writable data dir
+- RuVector remains supervised secondary; Stage 3A remains canonical fallback
 
-**Depends on:** 5C
+**Security Verdict:**
+- ✅ Ready for supervised semantic retrieval
+- ⚠️ Prototype-only — not production-hardened
+- ❌ Not ready for default retrieval or autonomous use
 
-### Phase 6B: RuVector Sandbox ⏳
-**Goal:** Test RuVector in isolated environment
-
-**Tasks:**
-- Create sandbox environment
-- Install RuVector npm package (user space)
-- Test basic vector operations
-- Validate local-only operation
-- Compare with Stage 3A
-
-**Deliverables:**
-- RuVector sandbox test results
-- Performance assessment
-
-**Depends on:** 5F
+**Depends on:** 5D, 5F
 
 ### Phase 6C: Space Agent Sandbox ⏳
 **Goal:** Test Space Agent in isolated environment
