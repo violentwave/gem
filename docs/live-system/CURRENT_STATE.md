@@ -189,7 +189,7 @@
 - **gemma-memory-rag:** Supervised RAG using RuVector context + local Ollama generation
 - **gemma-ui memory mode:** Explicit supervised RuVector + Stage 3A fallback via `/memory` subcommands; quality dashboard (`/memory dashboard`); voice-to-memory routing with confirmation
 - **OpenCode/Codex:** Implementation work, repo operations, config editing
-- **Agent Zero:** Not yet integrated (assessment phase)
+- **Agent Zero:** Installed and running (container Up, assessed read-only); tool-protocol incompatible with local Gemma; no authority granted
 - **RuVector:** Supervised prototype only (L6), NOT production default
 - **Space Agent:** Manual UI only (L7), not autonomous
 
@@ -416,6 +416,17 @@
 - Runbook: docs/phase12/BRIDGE_OPERATOR_RUNBOOK.md
 - Phase 12 macro status: COMPLETE
 - Agent Zero final status: operational for startup/health/context/bridge route; message_send timeout limitation accepted; direct bridge fallback documented
+
+**Phase 6A:** Agent Zero Sandbox Readiness (2026-05-05) — COMPLETE
+- Closeout: docs/phase6/PHASE6A_AGENT_ZERO_SANDBOX_READINESS.md
+- Container status: Running (Up 9 hours, assessed read-only)
+- Security findings: Writable root FS, no cap drop, running as root
+- Hardened script exists: `run-agent-zero-secure.sh` (unused)
+- Direct Ollama route: WORKING (10.0.2.2:11434)
+- Tool-protocol incompatibility: CONFIRMED (A0 expects JSON, Gemma returns plain text)
+- Agent/skill state: Empty (blank slate)
+- Authority granted: NONE
+- Next: Phase 6A.1 Hardened Container Test (requires human approval)
 - OpenCode bridge final status: operational at 127.0.0.1:4141; local-only; no LAN exposure
 - Direct bridge fallback: operational for simple prompts
 - Local Gemma/Ollama final status: operational for direct API; Agent Zero format mismatch documented

@@ -423,21 +423,32 @@
 
 ## Phase 6: Sandbox Prototypes ⏳ Upcoming
 
-### Phase 6A: Agent Zero Sandbox ⏳
-**Goal:** Test A0 in isolated environment
+### Phase 6A: Agent Zero Sandbox Readiness ✅ Completed
+**Goal:** Read-only sandbox readiness review for Agent Zero
 
 **Tasks:**
-- Inspect existing container
-- Verify config paths
-- Check A0 CLI connector
-- Test sandbox isolation
-- No system changes
+- Inspect existing container (read-only)
+- Verify config paths and helper scripts
+- Check container security posture (caps, read-only, network)
+- Review prior docs (M15, integration plan, limitations)
+- Document known safe helper paths
+- Document known risks and what must not be granted
+- No system changes, no containers mutated
 
 **Deliverables:**
-- A0 sandbox test results
-- Security validation report
+- `docs/phase6/PHASE6A_AGENT_ZERO_SANDBOX_READINESS.md`
+- Security findings: writable root FS, no cap drop, running as root
+- Container IS running (Up 9 hours)
+- Hardened script exists but unused
+- Direct Ollama route works; tool-protocol incompatible
+- Empty agent/skill state
 
-**Depends on:** 5F
+**Security Verdict:**
+- ✅ Ready for read-only experimentation
+- ⚠️ Hardening recommended before full use
+- ❌ Not ready for production security operations
+
+**Depends on:** 5F, M15
 
 ### Phase 6B: RuVector Sandbox
 **Goal:** Test A0 in isolated environment
