@@ -252,7 +252,7 @@ def helper_risk_label(name: str) -> str:
 # ── Config ───────────────────────────────────────────────────────────────────
 
 DEFAULT_CONFIG = {
-    "version": "1.5.4",
+    "version": "1.5.5",
     "default_mode": "general",
     "theme": "default",
     "accent": "cyan",
@@ -446,55 +446,45 @@ def print_integration_status():
     """Print integration metadata status — display-only, no enforcement."""
     integrations = load_integrations()
 
-    console.print("[bright_yellow bold]🔗 Integration Metadata[/]")
+    console.print("[bright_yellow bold]Integration Metadata[/]")
+    console.print("[dim]Display-only. No enforcement.[/]")
     console.print()
 
     if not integrations:
-        console.print("  [dim]Integration metadata not configured.[/]")
-        console.print("  [dim]File:[/] {0}".format(INTEGRATIONS_FILE))
+        console.print("[dim]Not configured. File: {0}[/]".format(INTEGRATIONS_FILE))
         console.print()
-        console.print("[dim]Integration metadata is display-only. No enforcement occurs.[/]")
+        console.print("[dim]No enforcement occurs.[/]")
         return
 
-    # Overall status
-    status = integrations.get("status", "unknown")
-    console.print("  [bright_cyan]Status:[/]       {0}".format(status))
-    console.print("  [bright_cyan]Version:[/]      {0}".format(integrations.get("version", "unknown")))
-    console.print()
+    table = Table(show_header=False, box=None, padding=(0, 1))
+    table.add_column("Item", style="bright_cyan")
+    table.add_column("Value", style="")
 
-    # bazzite-laptop section
+    table.add_row("Status", integrations.get("status", "unknown"))
+    table.add_row("Version", integrations.get("version", "unknown"))
+
     bl = integrations.get("bazzite_laptop", {})
     if bl:
-        console.print("  [bright_cyan bold]bazzite-laptop[/]")
-        console.print("  [bright_cyan]  Role:[/]         {0}".format(bl.get("role", "unknown")))
-        console.print("  [bright_cyan]  Import status:[/] {0}".format(bl.get("config_import_status", "unknown")))
-        console.print("  [bright_cyan]  Display-only:[/]  {0}".format("yes" if bl.get("display_only") else "no"))
-        console.print("  [bright_cyan]  MCP routing:[/]   {0}".format("enabled" if bl.get("mcp_routing_enabled") else "disabled"))
-        console.print()
+        table.add_row("Role", bl.get("role", "unknown"))
+        table.add_row("Import", bl.get("config_import_status", "unknown"))
+        table.add_row("Display-only", "yes" if bl.get("display_only") else "no")
+        mcp = bl.get("mcp_routing_enabled", False)
+        table.add_row("MCP routing", "[red]enabled[/]" if mcp else "[green]disabled[/]")
 
-        # Allowed display files
         allowed = bl.get("allowed_display_files", {})
-        if allowed:
-            console.print("  [bright_cyan]  Allowed display files:[/]")
-            for name, path_tpl in allowed.items():
-                path = Path(path_tpl.replace("~", str(HOME))).expanduser()
-                exists = "[green]present[/]" if path.is_file() else "[yellow]missing[/]"
-                console.print("    {0}: {1} ({2})".format(name, path_tpl, exists))
-            console.print()
+        for name, path_tpl in allowed.items():
+            path = Path(path_tpl.replace("~", str(HOME))).expanduser()
+            exists = "[green]OK[/]" if path.is_file() else "[yellow]MISSING[/]"
+            table.add_row(f"  {name}", f"{path_tpl} ({exists})")
 
-        # Forbidden list
         forbidden = bl.get("forbidden", [])
-        if forbidden:
-            console.print("  [bright_cyan]  Forbidden imports:[/]")
-            for item in forbidden:
-                console.print("    [red]✗[/] {0}".format(item))
-            console.print()
+        for item in forbidden:
+            table.add_row(f"  forbidden", item)
 
-    console.print("[dim]Integration metadata is display-only.[/]")
-    console.print("[dim]bazzite-laptop remains legacy/reference only.[/]")
-    console.print("[dim]No config import has been performed.[/]")
-    console.print("[dim]MCP routing remains disabled.[/]")
+    console.print(table)
     console.print()
+    console.print("[dim]Display-only. bazzite-laptop remains legacy/reference.[/]")
+    console.print("[dim]MCP routing disabled.[/]")
 
 
 # ── System Status ────────────────────────────────────────────────────────────
@@ -1865,165 +1855,54 @@ def print_memory_compare(query: str):
 
 def print_memory_dashboard():
     """Print read-only RuVector quality dashboard. No ingestion. No scans."""
-    console.print("[bright_yellow bold]🧠 Memory Quality Dashboard[/]")
+    console.print("[bright_yellow bold]Memory Quality Dashboard[/]")
     console.print("[dim]Read-only. No ingestion. No default promotion.[/]")
     console.print()
 
     detected = detect_helpers()
 
-    # ── 1. Helper Availability ───────────────────────────────────────────────
-    console.print("[bright_cyan bold]1. Helper Availability[/]")
-    avail_table = Table(show_header=False, box=None, padding=(0, 2))
-    avail_table.add_column("Helper", style="bright_cyan")
-    avail_table.add_column("Status", style="")
-    avail_table.add_column("Role", style="dim")
+    # ── Helpers ──────────────────────────────────────────────────────────────
+    table = Table(show_header=False, box=None, padding=(0, 1))
+    table.add_column("Item", style="bright_cyan")
+    table.add_column("Status", style="")
 
-    helpers = [
-        ("gemma-memory-search", "RuVector semantic search"),
-        ("gemma-memory-rag", "RuVector RAG"),
-        ("gemma-knowledge-search", "Stage 3A keyword search"),
-        ("gemma-knowledge-rag", "Stage 3A RAG fallback"),
-    ]
-    for name, role in helpers:
+    for name in ("gemma-memory-search", "gemma-memory-rag", "gemma-knowledge-search", "gemma-knowledge-rag"):
         ok = detected.get(name, False)
-        avail_table.add_row(
-            name,
-            "[green]✓[/] available" if ok else "[yellow]⚠[/] not found",
-            role,
-        )
-    console.print(avail_table)
-    console.print()
+        table.add_row(name, "[green]OK[/] available" if ok else "[yellow]WARN[/] not found")
 
-    # ── 2. Known Policy Status ───────────────────────────────────────────────
-    console.print("[bright_cyan bold]2. Known Policy Status[/]")
-    policy_table = Table(show_header=False, box=None, padding=(0, 2))
-    policy_table.add_column("Source", style="bright_cyan")
-    policy_table.add_column("Status", style="")
-    policy_table.add_column("Note", style="dim")
-
-    policy_table.add_row(
-        "RuVector",
-        "[yellow]supervised secondary[/]",
-        "Explicit mode only. Not default.",
-    )
-    policy_table.add_row(
-        "Stage 3A",
-        "[green]canonical fallback[/]",
-        "Deterministic retrieval. No embeddings.",
-    )
-    policy_table.add_row(
-        "Promotion",
-        "[red]denied / not default[/]",
-        "RuVector remains supervised prototype.",
-    )
-    console.print(policy_table)
-    console.print()
-
-    # ── 3. Current Index State ───────────────────────────────────────────────
-    console.print("[bright_cyan bold]3. Current Index State[/]")
-    idx_table = Table(show_header=False, box=None, padding=(0, 2))
-    idx_table.add_column("Index", style="bright_cyan")
-    idx_table.add_column("Path", style="")
-    idx_table.add_column("Size", style="")
-
+    # Index state
     ruvector_index = HOME / ".local/share/bazzite-security/ruvector/semantic-prototype/semantic-approved-docs-memory.json"
     stage3a_index = HOME / ".local/share/bazzite-security/gemma-knowledge/index/chunks.jsonl"
 
-    # RuVector index
     if ruvector_index.is_file():
         rv_size = ruvector_index.stat().st_size
         rv_size_str = f"{rv_size / 1024 / 1024:.1f} MB" if rv_size > 1024 * 1024 else f"{rv_size / 1024:.1f} KB"
-        rv_mtime = datetime.fromtimestamp(ruvector_index.stat().st_mtime).strftime("%Y-%m-%d %H:%M")
-        idx_table.add_row("RuVector", str(ruvector_index), f"[green]✓[/] {rv_size_str} (modified {rv_mtime})")
+        table.add_row("RuVector index", f"[green]OK[/] {rv_size_str}")
     else:
-        idx_table.add_row("RuVector", str(ruvector_index), "[yellow]⚠[/] not found")
+        table.add_row("RuVector index", "[yellow]MISSING[/]")
 
-    # Stage 3A index
     if stage3a_index.is_file():
         s3_size = stage3a_index.stat().st_size
         s3_size_str = f"{s3_size / 1024 / 1024:.1f} MB" if s3_size > 1024 * 1024 else f"{s3_size / 1024:.1f} KB"
-        line_count = 0
-        try:
-            with open(stage3a_index, "r", encoding="utf-8") as f:
-                for _ in f:
-                    line_count += 1
-        except Exception:
-            pass
-        s3_mtime = datetime.fromtimestamp(stage3a_index.stat().st_mtime).strftime("%Y-%m-%d %H:%M")
-        idx_table.add_row("Stage 3A", str(stage3a_index), f"[green]✓[/] {s3_size_str} ({line_count} chunks, modified {s3_mtime})")
+        table.add_row("Stage 3A index", f"[green]OK[/] {s3_size_str}")
     else:
-        idx_table.add_row("Stage 3A", str(stage3a_index), "[yellow]⚠[/] not found")
+        table.add_row("Stage 3A index", "[yellow]MISSING[/]")
 
-    # Manifests — check multiple likely paths read-only
-    def _find_latest_manifest(base_dir: Path, pattern: str) -> Optional[Path]:
-        if not base_dir.is_dir():
-            return None
-        matches = sorted(base_dir.glob(pattern), key=lambda p: p.stat().st_mtime, reverse=True)
-        return matches[0] if matches else None
+    # Policy
+    table.add_row("RuVector role", "[yellow]supervised secondary[/]")
+    table.add_row("Stage 3A role", "[green]canonical fallback[/]")
 
-    # RuVector manifest candidates
-    rv_manifest = _find_latest_manifest(
-        HOME / ".local/share/bazzite-security/ruvector/semantic-prototype", "semantic-manifest-*.json"
-    )
-    if not rv_manifest:
-        rv_manifest = _find_latest_manifest(
-            HOME / ".local/share/bazzite-security/ruvector", "manifest-*.json"
-        )
-
-    # Stage 3A manifest candidates
-    s3_manifest = _find_latest_manifest(
-        HOME / ".local/share/bazzite-security/gemma-knowledge/manifests", "gemma-knowledge-manifest-*.txt"
-    )
-
-    console.print(idx_table)
+    console.print(table)
     console.print()
 
-    # Manifest status table
-    manifest_table = Table(show_header=False, box=None, padding=(0, 2))
-    manifest_table.add_column("Manifest", style="bright_cyan")
-    manifest_table.add_column("Path", style="")
-    manifest_table.add_column("Status", style="")
-
-    if rv_manifest and rv_manifest.is_file():
-        rv_msize = rv_manifest.stat().st_size
-        rv_msize_str = f"{rv_msize / 1024:.1f} KB"
-        rv_mmtime = datetime.fromtimestamp(rv_manifest.stat().st_mtime).strftime("%Y-%m-%d %H:%M")
-        manifest_table.add_row("RuVector", str(rv_manifest), f"[green]✓[/] {rv_msize_str} (modified {rv_mmtime})")
-    else:
-        note = "not found — index exists; run a supervised manifest refresh only if needed"
-        manifest_table.add_row("RuVector", "—", f"[yellow]⚠[/] {note}")
-
-    if s3_manifest and s3_manifest.is_file():
-        s3_msize = s3_manifest.stat().st_size
-        s3_msize_str = f"{s3_msize / 1024:.1f} KB"
-        s3_mmtime = datetime.fromtimestamp(s3_manifest.stat().st_mtime).strftime("%Y-%m-%d %H:%M")
-        manifest_table.add_row("Stage 3A", str(s3_manifest), f"[green]✓[/] {s3_msize_str} (modified {s3_mmtime})")
-    else:
-        note = "not found — index exists; run a supervised manifest refresh only if needed"
-        manifest_table.add_row("Stage 3A", "—", f"[yellow]⚠[/] {note}")
-
-    console.print(manifest_table)
+    # ── Recommendations ──────────────────────────────────────────────────────
+    console.print("[bright_cyan]Recommendations:[/]")
+    console.print("  [dim]RuVector: semantic recall (\"what did we decide...?\")[/]")
+    console.print("  [dim]Stage 3A: exact lookup (\"show me the firewall rule...\")[/]")
+    console.print("  [dim]Compare: run both when uncertain[/]")
     console.print()
 
-    # ── 4. Recommended Use ───────────────────────────────────────────────────
-    console.print("[bright_cyan bold]4. Recommended Use[/]")
-    console.print("  [green]•[/] Use [bright_cyan]RuVector[/] for semantic recall questions.")
-    console.print("    [dim]  Examples: \"what did we decide about...?\", \"how does X relate to Y?\"")
-    console.print("  [green]•[/] Use [bright_cyan]Stage 3A[/] for exact path/policy/command questions.")
-    console.print("    [dim]  Examples: \"what is the canonical path for...?\", \"show me the firewall rule...\"")
-    console.print("  [green]•[/] Use [bright_cyan]compare mode[/] when uncertain.")
-    console.print("    [dim]  Runs both and lets you evaluate side-by-side.")
-    console.print()
-
-    # ── 5. Warnings ──────────────────────────────────────────────────────────
-    console.print("[bright_cyan bold]5. Warnings[/]")
-    console.print("  [yellow]⚠[/] No ingestion in this mode.")
-    console.print("  [yellow]⚠[/] No raw logs or transcripts displayed.")
-    console.print("  [yellow]⚠[/] No default promotion. RuVector stays supervised.")
-    console.print("  [yellow]⚠[/] Stage 3A fallback preserved.")
-    console.print()
-
-    console.print("[dim]Dashboard is read-only. No scans run. No system changes. No ingestion.[/]")
+    console.print("[dim]Read-only. No scans. No ingestion.[/]")
 
 
 def mode_repo():
@@ -2076,10 +1955,21 @@ def print_voice_status():
         return
 
     # Fallback status
-    console.print("[bright_yellow bold]🎙️ Voice Mode Status[/]")
+    console.print("[bright_yellow bold]Voice Mode Status[/]")
     console.print()
-    console.print("  [red]✗[/] gemma-voice-chat not configured")
-    console.print("  [dim]Run: gemma-voice-chat --setup[/]")
+
+    table = Table(show_header=False, box=None, padding=(0, 1))
+    table.add_column("Component", style="bright_cyan")
+    table.add_column("Status", style="")
+
+    table.add_row("gemma-voice-chat", "[yellow]MISSING[/] not configured")
+    table.add_row("Recorder", "[green]OK[/] pw-record" if shutil.which("pw-record") else "[yellow]MISSING[/] pw-record")
+    table.add_row("STT", "[green]OK[/] whisper-cli" if shutil.which("whisper-cli") else "[yellow]MISSING[/] whisper-cli")
+    table.add_row("Mode", "[dim]push-to-talk only[/]")
+
+    console.print(table)
+    console.print()
+    console.print("[dim]Run: gemma-voice-chat --setup[/]")
 
 
 def mode_voice(subcmd: str = ""):
@@ -2254,13 +2144,12 @@ def mode_dashboard():
     if is_app_shell:
         render_app_shell(detected, config, "dashboard", show_footer=False)
     else:
-        console.print("[bright_yellow bold]📊 Status Dashboard[/]")
+        console.print("[bright_yellow bold]Status Dashboard[/]")
         console.print()
 
     # ── Core ─────────────────────────────────────────────────────────────────
-    console.print("[bright_cyan bold]Core[/]")
-    core_table = Table(show_header=False, box=None, padding=(0, 2))
-    core_table.add_column("Item", style="bright_cyan")
+    core_table = Table(show_header=False, box=None, padding=(0, 1))
+    core_table.add_column("Component", style="bright_cyan")
     core_table.add_column("Status", style="")
 
     # Ollama
@@ -2269,134 +2158,58 @@ def mode_dashboard():
         with urllib.request.urlopen(req, timeout=3) as resp:
             data = json.loads(resp.read())
             models = data.get("models", [])
-            core_table.add_row("Ollama API", "[green]✓ online[/] ({0} models)".format(len(models)))
+            core_table.add_row("Ollama", f"[green]online[/] ({len(models)} models)")
     except Exception:
-        core_table.add_row("Ollama API", "[red]✗ offline[/]")
+        core_table.add_row("Ollama", "[red]offline[/]")
 
-    # Current model
     core_table.add_row("Model", config.get("ollama", {}).get("model", MODEL))
+    core_table.add_row("Config", "[green]OK[/]" if CONFIG_FILE.is_file() else "[yellow]missing[/]")
+    core_table.add_row("Helpers", f"{sum(1 for v in detected.values() if v)}/{len(HELPERS)} available")
 
-    # Config status
-    cfg_valid = CONFIG_FILE.is_file()
-    core_table.add_row("Config", "[green]✓[/] {0}".format(CONFIG_FILE) if cfg_valid else "[red]✗ missing[/]")
+    # ── Voice ────────────────────────────────────────────────────────────────
+    voice_ok = shutil.which("pw-record") and shutil.which("whisper-cli") and detected.get("gemma-voice-chat")
+    core_table.add_row("Voice", "[green]ready[/]" if voice_ok else "[yellow]not configured[/]")
 
-    # Helpers
-    available = sum(1 for v in detected.values() if v)
-    core_table.add_row("Helpers", "{0}/{1} available".format(available, len(HELPERS)))
+    # ── Memory ───────────────────────────────────────────────────────────────
+    mem_ok = detected.get("gemma-memory-search") or detected.get("gemma-knowledge-search")
+    core_table.add_row("Memory", "[green]ready[/]" if mem_ok else "[yellow]not configured[/]")
+
+    # ── Repo ─────────────────────────────────────────────────────────────────
+    gem_repo = Path.home() / "projects/gem"
+    core_table.add_row("Repo", f"[green]OK[/] gem" if gem_repo.is_dir() else "[yellow]not found[/]")
+
+    # ── Safety ───────────────────────────────────────────────────────────────
+    core_table.add_row("Safety", "[green]advisory only[/]")
 
     console.print(core_table)
     console.print()
 
-    # ── Voice ────────────────────────────────────────────────────────────────
-    console.print("[bright_cyan bold]Voice[/]")
-    voice_table = Table(show_header=False, box=None, padding=(0, 2))
-    voice_table.add_column("Item", style="bright_cyan")
-    voice_table.add_column("Status", style="")
-
-    voice_table.add_row("Recorder", "[green]✓[/] pw-record" if shutil.which("pw-record") else "[yellow]⚠[/] not found")
-    voice_table.add_row("STT", "[green]✓[/] whisper-cli" if shutil.which("whisper-cli") else "[yellow]⚠[/] not found")
-    voice_table.add_row("TTS", "[green]✓[/] piper" if detected.get("gemma-voice-chat") else "[yellow]⚠[/] not configured")
-    voice_table.add_row("Mode", "[dim]push-to-talk only[/]")
-
-    console.print(voice_table)
-    console.print()
-
-    # ── Memory ───────────────────────────────────────────────────────────────
-    console.print("[bright_cyan bold]Memory[/]")
-    mem_table = Table(show_header=False, box=None, padding=(0, 2))
-    mem_table.add_column("Item", style="bright_cyan")
-    mem_table.add_column("Status", style="")
-
-    mem_table.add_row("gemma-memory-search", "[green]✓[/]" if detected.get("gemma-memory-search") else "[yellow]⚠[/] not found")
-    mem_table.add_row("gemma-memory-rag", "[green]✓[/]" if detected.get("gemma-memory-rag") else "[yellow]⚠[/] not found")
-    mem_table.add_row("gemma-knowledge-rag", "[green]✓[/]" if detected.get("gemma-knowledge-rag") else "[yellow]⚠[/] not found")
-    mem_table.add_row("RuVector", "[dim]supervised secondary only[/]")
-    mem_table.add_row("Stage 3A", "[dim]canonical fallback[/]")
-
-    console.print(mem_table)
-    console.print()
-
-    # ── Repo ─────────────────────────────────────────────────────────────────
-    console.print("[bright_cyan bold]Repo[/]")
-    repo_table = Table(show_header=False, box=None, padding=(0, 2))
-    repo_table.add_column("Item", style="bright_cyan")
-    repo_table.add_column("Status", style="")
-
-    gem_repo = Path.home() / "projects/gem"
-    bazzite_repo = Path.home() / "projects/bazzite-laptop"
-    repo_table.add_row("gem repo", "[green]✓[/] {0}".format(gem_repo) if gem_repo.is_dir() else "[yellow]⚠[/] not found")
-    repo_table.add_row("bazzite-laptop repo", "[green]✓[/] {0}".format(bazzite_repo) if bazzite_repo.is_dir() else "[dim]optional / not present[/]")
-    repo_table.add_row("Mode", "[dim]read-only[/]")
-
-    console.print(repo_table)
-    console.print()
-
-    # ── Safety ───────────────────────────────────────────────────────────────
-    console.print("[bright_cyan bold]Safety[/]")
-    safety_table = Table(show_header=False, box=None, padding=(0, 2))
-    safety_table.add_column("Boundary", style="bright_cyan")
-    safety_table.add_column("Status", style="")
-
-    safety_table.add_row("Advisory only", "[green]✓[/] enabled")
-    safety_table.add_row("Human-confirmed tools", "[green]✓[/] enabled")
-    safety_table.add_row("No always-listening daemon", "[green]✓[/] confirmed")
-    safety_table.add_row("No LiveKit runtime", "[green]✓[/] confirmed")
-    safety_table.add_row("No web server", "[green]✓[/] confirmed")
-
-    console.print(safety_table)
-    console.print()
+    # ── Feature Flags ────────────────────────────────────────────────────────
+    features = config.get("features", {})
+    feat_line = "  ".join(
+        f"[green]{name}[/]" if features.get(name, False) else f"[dim]{name}[/]"
+        for name in ("general", "security", "memory", "repo", "voice", "reports", "health")
+    )
+    console.print(f"[bright_cyan]Features:[/] {feat_line}")
 
     # ── Export ───────────────────────────────────────────────────────────────
-    console.print("[bright_cyan bold]Export[/]")
-    export_table = Table(show_header=False, box=None, padding=(0, 2))
-    export_table.add_column("Item", style="bright_cyan")
-    export_table.add_column("Status", style="")
-
-    export_table.add_row("Static dashboard export", "[dim]optional[/]" if detected.get("gemma-dashboard") else "[dim]not installed[/]")
-
-    console.print(export_table)
     console.print()
+    if detected.get("gemma-dashboard"):
+        console.print("[dim]gemma-dashboard: Optional static export helper (not primary dashboard)[/]")
+    else:
+        console.print("[dim]gemma-dashboard: not installed[/]")
 
-    # ── Feature Flags ────────────────────────────────────────────────────────
-    console.print("[bright_cyan bold]Feature Flags[/]")
-    features = config.get("features", {})
-    feat_table = Table(show_header=False, box=None, padding=(0, 2))
-    feat_table.add_column("Feature", style="bright_cyan")
-    feat_table.add_column("Enabled", style="", width=8, justify="center")
-
-    for name in ("general", "security", "memory", "repo", "voice", "reports", "health", "dashboard", "web_ui", "livekit"):
-        enabled = features.get(name, False)
-        feat_table.add_row(name, "[green]✓[/]" if enabled else "[red]✗[/]")
-
-    console.print(feat_table)
-    console.print()
-
-    # ── Integration Metadata ─────────────────────────────────────────────────
-    console.print("[bright_cyan bold]Integration Metadata[/]")
-    integ_table = Table(show_header=False, box=None, padding=(0, 2))
-    integ_table.add_column("Item", style="bright_cyan")
-    integ_table.add_column("Status", style="")
-
+    # ── Integration ──────────────────────────────────────────────────────────
     integrations = load_integrations()
     if integrations:
         bl = integrations.get("bazzite_laptop", {})
-        integ_table.add_row("bazzite-laptop role", bl.get("role", "unknown"))
-        integ_table.add_row("Config import status", bl.get("config_import_status", "unknown"))
-        integ_table.add_row("Display-only", "yes" if bl.get("display_only") else "no")
-        integ_table.add_row("MCP routing", "disabled" if not bl.get("mcp_routing_enabled") else "[red]enabled[/]")
-        # Check file presence
-        allowed = bl.get("allowed_display_files", {})
-        for name, path_tpl in allowed.items():
-            path = Path(path_tpl.replace("~", str(HOME))).expanduser()
-            exists = "[green]present[/]" if path.is_file() else "[yellow]missing[/]"
-            integ_table.add_row(f"  {name}", exists)
+        mcp = bl.get("mcp_routing_enabled", False)
+        console.print(f"[dim]Integration: bazzite-laptop={bl.get('role', 'unknown')} MCP={'enabled' if mcp else 'disabled'}[/]")
     else:
-        integ_table.add_row("Status", "[dim]not configured[/]")
+        console.print("[dim]Integration: not configured[/]")
 
-    console.print(integ_table)
     console.print()
-
-    console.print("[dim]Dashboard is read-only. No scans run. No system changes.[/]")
+    console.print("[dim]Read-only. No scans. No system changes.[/]")
 
 
 def mode_settings(subcmd: str = ""):
@@ -2849,7 +2662,7 @@ def main():
         sys.exit(0)
 
     if "--version" in args:
-        console.print("[bright_yellow]gemma-ui[/] 1.5.4 — Unified Terminal UI for Bazzite Local AI")
+        console.print("[bright_yellow]gemma-ui[/] 1.5.5 — Unified Terminal UI for Bazzite Local AI")
         sys.exit(0)
 
     if "--demo-ui" in args:

@@ -451,3 +451,11 @@ cat ~/.config/bazzite-security/gemma-ui.json
   - Voice remains push-to-talk only
   - Memory remains explicit/supervised
   - MCP routing remains disabled
+- **2026-05-05** — v1.5.5. Dashboard Polish:
+  - All dashboard views share the same compact app-shell style
+  - mode_dashboard() uses single compact table instead of many nested tables
+  - print_memory_dashboard() streamlined with compact inline status
+  - print_integration_status() uses compact table format
+  - print_voice_status() uses compact table format with ASCII markers
+  - gemma-dashboard labeled as "Optional static export helper (not primary dashboard)"
+  - No nested giant boxes; long outputs remain readable in scrollback
