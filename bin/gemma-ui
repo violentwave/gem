@@ -84,6 +84,7 @@ OLLAMA_HOST = os.environ.get("OLLAMA_HOST", "http://127.0.0.1:11434")
 
 # ── State ────────────────────────────────────────────────────────────────────
 _CURRENT_MODE = "welcome"
+_FORCE_CLASSIC = False
 
 # ── Helper Registry ──────────────────────────────────────────────────────────
 # Each helper: (path, type, description, args_style, risk)
@@ -250,7 +251,7 @@ def helper_risk_label(name: str) -> str:
 # ── Config ───────────────────────────────────────────────────────────────────
 
 DEFAULT_CONFIG = {
-    "version": "1.2.0",
+    "version": "1.5.0",
     "default_mode": "general",
     "theme": "default",
     "accent": "cyan",
@@ -259,6 +260,13 @@ DEFAULT_CONFIG = {
     "compact_mode": False,
     "confirm_tools": True,
     "confirm_sudo_tools": True,
+    "ui": {
+        "layout": "app_shell",  # "app_shell" or "classic"
+        "density": "normal",    # "compact" or "normal"
+        "show_mode_rail": True,
+        "show_icons": True,
+        "show_timestamps": True,
+    },
     "features": {
         "general": True,
         "security": True,
@@ -311,17 +319,22 @@ def load_config() -> dict:
     If file is missing or invalid, returns full defaults.
     """
     if not CONFIG_FILE.is_file():
-        return DEFAULT_CONFIG.copy()
-
-    try:
-        with open(CONFIG_FILE) as f:
-            stored = json.load(f)
-    except (json.JSONDecodeError, IOError):
-        console.print("[yellow]Warning: config file unreadable, using defaults.[/]")
-        return DEFAULT_CONFIG.copy()
-
-    # Deep merge: defaults as base, user values overlay on top
-    merged = _deep_merge(DEFAULT_CONFIG, stored)
+        merged = DEFAULT_CONFIG.copy()
+    else:
+        try:
+            with open(CONFIG_FILE) as f:
+                stored = json.load(f)
+            # Deep merge: defaults as base, user values overlay on top
+            merged = _deep_merge(DEFAULT_CONFIG, stored)
+        except (json.JSONDecodeError, IOError):
+            console.print("[yellow]Warning: config file unreadable, using defaults.[/]")
+            merged = DEFAULT_CONFIG.copy()
+            
+    if _FORCE_CLASSIC:
+        if "ui" not in merged:
+            merged["ui"] = {}
+        merged["ui"]["layout"] = "classic"
+        
     return merged
 
 
@@ -524,6 +537,11 @@ def get_memory_status(detected: Dict[str, bool]) -> tuple:
 def print_welcome_screen(detected: Dict[str, bool]):
     """Print polished welcome screen."""
     config = load_config()
+    
+    if config.get("ui", {}).get("layout", "classic") == "app_shell":
+        render_app_shell(detected, config, "welcome")
+        return
+        
     ollama_status, ollama_color, ollama_detail = get_ollama_status()
     voice_status, voice_color = get_voice_status(detected)
     mem_status, mem_color = get_memory_status(detected)
@@ -704,6 +722,91 @@ def print_info_panel(message: str):
         border_style="bright_blue",
         padding=(0, 1),
     ))
+
+
+# ── App Shell Layout ─────────────────────────────────────────────────────────
+
+def render_top_bar(detected: Dict[str, bool], config: dict):
+    """Render compact single-line status bar."""
+    ollama_status, ollama_color, _ = get_ollama_status()
+    voice_status, voice_color = get_voice_status(detected)
+    mem_status, mem_color = get_memory_status(detected)
+    tool_summary = get_tool_summary(detected)
+    
+    model_name = config.get("ollama", {}).get("model", MODEL)
+    
+    parts = [
+        f"[bright_cyan bold]Gemma[/]",
+        f"[dim]model[/] [bright_white]{model_name}[/]",
+        f"[dim]ollama[/] [{ollama_color}]{ollama_status}[/]",
+        f"[dim]mem[/] [{mem_color}]{mem_status.split()[0]}[/]",
+        f"[dim]voice[/] [{voice_color}]{voice_status}[/]",
+        f"[dim]tools[/] [bright_white]{tool_summary}[/]",
+    ]
+    
+    console.print("  [bright_black]│[/]  ".join(parts))
+    console.print(Rule(style="bright_black"))
+
+
+def render_mode_rail(detected: Dict[str, bool], config: dict, current_mode: str):
+    """Render horizontal mode list with selected marker."""
+    modes = [
+        ("general", "General", "Chat with local Gemma"),
+        ("security", "Security", "Human-confirmed security tools"),
+        ("memory", "Memory", "RuVector + Stage 3A"),
+        ("repo", "Repo", "Repo/file briefings"),
+        ("reports", "Reports", "Local report browser"),
+        ("voice", "Voice", "Push-to-talk voice"),
+        ("health", "Health", "Safe status checks"),
+    ]
+    
+    rail_parts = []
+    for mode_id, name, desc in modes:
+        if mode_id == current_mode:
+            rail_parts.append(f"[bright_cyan]◉ {name}[/]")
+        else:
+            rail_parts.append(f"[dim]◯ {name}[/]")
+            
+    console.print("  ".join(rail_parts))
+    console.print(Rule(style="bright_black"))
+
+
+def render_main_panel(content_lines: list[str]):
+    """Render the main session/transcript area."""
+    if not content_lines:
+        return
+        
+    text = "\n".join(content_lines)
+    console.print(Panel(
+        text,
+        border_style="bright_black",
+        padding=(1, 2),
+    ))
+
+
+def render_footer(config: dict):
+    """Render command hints line."""
+    console.print("[dim]/help  /mode  /clear  /save  /quit[/]")
+    console.print()
+
+
+def render_app_shell(detected: Dict[str, bool], config: dict, current_mode: str = "welcome", show_footer: bool = True):
+    """Render the full app shell layout."""
+    console.clear()
+    render_top_bar(detected, config)
+    render_mode_rail(detected, config, current_mode)
+    
+    if current_mode == "welcome":
+        content = [
+            "[bright_white bold]Welcome to Gemma Local Agent[/]",
+            "",
+            "[dim]Select a mode from the rail above or type a command.[/]",
+            "[dim]Type /help for a full list of commands.[/]"
+        ]
+        render_main_panel(content)
+    
+    if show_footer:
+        render_footer(config)
 
 
 # ── Intent Router ────────────────────────────────────────────────────────────
@@ -1543,11 +1646,16 @@ def mode_dashboard():
     global _CURRENT_MODE
     _CURRENT_MODE = "dashboard"
 
-    console.print("[bright_yellow bold]📊 Status Dashboard[/]")
-    console.print()
-
     detected = detect_helpers()
     config = load_config()
+
+    # Use app shell layout when configured
+    is_app_shell = config.get("ui", {}).get("layout", "classic") == "app_shell"
+    if is_app_shell:
+        render_app_shell(detected, config, "dashboard", show_footer=False)
+    else:
+        console.print("[bright_yellow bold]📊 Status Dashboard[/]")
+        console.print()
 
     # ── Core ─────────────────────────────────────────────────────────────────
     console.print("[bright_cyan bold]Core[/]")
@@ -1697,11 +1805,14 @@ def demo_ui():
     """Render the UI without running any tools."""
     detected = detect_helpers()
     config = load_config()
+    
+    is_app_shell = config.get("ui", {}).get("layout", "classic") == "app_shell"
 
     print_welcome_screen(detected)
-    print_status_bar(detected, "welcome")
-    print_mode_selector(detected)
-    print_footer()
+    if not is_app_shell:
+        print_status_bar(detected, "welcome")
+        print_mode_selector(detected)
+        print_footer()
 
     console.print()
     console.print("[dim]─ Demo: General Chat ─[/]")
@@ -1740,11 +1851,14 @@ def interactive_router():
     global _CURRENT_MODE
     config = load_config()
     detected = detect_helpers()
+    
+    is_app_shell = config.get("ui", {}).get("layout", "classic") == "app_shell"
 
     print_welcome_screen(detected)
-    print_status_bar(detected, "welcome")
-    print_mode_selector(detected)
-    print_footer()
+    if not is_app_shell:
+        print_status_bar(detected, "welcome")
+        print_mode_selector(detected)
+        print_footer()
 
     while True:
         try:
@@ -1768,60 +1882,91 @@ def interactive_router():
 
         elif cmd == "/general" or cmd == "/1":
             mode_general()
-            print_status_bar(detected, "general")
-            print_footer()
+            if is_app_shell:
+                render_app_shell(detected, config, "general")
+            else:
+                print_status_bar(detected, "general")
+                print_footer()
 
         elif cmd == "/security" or cmd == "/2":
             mode_security()
-            print_status_bar(detected, "security")
-            print_footer()
+            if is_app_shell:
+                render_app_shell(detected, config, "security")
+            else:
+                print_status_bar(detected, "security")
+                print_footer()
 
         elif cmd == "/memory" or cmd == "/3":
             mode_memory()
-            print_status_bar(detected, "memory")
-            print_footer()
+            if is_app_shell:
+                render_app_shell(detected, config, "memory")
+            else:
+                print_status_bar(detected, "memory")
+                print_footer()
 
         elif cmd.startswith("/memory "):
             subcmd = cmd[len("/memory "):].strip()
             mode_memory(subcmd)
-            print_status_bar(detected, "memory")
-            print_footer()
+            if is_app_shell:
+                render_app_shell(detected, config, "memory")
+            else:
+                print_status_bar(detected, "memory")
+                print_footer()
 
         elif cmd == "/repo" or cmd == "/4":
             mode_repo()
-            print_status_bar(detected, "repo")
-            print_footer()
+            if is_app_shell:
+                render_app_shell(detected, config, "repo")
+            else:
+                print_status_bar(detected, "repo")
+                print_footer()
 
         elif cmd == "/voice" or cmd == "/5":
             mode_voice()
-            print_status_bar(detected, "voice")
-            print_footer()
+            if is_app_shell:
+                render_app_shell(detected, config, "voice")
+            else:
+                print_status_bar(detected, "voice")
+                print_footer()
 
         elif cmd.startswith("/voice "):
             subcmd = cmd[len("/voice "):].strip()
             mode_voice(subcmd)
-            print_status_bar(detected, "voice")
-            print_footer()
+            if is_app_shell:
+                render_app_shell(detected, config, "voice")
+            else:
+                print_status_bar(detected, "voice")
+                print_footer()
 
         elif cmd == "/reports" or cmd == "/6":
             print_reports()
             console.print()
-            print_footer()
+            if is_app_shell:
+                render_app_shell(detected, config, "reports")
+            else:
+                print_footer()
 
         elif cmd == "/health" or cmd == "/7":
             mode_health()
             console.print()
-            print_footer()
+            if is_app_shell:
+                render_app_shell(detected, config, "health")
+            else:
+                print_footer()
 
         elif cmd in ("/dashboard", "/status", "/8"):
             mode_dashboard()
             console.print()
-            print_footer()
+            if is_app_shell:
+                render_app_shell(detected, config, "dashboard")
+            else:
+                print_footer()
 
         elif cmd == "/integration" or cmd == "/integrations":
             print_integration_status()
             console.print()
-            print_footer()
+            if not is_app_shell:
+                print_footer()
 
         elif cmd.startswith("/integration "):
             subcmd = cmd[len("/integration "):].strip()
@@ -1830,14 +1975,16 @@ def interactive_router():
             else:
                 console.print(f"[yellow]Unknown integration subcommand: {subcmd}[/]")
             console.print()
-            print_footer()
+            if not is_app_shell:
+                print_footer()
 
         elif cmd == "/clear":
             console.clear()
             print_welcome_screen(detected)
-            print_status_bar(detected, "welcome")
-            print_mode_selector(detected)
-            print_footer()
+            if not is_app_shell:
+                print_status_bar(detected, "welcome")
+                print_mode_selector(detected)
+                print_footer()
 
         elif cmd == "/save":
             config = load_config()
@@ -1846,32 +1993,45 @@ def interactive_router():
             print_info_panel("Session state saved.")
 
         elif cmd == "/mode":
-            print_mode_selector(detected)
-            print_footer()
+            if is_app_shell:
+                render_app_shell(detected, config, "welcome")
+            else:
+                print_mode_selector(detected)
+                print_footer()
 
         elif cmd in ("/help", "/h"):
             print_help()
             console.print()
-            print_footer()
+            if not is_app_shell:
+                print_footer()
 
         elif cmd == "/back":
             _CURRENT_MODE = "welcome"
-            print_status_bar(detected, "welcome")
-            print_mode_selector(detected)
-            print_footer()
+            if is_app_shell:
+                render_app_shell(detected, config, "welcome")
+            else:
+                print_status_bar(detected, "welcome")
+                print_mode_selector(detected)
+                print_footer()
 
         elif cmd.startswith("/"):
             # Try as a direct message to general chat
             console.print(f"[dim]Unknown mode '{user_input}'. Routing to general chat...[/]")
             mode_general(user_input)
-            print_status_bar(detected, "general")
-            print_footer()
+            if is_app_shell:
+                render_app_shell(detected, config, "general")
+            else:
+                print_status_bar(detected, "general")
+                print_footer()
 
         else:
             # Direct message for general chat
             mode_general(user_input)
-            print_status_bar(detected, "general")
-            print_footer()
+            if is_app_shell:
+                render_app_shell(detected, config, "general")
+            else:
+                print_status_bar(detected, "general")
+                print_footer()
 
 
 # ── CLI Entry Point ──────────────────────────────────────────────────────────
@@ -1915,6 +2075,12 @@ def list_modes():
 
 def main():
     args = sys.argv[1:]
+
+    # Handle --classic flag before anything else
+    if "--classic" in args:
+        args.remove("--classic")
+        global _FORCE_CLASSIC
+        _FORCE_CLASSIC = True
 
     if "--help" in args or "-h" in args:
         print_help()

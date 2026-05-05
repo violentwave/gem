@@ -247,6 +247,13 @@ gemma-ui --memory-compare "<question>"
   "compact_mode": false,
   "confirm_tools": true,
   "confirm_sudo_tools": true,
+  "ui": {
+    "layout": "app_shell",
+    "density": "normal",
+    "show_mode_rail": true,
+    "show_icons": true,
+    "show_timestamps": true
+  },
   "features": {
     "general": true,
     "security": true,
@@ -413,3 +420,9 @@ cat ~/.config/bazzite-security/gemma-ui.json
   - Marked service_canary and thermal_check as DESIGN_ONLY (legacy references)
   - Created machine-readable `~/.config/bazzite-security/gemma-tool-registry.json`
   - Registry is display-only — does not drive execution.
+- **2026-05-05** — v1.5.0. App Shell Layout:
+  - Added `app_shell` layout to make the UI feel like a terminal app (OpenCode/OpenClaw style)
+  - Added `ui` config block with `layout`, `density`, `show_mode_rail`, `show_icons`, `show_timestamps`
+  - Added `--classic` flag to force the old layout
+  - Added `render_app_shell`, `render_top_bar`, `render_mode_rail`, `render_main_panel`, `render_footer`
+  - Kept all existing command handlers and safety boundaries intact
