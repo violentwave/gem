@@ -427,3 +427,12 @@ cat ~/.config/bazzite-security/gemma-ui.json
   - Compact top status bar with chip-style badges (model, ollama, mem, voice, tools)
   - Contextual footer with keyboard hints (`?` Help, `/` Command, `Tab` Switch, `Esc` Back)
   - No Ollama calls, no tool execution, no system changes
+- **2026-05-05** — v1.5.2. App Shell Wired as Default:
+  - Default `gemma-ui` (no args) now uses the polished app-shell layout
+  - `--classic` preserved to show the previous table-based welcome layout
+  - Mode rail shows 8 modes: General, Security, Memory, Repo, Reports, Voice, Health, Settings
+  - Dashboard demoted to view/status panel, not a primary mode
+  - `gemma-dashboard` shown as optional static export only
+  - Prompt changed to `gemma ›`
+  - Footer shows command shortcuts: `/help /menu /dashboard /memory /voice /quit`
+  - Context-aware main panel shows different content per mode
