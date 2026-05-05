@@ -14,6 +14,7 @@ Usage:
     gemma-ui --mode reports               # Show recent reports
     gemma-ui --mode health                # Run safe health checks
     gemma-ui --demo-ui                   # Render demo without running tools
+    gemma-ui --demo-layout               # Render polished layout mockup (no tools)
     gemma-ui --list-modes                 # List available modes
     gemma-ui --help                       # Show help
 
@@ -251,7 +252,7 @@ def helper_risk_label(name: str) -> str:
 # ── Config ───────────────────────────────────────────────────────────────────
 
 DEFAULT_CONFIG = {
-    "version": "1.5.0",
+    "version": "1.5.1",
     "default_mode": "general",
     "theme": "default",
     "accent": "cyan",
@@ -809,6 +810,305 @@ def render_app_shell(detected: Dict[str, bool], config: dict, current_mode: str 
         render_footer(config)
 
 
+# ── Polished App Shell Layout (Demo) ─────────────────────────────────────────
+
+def _render_demo_top_bar(width: int, detected: Dict[str, bool]) -> Text:
+    """Build a compact top status bar as Rich Text."""
+    ollama_status, ollama_color, ollama_detail = get_ollama_status()
+    voice_status, voice_color = get_voice_status(detected)
+    mem_status, mem_color = get_memory_status(detected)
+    tool_summary = get_tool_summary(detected)
+    
+    # Build chip-style status elements
+    chips = []
+    
+    # App name chip
+    chips.append(("Gemma", "bright_cyan bold"))
+    
+    # Model chip
+    model_short = MODEL
+    if len(model_short) > 12:
+        model_short = model_short[:9] + "..."
+    chips.append((f"model:{model_short}", "bright_white"))
+    
+    # Ollama chip with color
+    chips.append((f"ollama:{ollama_status}", ollama_color))
+    
+    # Memory chip
+    mem_short = mem_status.split()[0] if mem_status else "?"
+    chips.append((f"mem:{mem_short}", mem_color))
+    
+    # Voice chip
+    voice_short = voice_status if len(voice_status) <= 10 else voice_status[:7] + "..."
+    chips.append((f"voice:{voice_short}", voice_color))
+    
+    # Tools chip
+    chips.append((f"tools:{tool_summary}", "bright_white"))
+    
+    # Assemble into a single line with separators
+    text = Text()
+    text.append("┌─ ", style="bright_black")
+    for i, (label, style) in enumerate(chips):
+        if i > 0:
+            text.append(" ─ ", style="bright_black")
+        text.append(label, style=style)
+    
+    # Pad/truncate to width
+    current_len = len(text.plain)
+    if current_len < width - 2:
+        text.append(" " * (width - 2 - current_len), style="bright_black")
+    text.append("─┐", style="bright_black")
+    
+    return text
+
+
+def _render_demo_mode_rail_vertical(current_mode: str, width: int) -> list[Text]:
+    """Render a vertical left mode rail for wide terminals."""
+    modes = [
+        ("general", "General", "G"),
+        ("security", "Security", "S"),
+        ("memory", "Memory", "M"),
+        ("repo", "Repo", "O"),
+        ("reports", "Reports", "R"),
+        ("voice", "Voice", "V"),
+        ("health", "Health", "H"),
+        ("settings", "Settings", "T"),
+    ]
+    
+    lines = []
+    # Header
+    header = Text()
+    header.append("│ ", style="bright_black")
+    header.append("Modes", style="bright_cyan bold")
+    lines.append(header)
+    header2 = Text()
+    header2.append("│ ", style="bright_black")
+    header2.append("─────", style="bright_black")
+    lines.append(header2)
+    
+    for mode_id, name, hotkey in modes:
+        line = Text()
+        line.append("│ ", style="bright_black")
+        if mode_id == current_mode:
+            line.append("> ", style="bright_cyan bold")
+            line.append(f"[{hotkey}] {name}", style="bright_cyan bold")
+        else:
+            line.append("  ", style="bright_black")
+            line.append(f"[{hotkey}] ", style="dim")
+            line.append(name, style="dim")
+        lines.append(line)
+    
+    # Quit hint
+    quit_line = Text()
+    quit_line.append("│ ", style="bright_black")
+    quit_line.append("─────", style="bright_black")
+    lines.append(quit_line)
+    quit_line2 = Text()
+    quit_line2.append("│ ", style="bright_black")
+    quit_line2.append("[Q] Quit", style="dim")
+    lines.append(quit_line2)
+    
+    return lines
+
+
+def _render_demo_mode_rail_horizontal(current_mode: str) -> Text:
+    """Render a compact horizontal mode rail for narrow terminals."""
+    modes = [
+        ("general", "G"),
+        ("security", "S"),
+        ("memory", "M"),
+        ("repo", "O"),
+        ("reports", "R"),
+        ("voice", "V"),
+        ("health", "H"),
+    ]
+    
+    text = Text()
+    text.append("│ ", style="bright_black")
+    for i, (mode_id, hotkey) in enumerate(modes):
+        if i > 0:
+            text.append("  ", style="bright_black")
+        if mode_id == current_mode:
+            text.append(f"[{hotkey}]", style="bright_cyan bold")
+            text.append(f"●", style="bright_cyan")
+        else:
+            text.append(f"[{hotkey}]", style="dim")
+            text.append(f"○", style="dim")
+    
+    text.append("  [Q]", style="dim")
+    return text
+
+
+def _render_demo_main_panel(width: int) -> list[Text]:
+    """Render a realistic demo transcript in the main panel."""
+    lines = []
+    
+    # Session start marker
+    start = Text()
+    start.append("│ ", style="bright_black")
+    start.append("[Session Start]", style="dim")
+    lines.append(start)
+    lines.append(Text("│", style="bright_black"))
+    
+    # Bot welcome
+    bot1 = Text()
+    bot1.append("│ ", style="bright_black")
+    bot1.append("Bot: ", style="bright_green bold")
+    bot1.append("Welcome back. How can I assist you today?", style="bright_white")
+    lines.append(bot1)
+    lines.append(Text("│", style="bright_black"))
+    
+    # User message
+    user1 = Text()
+    user1.append("│ ", style="bright_black")
+    user1.append("You: ", style="bright_cyan bold")
+    user1.append("Show me my system status.", style="bright_white")
+    lines.append(user1)
+    lines.append(Text("│", style="bright_black"))
+    
+    # Bot response (wrapped to fit)
+    bot2 = Text()
+    bot2.append("│ ", style="bright_black")
+    bot2.append("Bot: ", style="bright_green bold")
+    bot2.append("CPU: 15% | RAM: 62% | Disk: 34% | GPU: idle", style="bright_white")
+    lines.append(bot2)
+    lines.append(Text("│", style="bright_black"))
+    
+    # Tool suggestion
+    tool = Text()
+    tool.append("│ ", style="bright_black")
+    tool.append("[Tool] ", style="bright_yellow")
+    tool.append("gemma-bazzite-health", style="bright_yellow bold")
+    tool.append(" — SAFE READ-ONLY", style="dim green")
+    lines.append(tool)
+    lines.append(Text("│", style="bright_black"))
+    
+    # Input prompt
+    prompt = Text()
+    prompt.append("│ ", style="bright_black")
+    prompt.append("> ", style="bright_cyan bold")
+    prompt.append("Type a message or /command...", style="dim")
+    lines.append(prompt)
+    
+    return lines
+
+
+def _render_demo_footer(width: int) -> Text:
+    """Render a contextual help footer."""
+    hints = [
+        ("?", "Help"),
+        ("/", "Command"),
+        ("Tab", "Switch"),
+        ("Esc", "Back"),
+    ]
+    
+    text = Text()
+    text.append("└─ ", style="bright_black")
+    for i, (key, label) in enumerate(hints):
+        if i > 0:
+            text.append("  ", style="bright_black")
+        text.append(f"[{key}]", style="bright_cyan")
+        text.append(f" {label}", style="dim")
+    
+    # Pad to width
+    current_len = len(text.plain)
+    if current_len < width - 1:
+        text.append(" " * (width - 1 - current_len), style="bright_black")
+    text.append("┘", style="bright_black")
+    
+    return text
+
+
+def render_demo_app_shell(detected: Dict[str, bool], current_mode: str = "general"):
+    """Render a polished non-interactive app-shell mockup.
+
+    This is a static preview that shows the layout design without
+    calling Ollama or running any tools. It adapts to terminal width:
+    - Wide (>=100): vertical left rail + main panel side by side
+    - Narrow (<100): horizontal rail stacked above main panel
+    """
+    console.clear()
+    
+    try:
+        term_width = console.size.width
+        term_height = console.size.height
+    except Exception:
+        term_width = 80
+        term_height = 24
+    
+    # Ensure minimum dimensions
+    width = max(term_width, 40)
+    
+    # ── Top Bar ──────────────────────────────────────────────────────────────
+    top_bar = _render_demo_top_bar(width, detected)
+    console.print(top_bar)
+    
+    # ── Mode Rail ────────────────────────────────────────────────────────────
+    if width >= 100:
+        # Wide layout: vertical rail on left, main panel to the right
+        rail_lines = _render_demo_mode_rail_vertical(current_mode, width)
+        main_lines = _render_demo_main_panel(width - 20)
+        
+        # Combine rail and main side by side
+        max_lines = max(len(rail_lines), len(main_lines))
+        for i in range(max_lines):
+            combined = Text()
+            
+            # Left rail
+            if i < len(rail_lines):
+                combined.append(rail_lines[i])
+                # Pad rail to consistent width (18 chars)
+                rail_plain = rail_lines[i].plain
+                if len(rail_plain) < 18:
+                    combined.append(" " * (18 - len(rail_plain)), style="bright_black")
+            else:
+                combined.append(" " * 18, style="bright_black")
+            
+            # Divider
+            combined.append("│ ", style="bright_black")
+            
+            # Main panel
+            if i < len(main_lines):
+                combined.append(main_lines[i])
+                # Pad main to fill remaining width
+                main_plain = main_lines[i].plain
+                remaining = width - 18 - 2 - len(main_plain)
+                if remaining > 0:
+                    combined.append(" " * remaining, style="bright_black")
+            else:
+                remaining = width - 18 - 2
+                if remaining > 0:
+                    combined.append(" " * remaining, style="bright_black")
+            
+            combined.append("│", style="bright_black")
+            console.print(combined)
+    else:
+        # Narrow layout: horizontal rail, then main panel
+        console.print(_render_demo_mode_rail_horizontal(current_mode))
+        console.print(Text("├" + "─" * (width - 2) + "┤", style="bright_black"))
+        
+        main_lines = _render_demo_main_panel(width)
+        for line in main_lines:
+            # Pad each line to width
+            combined = Text()
+            combined.append(line)
+            line_plain = line.plain
+            if len(line_plain) < width - 1:
+                combined.append(" " * (width - 1 - len(line_plain)), style="bright_black")
+            combined.append("│", style="bright_black")
+            console.print(combined)
+    
+    # ── Footer ───────────────────────────────────────────────────────────────
+    console.print(_render_demo_footer(width))
+    console.print()
+
+
+def demo_layout():
+    """Render the polished layout mockup without running any tools."""
+    detected = detect_helpers()
+    render_demo_app_shell(detected, current_mode="general")
+
+
 # ── Intent Router ────────────────────────────────────────────────────────────
 
 ROUTE_KEYWORDS = {
@@ -903,6 +1203,7 @@ def print_help():
     gemma-ui --memory-compare "<q>"       Compare RuVector and Stage 3A
     gemma-ui --integration-status         Show integration metadata (display-only)
     gemma-ui --demo-ui                    Render demo without tools
+    gemma-ui --demo-layout               Render polished layout mockup (no tools)
     gemma-ui --list-modes                 List available modes
     gemma-ui --help                       Show this help
 
@@ -2096,6 +2397,10 @@ def main():
 
     if "--demo-ui" in args:
         demo_ui()
+        sys.exit(0)
+
+    if "--demo-layout" in args:
+        demo_layout()
         sys.exit(0)
 
     if "--voice-status" in args:

@@ -26,19 +26,11 @@ gemma-security-chat remains available as the security console helper.
 ## Usage
 
 ```bash
-# Interactive mode selector (default)
-gemma-ui
-
-# Start directly in a mode
-gemma-ui --mode general
-gemma-ui --mode security
-gemma-ui --mode memory
-gemma-ui --mode repo
-gemma-ui --mode reports
-gemma-ui --mode health
-
 # Render demo UI without running tools
 gemma-ui --demo-ui
+
+# Render polished layout mockup (no tools, no Ollama)
+gemma-ui --demo-layout
 
 # List available modes
 gemma-ui --list-modes
@@ -342,6 +334,9 @@ python3 -m py_compile ~/.local/bin/gemma-ui
 # Demo UI
 ~/.local/bin/gemma-ui --demo-ui
 
+# Demo Layout
+~/.local/bin/gemma-ui --demo-layout
+
 # Dashboard
 ~/.local/bin/gemma-ui --dashboard
 
@@ -426,3 +421,9 @@ cat ~/.config/bazzite-security/gemma-ui.json
   - Added `--classic` flag to force the old layout
   - Added `render_app_shell`, `render_top_bar`, `render_mode_rail`, `render_main_panel`, `render_footer`
   - Kept all existing command handlers and safety boundaries intact
+- **2026-05-05** — v1.5.1. Polished Layout Demo:
+  - Added `--demo-layout` flag for a non-interactive layout preview
+  - Added `render_demo_app_shell()` with adaptive layout (vertical rail on wide, horizontal on narrow)
+  - Compact top status bar with chip-style badges (model, ollama, mem, voice, tools)
+  - Contextual footer with keyboard hints (`?` Help, `/` Command, `Tab` Switch, `Esc` Back)
+  - No Ollama calls, no tool execution, no system changes
