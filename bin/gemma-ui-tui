@@ -61,6 +61,32 @@ EXACT_POLICY_PATH_TERMS = {
     "paths", "policy", "report", "reports", "stored", "where",
 }
 
+def normalize_plain_command(text):
+    """Return an obvious slash command for exact no-slash shortcuts."""
+    raw = text.strip()
+    normalized = re.sub(r"\s+", " ", raw.lower())
+    if not normalized or raw.startswith("/"):
+        return None
+    exact = {
+        "reports latest": "/reports latest",
+        "reports": "/reports",
+        "dashboard": "/dashboard",
+        "status": "/dashboard",
+        "voice status": "/voice",
+        "voice": "/voice",
+        "settings": "/settings",
+        "clear": "/clear",
+        "quit": "/quit",
+        "exit": "/quit",
+    }
+    if normalized in exact:
+        return exact[normalized]
+    if normalized.startswith("memory search "):
+        query = raw.split(None, 2)[2].strip()
+        if query:
+            return f"/memory search {query}"
+    return None
+
 def route_chat_intent(text):
     """Deterministically route natural-language chat before model fallback."""
     raw = text.strip()
@@ -287,36 +313,90 @@ def _parse_keyed_output(output):
         if ":" not in line:
             continue
         key, value = line.split(":", 1)
-        key = key.strip().lower().replace(" ", "_")
+        key = re.sub(r"^[\s>*#`\-]+", "", key).strip()
+        key = re.sub(r"\*\*|`", "", key).strip().lower().replace(" ", "_")
         if key:
-            parsed[key] = value.strip()
+            parsed[key] = value.strip().strip("`*")
     return parsed
 
 def _clean_source_list(value, limit=3):
     if not value or value.lower() in {"none", "n/a"}:
         return []
     cleaned = re.sub(r"\([^)]*\)", "", value)
-    parts = [p.strip(" ,") for p in cleaned.split(",")]
+    parts = [p.strip(" ,;") for p in re.split(r"[,;]", cleaned)]
     return [p for p in parts if p][:limit]
 
 def _compact_memory_panel(query, raw_output, source_label, status_note):
     parsed = _parse_keyed_output(raw_output)
-    recommendation = parsed.get("final_recommendation", "unknown")
-    confidence = parsed.get("answerability_status", parsed.get("fallback_status", status_note))
     sources = _clean_source_list(parsed.get("ruvector_top_sources", ""))
+    if not sources:
+        sources = _clean_source_list(parsed.get("ruvector_sources", ""))
     if not sources:
         sources = _clean_source_list(parsed.get("stage3a_top_sources", ""))
     if not sources:
-        sources = ["No top sources parsed"]
+        sources = _clean_source_list(parsed.get("stage_3a_sources", ""))
+
+    fallback_status = parsed.get("fallback_status", "").lower()
+    recommendation = parsed.get("final_recommendation", "").lower()
+    if (
+        "RuVector" in source_label
+        and "Stage 3A" in source_label
+        and ("stage3a" in fallback_status or "stage3a" in recommendation or "fallback" in fallback_status)
+    ):
+        source_family = "fallback"
+    elif "RuVector" in source_label:
+        source_family = "RuVector"
+    elif "Stage 3A" in source_label:
+        source_family = "Stage 3A"
+    else:
+        source_family = "fallback"
     panel = [
-        "│ Context:",
-        f"│   source: {source_label}",
-        f"│   status: {status_note}",
-        f"│   recommendation: {recommendation}",
-        f"│   confidence: {confidence}",
-        f"│   top sources: {', '.join(sources)}",
+        "│ Memory context:",
+        f"│   source family: {source_family}",
+        f"│   top sources: {', '.join(sources) if sources else 'not available'}",
     ]
     return panel
+
+def _format_report_size(size):
+    if size < 1024:
+        return f"{size} B"
+    if size < 1024 * 1024:
+        return f"{size / 1024:.1f} KB"
+    return f"{size / (1024 * 1024):.1f} MB"
+
+def _report_excerpt(path, max_chars=360):
+    try:
+        content = path.read_text(encoding="utf-8", errors="replace")
+    except Exception as exc:
+        return f"Preview unavailable: {exc}"
+    lines = []
+    for raw_line in content.splitlines():
+        line = re.sub(r"\s+", " ", raw_line).strip()
+        if line:
+            lines.append(line)
+        if len(" ".join(lines)) >= max_chars:
+            break
+    excerpt = " ".join(lines).strip()
+    if not excerpt:
+        return "(empty report)"
+    if len(excerpt) > max_chars:
+        excerpt = excerpt[: max_chars - 3].rstrip() + "..."
+    return excerpt
+
+def _report_cards(files, include_preview=True, limit=5):
+    import datetime
+    cards = []
+    for path, mtime, size in files[:limit]:
+        dt = datetime.datetime.fromtimestamp(mtime).strftime("%Y-%m-%d %H:%M:%S")
+        cards.extend([
+            f"│ Report: {path.name}",
+            f"│   modified: {dt}",
+            f"│   size: {_format_report_size(size)}",
+        ])
+        if include_preview:
+            cards.append(f"│   preview: {_report_excerpt(path)}")
+        cards.append("│")
+    return cards
 
 def _memory_search_insufficient(raw_output, returncode):
     if returncode != 0:
@@ -390,7 +470,7 @@ def _run_memory_auto_worker(query, out_queue, model, host):
     raw_debug = "\n\n".join(raw_sections)
     out_queue.put(("debug", raw_debug))
     out_queue.put(("append_lines", _compact_memory_panel(query, raw_debug, source_label, status_note)))
-    out_queue.put(("start_stream", "│ Gemma: "))
+    out_queue.put(("start_stream", "│ Answer: "))
     _call_ollama_stream(_build_memory_prompt(query, context), out_queue, model=model, host=host, timeout=120)
 
 class GemmaTui:
@@ -427,15 +507,18 @@ class GemmaTui:
         self.lines = [
             "╭─ Welcome to Gemma Local Agent",
             "│",
-            "│  Chat-first assistant shell. Type naturally; memory, reports,",
-            "│  dashboard, voice status, and safe read-only views route automatically.",
+            "│  Ask naturally. I route memory, reports, dashboard, voice status,",
+            "│  and confirmation-required safety checks for you.",
             "│",
-            "│  Try: what did we decide about ruvector?",
-            "│       show latest report",
-            "│       check firewall",
+            "│  Try:",
+            "│    what did we decide about ruvector?",
+            "│    show latest report",
+            "│    list reports",
+            "│    dashboard",
+            "│    voice status",
+            "│    check firewall",
             "│",
-            "│  Slash commands still work: /memory search, /reports latest,",
-            "│  /dashboard, /debug last, /settings, /clear, /quit",
+            "│  Shortcuts still work: /debug last, /clear, /quit",
             "│",
             "╰─ This prototype does not execute security tools.",
         ]
@@ -673,6 +756,10 @@ class GemmaTui:
 
     def handle_command(self, text):
         if not text.startswith("/"):
+            normalized_command = normalize_plain_command(text)
+            if normalized_command:
+                self.handle_command(normalized_command)
+                return
             self._handle_chat_input(text)
             return
             
@@ -874,15 +961,12 @@ class GemmaTui:
             files = [(f, f.stat().st_mtime, f.stat().st_size) for f in REPORT_DIR.iterdir() if f.is_file()]
             files.sort(key=lambda x: x[1], reverse=True)
             
-            self.lines.append("│ Reports: Recent manual security reports:")
+            self.lines.append("│ Reports: Recent manual security reports")
+            self.lines.append("│")
             if not files:
                 self.lines.append("│   (No reports found)")
             else:
-                import datetime
-                for f, mtime, size in files[:10]:
-                    dt = datetime.datetime.fromtimestamp(mtime).strftime("%Y-%m-%d %H:%M:%S")
-                    sz_kb = size / 1024
-                    self.lines.append(f"│   {f.name} ({dt}, {sz_kb:.1f} KB)")
+                self.lines.extend(_report_cards(files, include_preview=True, limit=5))
             self.lines.append("│")
         except Exception as e:
             self.lines.extend([f"│ Reports: Error reading directory: {e}", "│"])
@@ -905,28 +989,15 @@ class GemmaTui:
             return
             
         try:
-            files = [(f, f.stat().st_mtime) for f in REPORT_DIR.iterdir() if f.is_file()]
+            files = [(f, f.stat().st_mtime, f.stat().st_size) for f in REPORT_DIR.iterdir() if f.is_file()]
             files.sort(key=lambda x: x[1], reverse=True)
             
             if not files:
                 self.lines.extend(["│ Reports: No reports found.", "│"])
             else:
-                latest_file = files[0][0]
-                self.lines.append(f"│ Reports: Previewing {latest_file.name}")
+                self.lines.append("│ Reports: Latest manual security report")
                 self.lines.append("│")
-                
-                content = latest_file.read_text(encoding="utf-8")
-                lines = content.split("\n")
-                preview = "\n".join(lines[:50])
-                if len(lines) > 50:
-                    preview += "\n... (truncated)"
-                    
-                _, width = self.stdscr.getmaxyx()
-                max_width = max(20, width - 4)
-                
-                wrapped = _wrap_lines(preview, prefix="│ ", width=max_width)
-                self.lines.extend(wrapped)
-                self.lines.append("│")
+                self.lines.extend(_report_cards(files, include_preview=True, limit=1))
                 
         except Exception as e:
             self.lines.extend([f"│ Reports: Error reading file: {e}", "│"])
