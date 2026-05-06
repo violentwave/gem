@@ -7,8 +7,10 @@ import shutil
 import sys
 import time
 import urllib.request
+import textwrap
+import threading
+import queue
 from pathlib import Path
-
 
 HOME = Path.home()
 CONFIG_FILE = HOME / ".config/bazzite-security/gemma-ui.json"
@@ -41,7 +43,6 @@ HELPERS = [
     "gemma-dashboard",
 ]
 
-
 def _safe_addstr(win, y, x, text, attr=0):
     height, width = win.getmaxyx()
     if y < 0 or y >= height or x >= width:
@@ -57,7 +58,6 @@ def _safe_addstr(win, y, x, text, attr=0):
         except curses.error:
             pass
 
-
 def _load_json(path):
     try:
         if path.is_file():
@@ -66,30 +66,37 @@ def _load_json(path):
         return {}
     return {}
 
-
-def _ollama_status():
+def _ollama_status(host=OLLAMA_HOST):
     try:
-        req = urllib.request.Request(f"{OLLAMA_HOST}/api/tags", method="GET")
+        req = urllib.request.Request(f"{host}/api/tags", method="GET")
         with urllib.request.urlopen(req, timeout=1.5) as resp:
             data = json.loads(resp.read())
         return f"online:{len(data.get('models', []))}"
     except Exception:
         return "offline"
 
-
 def _helper_count():
-    available = 0
-    for name in HELPERS:
-        if (BIN_DIR / name).is_file() or shutil.which(name):
-            available += 1
-    return f"{available}/{len(HELPERS)}"
-
+    try:
+        import importlib.machinery
+        import importlib.util
+        loader = importlib.machinery.SourceFileLoader("gemma_ui", str(BIN_DIR / "gemma-ui"))
+        spec = importlib.util.spec_from_loader(loader.name, loader)
+        gemma_ui = importlib.util.module_from_spec(spec)
+        loader.exec_module(gemma_ui)
+        detected = gemma_ui.detect_helpers()
+        available = sum(1 for v in detected.values() if v)
+        return f"{available}/{len(gemma_ui.HELPERS)}"
+    except Exception:
+        available = 0
+        for name in HELPERS:
+            if (BIN_DIR / name).is_file() or shutil.which(name):
+                available += 1
+        return f"{available}/{len(HELPERS)}"
 
 def _voice_status():
     if shutil.which("pw-record") and shutil.which("whisper-cli") and ((BIN_DIR / "gemma-voice-chat").is_file() or shutil.which("gemma-voice-chat")):
         return "ready"
     return "manual"
-
 
 def _memory_status():
     if (BIN_DIR / "gemma-memory-search").is_file() or shutil.which("gemma-memory-search"):
@@ -98,50 +105,186 @@ def _memory_status():
         return "fallback"
     return "missing"
 
+def _call_ollama_stream(prompt_text, out_queue, model=MODEL, host=OLLAMA_HOST, timeout=120):
+    try:
+        try:
+            req = urllib.request.Request(f"{host}/api/tags", method="GET")
+            with urllib.request.urlopen(req, timeout=1.5) as resp:
+                data = json.loads(resp.read())
+                models = [m.get("name") for m in data.get("models", [])]
+                if model not in models and f"{model}:latest" not in models and model.replace(":latest", "") not in models:
+                    out_queue.put(("error", f"Model '{model}' not found. Check 'ollama ps' and 'gemma-bazzite-health'."))
+                    return
+        except Exception:
+            out_queue.put(("error", f"Ollama unreachable at {host} (timeout={timeout}s). Check 'ollama ps' and 'gemma-bazzite-health'."))
+            return
+
+        req_data = json.dumps({
+            "model": model,
+            "prompt": prompt_text,
+            "stream": True
+        }).encode("utf-8")
+        req = urllib.request.Request(
+            f"{host}/api/generate",
+            data=req_data,
+            method="POST",
+            headers={"Content-Type": "application/json"}
+        )
+        with urllib.request.urlopen(req, timeout=timeout) as resp:
+            for line in resp:
+                if line:
+                    data = json.loads(line)
+                    out_queue.put(("chunk", data.get("response", "")))
+                    if data.get("done"):
+                        out_queue.put(("done", ""))
+                        break
+    except Exception as e:
+        out_queue.put(("error", f"Timeout or error connecting to Ollama at {host} (timeout={timeout}s): {e}. Suggestion: check 'ollama ps' and 'gemma-bazzite-health'."))
+
+def _wrap_lines(text, prefix="", width=60):
+    lines = text.split("\n")
+    wrapped = []
+    for i, line in enumerate(lines):
+        curr_prefix = prefix if i == 0 else ("│ " + " " * (len(prefix) - 2) if prefix.startswith("│ ") else "")
+        if curr_prefix == "" and prefix.startswith("│"):
+             curr_prefix = "│ "
+        
+        text_to_wrap = curr_prefix + line
+        if not line.strip():
+            wrapped.append("│" if prefix.startswith("│") else "")
+        else:
+            wrapped.extend(textwrap.wrap(text_to_wrap, width=width))
+    return wrapped
 
 class GemmaTui:
     def __init__(self, stdscr):
         self.stdscr = stdscr
         self.mode = "welcome"
         self.input_text = ""
+        self.cursor_pos = 0
         self.scroll = 0
         self.lines = []
         self.status = "Ready"
         self.running = True
         self.config = _load_json(CONFIG_FILE)
+        
+        import os
+        host_env = os.environ.get("OLLAMA_HOST")
+        if host_env:
+            self.ollama_host = host_env
+        else:
+            h = self.config.get("ollama", {}).get("host", "127.0.0.1")
+            p = self.config.get("ollama", {}).get("port", 11434)
+            self.ollama_host = f"http://{h}:{p}" if "http" not in str(h) else str(h)
+        self.model = self.config.get("ollama", {}).get("model", MODEL)
+        
+        self.is_generating = False
+        self.gen_queue = queue.Queue()
+        self.current_response = ""
+        
         self._reset_welcome()
 
     def _reset_welcome(self):
         self.mode = "welcome"
         self.lines = [
-            "Welcome to Gemma Local Agent",
-            "",
-            "Persistent curses TUI prototype. Header, mode rail, transcript, and input stay pinned.",
-            "",
-            "Try: /menu, /general, /dashboard, /memory, /settings, /clear, /quit",
-            "",
-            "This prototype does not execute security tools or bypass confirmations.",
+            "╭─ Welcome to Gemma Local Agent",
+            "│",
+            "│  Persistent curses TUI prototype. Header, mode rail,",
+            "│  transcript, and input stay pinned.",
+            "│",
+            "│  Try: /menu, /general, /dashboard, /memory,",
+            "│       /settings, /clear, /quit",
+            "│",
+            "╰─ This prototype does not execute security tools.",
         ]
         self.scroll = 0
 
+    def init_colors(self):
+        self.has_colors = curses.has_colors()
+        if self.has_colors:
+            curses.start_color()
+            curses.use_default_colors()
+            bg = -1
+            curses.init_pair(1, curses.COLOR_CYAN, bg)
+            curses.init_pair(2, curses.COLOR_GREEN, bg)
+            curses.init_pair(3, curses.COLOR_YELLOW, bg)
+            curses.init_pair(4, curses.COLOR_RED, bg)
+            curses.init_pair(5, curses.COLOR_BLUE, bg)
+
+    def style(self, name):
+        if not hasattr(self, 'has_colors'):
+            self.has_colors = False
+            
+        if name == "header":
+            return curses.color_pair(1) | curses.A_BOLD if self.has_colors else curses.A_BOLD | curses.A_UNDERLINE
+        elif name == "title":
+            return curses.color_pair(1) | curses.A_BOLD if self.has_colors else curses.A_BOLD
+        elif name == "active_tab":
+            return curses.color_pair(1) | curses.A_BOLD if self.has_colors else curses.A_BOLD
+        elif name == "inactive_tab":
+            return curses.A_DIM
+        elif name == "ok":
+            return curses.color_pair(2) if self.has_colors else 0
+        elif name == "warn":
+            return curses.color_pair(3) if self.has_colors else 0
+        elif name == "error":
+            return curses.color_pair(4) if self.has_colors else curses.A_BOLD
+        elif name == "muted":
+            return curses.A_DIM
+        elif name == "user":
+            return curses.color_pair(1) | curses.A_BOLD if self.has_colors else curses.A_BOLD
+        elif name == "assistant":
+            return curses.color_pair(2) if self.has_colors else 0
+        elif name == "footer":
+            return curses.color_pair(1) | curses.A_DIM if self.has_colors else curses.A_DIM
+        elif name == "input":
+            return curses.color_pair(1) | curses.A_BOLD if self.has_colors else curses.A_BOLD
+        elif name == "frame":
+            return curses.color_pair(5) if self.has_colors else curses.A_DIM
+        return 0
+
     def run(self):
+        self.init_colors()
         curses.curs_set(1)
-        curses.use_default_colors()
-        curses.init_pair(1, curses.COLOR_CYAN, -1)
-        curses.init_pair(2, curses.COLOR_GREEN, -1)
-        curses.init_pair(3, curses.COLOR_YELLOW, -1)
-        curses.init_pair(4, curses.COLOR_RED, -1)
+        self.stdscr.timeout(50) # 50ms timeout for responsive streaming
         self.stdscr.keypad(True)
         while self.running:
+            self._process_queue()
             self.draw()
             ch = self.stdscr.getch()
-            self.handle_key(ch)
+            if ch != curses.ERR:
+                self.handle_key(ch)
+
+    def _process_queue(self):
+        while not self.gen_queue.empty():
+            msg_type, content = self.gen_queue.get_nowait()
+            if msg_type == "chunk":
+                self.current_response += content
+                self._update_streaming_response()
+            elif msg_type == "error":
+                self.current_response += f"\n[Error: {content}]"
+                self._update_streaming_response()
+                self.is_generating = False
+                self.status = "Ready"
+            elif msg_type == "done":
+                self.is_generating = False
+                self.status = "Ready"
+
+    def _update_streaming_response(self):
+        if not hasattr(self, 'stream_start_idx'):
+            return
+            
+        _, width = self.stdscr.getmaxyx()
+        max_width = max(20, width - 4)
+        wrapped = _wrap_lines(self.current_response, prefix="│ Gemma: ", width=max_width)
+        self.lines = self.lines[:self.stream_start_idx] + wrapped
+        self.scroll = max(0, len(self.lines) - 1)
 
     def draw(self):
         self.stdscr.erase()
         height, width = self.stdscr.getmaxyx()
         if height < 10 or width < 50:
-            _safe_addstr(self.stdscr, 0, 0, "Terminal too small for gemma-ui-tui (min 50x10)", curses.color_pair(3))
+            _safe_addstr(self.stdscr, 0, 0, "Terminal too small for gemma-ui-tui (min 50x10)", self.style("warn"))
             self.stdscr.refresh()
             return
         self.draw_header(width)
@@ -151,22 +294,22 @@ class GemmaTui:
         self.stdscr.refresh()
 
     def draw_header(self, width):
-        model = self.config.get("ollama", {}).get("model", MODEL)
+        model = self.model
         if len(model) > 18:
             model = model[:15] + "..."
-        header = f" Gemma Local Agent | model:{model} | ollama:{_ollama_status()} | mem:{_memory_status()} | voice:{_voice_status()} | tools:{_helper_count()} "
-        _safe_addstr(self.stdscr, 0, 0, header.ljust(width), curses.A_REVERSE)
+        header = f" ◈ Gemma Local Agent │ model:{model} │ ollama:{_ollama_status(self.ollama_host)} │ mem:{_memory_status()} │ voice:{_voice_status()} │ tools:{_helper_count()} "
+        _safe_addstr(self.stdscr, 0, 0, header.ljust(width), self.style("header"))
 
     def draw_tabs(self, width):
         x = 0
         for mode, label, key in MODES:
             tab = f" [{key.upper()}] {label} "
-            attr = curses.color_pair(1) | curses.A_BOLD if mode == self.mode else curses.A_DIM
+            attr = self.style("active_tab") if mode == self.mode else self.style("inactive_tab")
             _safe_addstr(self.stdscr, 1, x, tab, attr)
             x += len(tab) + 1
             if x >= width - 10:
                 break
-        _safe_addstr(self.stdscr, 2, 0, "─" * (width - 1), curses.A_DIM)
+        _safe_addstr(self.stdscr, 2, 0, "─" * (width - 1), self.style("muted"))
 
     def draw_body(self, height, width):
         top = 3
@@ -178,33 +321,57 @@ class GemmaTui:
         end = start + visible
         for row, line in enumerate(self.lines[start:end], top):
             attr = 0
-            if line.startswith("#"):
-                attr = curses.color_pair(1) | curses.A_BOLD
-            elif line.startswith("OK"):
-                attr = curses.color_pair(2)
-            elif line.startswith("WARN") or line.startswith("MISSING"):
-                attr = curses.color_pair(3)
+            if line.startswith("╭─") or line.startswith("╰─") or line.startswith("├─"):
+                attr = self.style("frame")
+            elif line.startswith("│"):
+                if "You:" in line:
+                    attr = self.style("user")
+                elif "Gemma:" in line:
+                    attr = self.style("assistant")
+                elif "OK" in line or "ready" in line or "online" in line:
+                    attr = self.style("ok")
+                elif "MISSING" in line or "WARN" in line or "offline" in line or "fallback" in line:
+                    attr = self.style("warn")
+                elif "Error" in line:
+                    attr = self.style("error")
+                else:
+                    attr = 0
+            elif line.startswith("#"):
+                attr = self.style("title")
             _safe_addstr(self.stdscr, row, 0, line, attr)
+            
         if len(self.lines) > visible:
             marker = f" {start + 1}-{min(end, len(self.lines))}/{len(self.lines)} "
-            _safe_addstr(self.stdscr, bottom - 1, max(0, width - len(marker) - 1), marker, curses.A_DIM)
+            _safe_addstr(self.stdscr, bottom - 1, max(0, width - len(marker) - 1), marker, self.style("muted"))
 
     def draw_footer(self, height, width):
-        hint = " /help /menu /dashboard /memory /voice /settings /clear /quit "
-        _safe_addstr(self.stdscr, height - 2, 0, hint.ljust(width), curses.A_REVERSE)
-        prompt = f"gemma › {self.input_text}"
-        _safe_addstr(self.stdscr, height - 1, 0, prompt)
+        hint = f" {self.status} │ /help /menu /dashboard /memory /voice /settings /clear /quit "
+        _safe_addstr(self.stdscr, height - 2, 0, hint.ljust(width), self.style("footer"))
+        
+        prompt = f" ❯ {self.input_text}"
+        _safe_addstr(self.stdscr, height - 1, 0, prompt, self.style("input"))
         try:
-            self.stdscr.move(height - 1, min(len(prompt), width - 2))
+            self.stdscr.move(height - 1, min(len(" ❯ ") + self.cursor_pos, width - 2))
         except curses.error:
             pass
 
     def handle_key(self, ch):
         if ch in (curses.KEY_RESIZE,):
             return
+        if ch == 3: # Ctrl+C
+            raise KeyboardInterrupt
+        if ch == 21: # Ctrl+U
+            self.input_text = ""
+            self.cursor_pos = 0
+            return
+        if self.is_generating and ch in (10, 13):
+            # Ignore enter while generating
+            return
+            
         if ch in (10, 13):
             text = self.input_text.strip()
             self.input_text = ""
+            self.cursor_pos = 0
             if text:
                 self.handle_command(text)
             return
@@ -212,12 +379,24 @@ class GemmaTui:
             self._reset_welcome()
             return
         if ch in (curses.KEY_BACKSPACE, 127, 8):
-            self.input_text = self.input_text[:-1]
+            if self.cursor_pos > 0:
+                self.input_text = self.input_text[:self.cursor_pos - 1] + self.input_text[self.cursor_pos:]
+                self.cursor_pos -= 1
             return
-        if ch == curses.KEY_UP:
+        if ch == curses.KEY_DC: # Delete
+            if self.cursor_pos < len(self.input_text):
+                self.input_text = self.input_text[:self.cursor_pos] + self.input_text[self.cursor_pos + 1:]
+            return
+        if ch == curses.KEY_LEFT:
+            self.cursor_pos = max(0, self.cursor_pos - 1)
+            return
+        if ch == curses.KEY_RIGHT:
+            self.cursor_pos = min(len(self.input_text), self.cursor_pos + 1)
+            return
+        if ch in (curses.KEY_UP, 16): # Up arrow or Ctrl+P
             self.scroll = max(0, self.scroll - 1)
             return
-        if ch == curses.KEY_DOWN:
+        if ch in (curses.KEY_DOWN, 14): # Down arrow or Ctrl+N
             self.scroll += 1
             return
         if ch == curses.KEY_PPAGE:
@@ -229,17 +408,34 @@ class GemmaTui:
         if 0 <= ch < 256:
             char = chr(ch)
             if char.isprintable():
-                self.input_text += char
+                self.input_text = self.input_text[:self.cursor_pos] + char + self.input_text[self.cursor_pos:]
+                self.cursor_pos += 1
 
     def handle_command(self, text):
-        self.status = "Ready"
         if not text.startswith("/"):
             if self.mode != "general":
                 self.mode = "general"
-                self.lines = ["# General", "", "General chat stays inside this TUI prototype."]
-            self.lines.extend(["", f"You: {text}", "Gemma: TUI prototype captured this message without dropping to the old >>> loop."])
+                self.lines = ["╭─ General", "│", "│  General chat inside the persistent TUI shell.", "│"]
+            
+            _, width = self.stdscr.getmaxyx()
+            max_width = max(20, width - 4)
+            
+            self.lines.append("├──────────────────────────────────────────────────")
+            self.lines.extend(_wrap_lines(text, prefix="│ You: ", width=max_width))
+            self.lines.append("│")
+            
+            self.is_generating = True
+            self.status = "Thinking..."
+            self.current_response = ""
+            self.stream_start_idx = len(self.lines)
+            self.lines.append("│ Gemma: thinking...")
             self.scroll = max(0, len(self.lines) - 1)
+            self.draw()
+            
+            threading.Thread(target=_call_ollama_stream, args=(text, self.gen_queue, self.model, self.ollama_host, 120), daemon=True).start()
             return
+            
+        self.status = "Ready"
         cmd = text.lower().strip()
         if cmd in ("/quit", "/q", "/exit"):
             self.running = False
@@ -256,87 +452,97 @@ class GemmaTui:
         elif cmd in ("/settings", "/t", "/theme", "/ascii", "/compact"):
             self.show_settings(cmd)
         elif cmd == "/clear":
-            self.lines = [f"# {self.mode.title()}", "", "Transcript cleared."]
+            self.lines = [f"╭─ {self.mode.title()}", "│", "│  Transcript cleared.", "╰─"]
             self.scroll = 0
         else:
-            self.lines.extend(["", f"WARN Unknown command: {text}", "Try /commands or /menu."])
+            self.lines.extend(["│", f"│  WARN Unknown command: {text}", "│  Try /commands or /menu."])
             self.scroll = max(0, len(self.lines) - 1)
 
     def show_menu(self):
         self.mode = "welcome"
         self.lines = [
-            "# Menu",
-            "",
-            "/general or /g     General chat inside TUI",
-            "/dashboard         Read-only status dashboard",
-            "/memory or /m      Explicit supervised memory view",
-            "/voice or /v       Push-to-talk voice status view",
-            "/settings or /t    Display/UI preferences view",
-            "/clear             Clear current transcript pane",
-            "/quit              Exit cleanly",
-            "",
-            "Security tools are not executed from this first-pass TUI shell.",
+            "╭─ Menu",
+            "│",
+            "│  [g] /general     General Chat              [SAFE]",
+            "│  [s] /security    Security Console          [CONFIRM]",
+            "│  [m] /memory      Memory / RuVector         [SAFE]",
+            "│  [o] /repo        Repo                      [SAFE]",
+            "│  [r] /reports     Reports                   [SAFE]",
+            "│  [v] /voice       Voice                     [SAFE]",
+            "│  [h] /health      Health                    [SAFE]",
+            "│  [t] /settings    Settings                  [SAFE]",
+            "│      /dashboard   Dashboard                 [SAFE]",
+            "│  [q] /quit        Quit                      [SAFE]",
+            "│",
+            "╰─ Security tools are not executed from this TUI.",
         ]
         self.scroll = 0
 
     def show_general(self):
         self.mode = "general"
         self.lines = [
-            "# General",
-            "",
-            "General chat is now represented inside the persistent TUI shell.",
-            "Type a message and press Enter to keep it in this transcript pane.",
-            "",
-            "Full helper-backed streaming can be wired after this shell is approved.",
+            "╭─ General",
+            "│",
+            "│  General chat is now represented inside the persistent TUI shell.",
+            "│  Type a message and press Enter to call the local model.",
+            "│",
+            "╰─ Stream responses are non-blocking.",
         ]
         self.scroll = 0
 
     def show_dashboard(self):
         self.mode = "dashboard"
         self.lines = [
-            "# Dashboard",
-            "",
-            f"Ollama: {_ollama_status()}",
-            f"Model: {self.config.get('ollama', {}).get('model', MODEL)}",
-            f"Memory: {_memory_status()}",
-            f"Voice: {_voice_status()} (push-to-talk only)",
-            f"Helpers: {_helper_count()}",
-            "Security: advisory only; confirmation gates preserved",
-            "MCP: disabled",
-            "Agent Zero authority: unchanged",
-            "gemma-dashboard: optional static export helper (not primary dashboard)",
-            "",
-            "Read-only view. No scans. No system changes.",
+            "╭─ Dashboard",
+            "│",
+            f"│  Ollama:    {_ollama_status(self.ollama_host)}",
+            f"│  Model:     {self.model}",
+            f"│  Tools:     {_helper_count()}",
+            "│  Memory:    RuVector supervised secondary, Stage 3A fallback",
+            f"│  Voice:     {_voice_status()}",
+            "│  Safety:    advisory-only, confirmations preserved",
+            "│  Static export: optional",
+            "│",
+            "╰─ No security scans. No tool execution.",
         ]
         self.scroll = 0
 
     def show_memory(self):
         self.mode = "memory"
-        rv = HOME / ".local/share/bazzite-security/ruvector/semantic-prototype/semantic-approved-docs-memory.json"
-        s3 = HOME / ".local/share/bazzite-security/gemma-knowledge/index/chunks.jsonl"
+        rv = 'OK' if shutil.which('gemma-memory-search') or (BIN_DIR / 'gemma-memory-search').is_file() else 'MISSING'
+        s3a = 'OK' if shutil.which('gemma-knowledge-rag') or (BIN_DIR / 'gemma-knowledge-rag').is_file() else 'MISSING'
+        
         self.lines = [
-            "# Memory",
-            "",
-            f"RuVector helper: {'OK' if shutil.which('gemma-memory-search') or (BIN_DIR / 'gemma-memory-search').is_file() else 'MISSING'}",
-            f"Stage 3A helper: {'OK' if shutil.which('gemma-knowledge-rag') or (BIN_DIR / 'gemma-knowledge-rag').is_file() else 'MISSING'}",
-            f"RuVector index: {'OK' if rv.is_file() else 'MISSING'} {rv}",
-            f"Stage 3A index: {'OK' if s3.is_file() else 'MISSING'} {s3}",
-            "",
-            "Memory remains explicit/supervised. No ingestion. No promotion.",
+            "╭─ Memory",
+            "│",
+            f"│  RuVector role:    supervised secondary ({rv})",
+            f"│  Stage 3A:         fallback ({s3a})",
+            "│",
+            "│  Commands:",
+            "│    /memory search <q>",
+            "│    /memory ask <q>",
+            "│    /memory stage3a <q>",
+            "│    /memory compare <q>",
+            "│",
+            "╰─ Do not run long RAG until explicitly implemented.",
         ]
         self.scroll = 0
 
     def show_voice(self):
         self.mode = "voice"
+        rec = 'OK' if shutil.which('pw-record') else 'MISSING'
+        stt = 'OK' if shutil.which('whisper-cli') else 'MISSING'
+        tts = 'OK' if shutil.which('piper') or shutil.which('espeak') else 'MISSING'
+        
         self.lines = [
-            "# Voice",
-            "",
-            f"Recorder: {'OK' if shutil.which('pw-record') else 'MISSING'} pw-record",
-            f"STT: {'OK' if shutil.which('whisper-cli') else 'MISSING'} whisper-cli",
-            f"Helper: {'OK' if shutil.which('gemma-voice-chat') or (BIN_DIR / 'gemma-voice-chat').is_file() else 'MISSING'} gemma-voice-chat",
-            "Mode: push-to-talk only",
-            "",
-            "This TUI prototype does not auto-start recording.",
+            "╭─ Voice",
+            "│",
+            f"│  recorder: {rec}",
+            f"│  STT:      {stt}",
+            f"│  TTS:      {tts}",
+            "│  mode:     push-to-talk only",
+            "│",
+            "╰─ Do not record audio.",
         ]
         self.scroll = 0
 
@@ -344,29 +550,137 @@ class GemmaTui:
         self.mode = "settings"
         ui = self.config.get("ui", {})
         self.lines = [
-            "# Settings",
-            "",
-            "Display/UI preferences only. No security policy enforcement here.",
-            "",
-            f"layout: {ui.get('layout', 'app_shell')}",
-            f"density: {ui.get('density', 'normal')}",
-            f"show_icons: {ui.get('show_icons', True)}",
-            f"use_unicode: {ui.get('use_unicode', True)}",
-            f"high_contrast: {ui.get('high_contrast', False)}",
-            "",
-            f"Command received: {cmd}",
-            "Changing persistent settings remains in gemma-ui print-loop for now.",
+            "╭─ Settings",
+            "│",
+            f"│  layout:          {ui.get('layout', 'app_shell')}",
+            f"│  density:         {ui.get('density', 'normal')}",
+            f"│  use_unicode:     {ui.get('use_unicode', True)}",
+            f"│  high_contrast:   {ui.get('high_contrast', False)}",
+            f"│  current model:   {self.model}",
+            f"│  Ollama host:     {self.ollama_host}",
+            "│",
+            "╰─ Changing persistent settings remains in gemma-ui print-loop.",
         ]
         self.scroll = 0
 
+def _run_check(check_model=False):
+    import os
+    print("gemma-ui-tui check")
+    
+    # 1. curses
+    try:
+        import curses
+        print("curses: OK")
+    except ImportError:
+        print("curses: FAIL")
+        return 1
+        
+    # 2. colors
+    term = os.environ.get("TERM", "")
+    if "color" in term or "xterm" in term:
+        print("colors: OK")
+    else:
+        print("colors: monochrome")
+        
+    # 3. config
+    config = _load_json(CONFIG_FILE)
+    print("config: OK" if config else "config: OK (using defaults)")
+    
+    # 4. ollama host & model
+    host_env = os.environ.get("OLLAMA_HOST")
+    if host_env:
+        ollama_host = host_env
+    else:
+        h = config.get("ollama", {}).get("host", "127.0.0.1")
+        p = config.get("ollama", {}).get("port", 11434)
+        ollama_host = f"http://{h}:{p}" if "http" not in str(h) else str(h)
+        
+    model = config.get("ollama", {}).get("model", MODEL)
+    
+    status = _ollama_status(ollama_host)
+    print(f"ollama: {status.split(':')[0]}")
+    
+    # 5. model present/missing
+    model_status = "missing"
+    if "online" in status:
+        try:
+            req = urllib.request.Request(f"{ollama_host}/api/tags", method="GET")
+            with urllib.request.urlopen(req, timeout=1.5) as resp:
+                data = json.loads(resp.read())
+                models = [m.get("name") for m in data.get("models", [])]
+                if model in models or f"{model}:latest" in models or model.replace(":latest", "") in models:
+                    model_status = "present"
+        except Exception:
+            pass
+            
+    print(f"model: {model} {model_status}")
+    
+    # 6. helpers
+    print(f"helpers: {_helper_count()}")
+    
+    # 7. terminal
+    print(f"terminal: {term}")
+    
+    if check_model and "online" in status and model_status == "present":
+        print("\n--- model check ---")
+        try:
+            req_data = json.dumps({
+                "model": model,
+                "prompt": "Reply with exactly: ok",
+                "stream": False
+            }).encode("utf-8")
+            req = urllib.request.Request(
+                f"{ollama_host}/api/generate",
+                data=req_data,
+                method="POST",
+                headers={"Content-Type": "application/json"}
+            )
+            with urllib.request.urlopen(req, timeout=120) as resp:
+                data = json.loads(resp.read())
+                response = data.get("response", "").strip().lower()
+                print(f"response: {response}")
+                if "ok" in response:
+                    print("model check: PASS")
+                else:
+                    print("model check: WARN (unexpected response)")
+        except Exception as e:
+            print(f"model check: FAIL ({e})")
+            
+    if "offline" in status or model_status == "missing":
+        print("result: FAIL")
+        return 1
+    print("result: PASS")
+    return 0
 
 def main():
+    import sys
+    if len(sys.argv) > 1:
+        if sys.argv[1] == "--check":
+            return _run_check(check_model=False)
+        elif sys.argv[1] == "--check-model":
+            return _run_check(check_model=True)
+        elif sys.argv[1] in ("--help", "-h"):
+            print("gemma-ui-tui [options]")
+            print("Options:")
+            print("  --check        Run a non-interactive health check")
+            print("  --check-model  Run health check and test model generation")
+            print("  --version      Show version")
+            print("  --help, -h     Show this help message")
+            return 0
+        elif sys.argv[1] in ("--version", "-v"):
+            print("gemma-ui-tui v1.5.6-experimental")
+            return 0
+            
     try:
         curses.wrapper(lambda stdscr: GemmaTui(stdscr).run())
     except KeyboardInterrupt:
         return 0
+    except Exception as e:
+        import traceback
+        print(f"gemma-ui-tui encountered an error: {e}")
+        traceback.print_exc()
+        return 1
     return 0
-
 
 if __name__ == "__main__":
     raise SystemExit(main())

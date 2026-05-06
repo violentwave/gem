@@ -253,7 +253,7 @@ def helper_risk_label(name: str) -> str:
 # ── Config ───────────────────────────────────────────────────────────────────
 
 DEFAULT_CONFIG = {
-    "version": "1.5.5",
+    "version": "1.5.6",
     "default_mode": "general",
     "theme": "default",
     "accent": "cyan",
@@ -2683,6 +2683,16 @@ def main():
             console.print("[red]gemma-ui-tui not found. Run ./install.sh or use bin/gemma-ui-tui.[/]")
             sys.exit(1)
         result = subprocess.run([str(tui_path)])
+        sys.exit(result.returncode)
+
+    if "--tui-check" in args:
+        tui_path = Path("bin/gemma-ui-tui")
+        if not tui_path.is_file():
+            tui_path = BIN_DIR / "gemma-ui-tui"
+        if not tui_path.is_file():
+            console.print("[red]gemma-ui-tui not found. Run ./install.sh or use bin/gemma-ui-tui.[/]")
+            sys.exit(1)
+        result = subprocess.run([str(tui_path), "--check"])
         sys.exit(result.returncode)
 
     if "--voice-status" in args:
