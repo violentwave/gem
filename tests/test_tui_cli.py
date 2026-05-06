@@ -2,6 +2,33 @@ import unittest
 import subprocess
 import tempfile
 from pathlib import Path
+from unittest import mock
+
+class FakeStdScr:
+    def __init__(self, h=30, w=100):
+        self._size = (h, w)
+        self.writes = []
+
+    def getmaxyx(self):
+        return self._size
+
+    def erase(self):
+        pass
+
+    def refresh(self):
+        pass
+
+    def addstr(self, y, x, text, attr=0):
+        self.writes.append((y, x, text, attr))
+
+    def timeout(self, n):
+        pass
+
+    def keypad(self, flag):
+        pass
+
+    def getch(self):
+        return -1
 
 class TestTuiCli(unittest.TestCase):
     def test_tui_check(self):
@@ -124,8 +151,9 @@ class TestTuiIntentRouter(unittest.TestCase):
             "read-only semantic search",
         )
         joined = "\n".join(panel)
-        self.assertIn("source family: RuVector", joined)
-        self.assertIn("top sources: FINAL_POLICY.md, RUNBOOK.md", joined)
+        self.assertIn("memory_auto · RuVector · read-only", joined)
+        self.assertIn("- FINAL_POLICY.md", joined)
+        self.assertIn("- RUNBOOK.md", joined)
         self.assertNotIn("RAW DETAIL", joined)
 
     def test_compact_memory_panel_parses_markdown_source_labels(self):
@@ -136,8 +164,22 @@ class TestTuiIntentRouter(unittest.TestCase):
         ])
         panel = self.tui._compact_memory_panel("ruvector status", raw, "RuVector + Stage 3A", "fallback")
         joined = "\n".join(panel)
-        self.assertIn("source family: fallback", joined)
+        self.assertIn("memory_auto · fallback · read-only", joined)
         self.assertIn("FINAL_POLICY.md", joined)
+
+    def test_memory_auto_fallback_trigger_parsing(self):
+        raw = "\n".join([
+            "final_recommendation: insufficient_evidence",
+            "fallback_status: status_query_lacks_direct_production_status_evidence",
+            "answerability_status: ruvector_direct=0 stage3a_direct=0 confidence=low",
+        ])
+        self.assertTrue(self.tui._memory_search_insufficient(raw, 0))
+
+    def test_ruvector_query_expansion(self):
+        expanded = self.tui._expanded_memory_query("what did we decide about ruvector")
+        self.assertIn("RuVector promotion denied", expanded)
+        self.assertIn("Stage 3A canonical fallback", expanded)
+        self.assertEqual(self.tui._expanded_memory_query("hello"), "hello")
 
 class TestTuiReportCards(unittest.TestCase):
     def setUp(self):
@@ -167,6 +209,37 @@ class TestTuiReportCards(unittest.TestCase):
             self.assertIn("modified:", joined)
             self.assertIn("size:", joined)
             self.assertIn("preview:", joined)
+
+    def test_report_preview_sanitizes_absolute_paths(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            path = Path(tmp) / "report.md"
+            path.write_text("Report path: /home/lch/offload/security-reports/manual/example.md\n" + "word " * 80, encoding="utf-8")
+            cards = self.tui._report_cards([(path, path.stat().st_mtime, path.stat().st_size)], width=72)
+            joined = "\n".join(cards)
+            self.assertNotIn("/home/lch/offload", joined)
+            self.assertIn("~/offload", joined)
+            preview_lines = [line for line in cards if "preview:" in line or line.startswith("│            ")]
+            self.assertLessEqual(len(preview_lines), 3)
+
+class TestTuiSecurityConfirmation(unittest.TestCase):
+    def setUp(self):
+        import importlib.machinery
+        import importlib.util
+        loader = importlib.machinery.SourceFileLoader("gemma_ui_tui_security", "bin/gemma-ui-tui")
+        spec = importlib.util.spec_from_loader(loader.name, loader)
+        self.tui = importlib.util.module_from_spec(spec)
+        loader.exec_module(self.tui)
+
+    def test_security_intent_creates_pending_confirmation_without_execution(self):
+        app = self.tui.GemmaTui(FakeStdScr())
+        route = self.tui.route_chat_intent("check firewall")
+        with mock.patch.object(self.tui, "_run_helper_stream") as run_helper:
+            app._show_security_confirmation_required("check firewall", route)
+        joined = "\n".join(app.lines)
+        self.assertEqual(app.pending_action["name"], "firewall_status")
+        self.assertIn("Suggested tool: firewall_status", joined)
+        self.assertIn("No security tool was executed yet", joined)
+        run_helper.assert_not_called()
 
 if __name__ == "__main__":
     unittest.main()

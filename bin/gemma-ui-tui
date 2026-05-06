@@ -61,6 +61,51 @@ EXACT_POLICY_PATH_TERMS = {
     "paths", "policy", "report", "reports", "stored", "where",
 }
 
+RUVECTOR_POLICY_EXPANSION_TERMS = (
+    "RuVector promotion denied",
+    "RuVector supervised secondary",
+    "Stage 3A canonical fallback",
+    "RUVECTOR_PHASE8B5_PROMOTION_REVIEW_SUMMARY",
+)
+
+SECURITY_ACTIONS = {
+    "firewall_status": {
+        "description": "Check firewalld state and current zone rules",
+        "risk": "SAFE_READ_ONLY",
+        "sudo": False,
+        "command": ["bash", "-c", "echo '=== Firewall Status ===' && firewall-cmd --state 2>/dev/null && echo '---' && firewall-cmd --list-all 2>/dev/null"],
+        "timeout": 10,
+    },
+    "security_summary": {
+        "description": "Summarize security service status without scans",
+        "risk": "SAFE_READ_ONLY",
+        "sudo": False,
+        "command": ["bash", "-c", "echo '=== Security Summary ===' && echo 'Firewall:' $(firewall-cmd --state 2>/dev/null || echo unavailable) && echo 'USBGuard:' $(systemctl is-active usbguard 2>/dev/null || echo unavailable) && echo 'ClamAV:' $(systemctl is-active clamd 2>/dev/null || systemctl is-active clamd@scan 2>/dev/null || echo unavailable) && echo 'Auditd:' $(systemctl is-active auditd 2>/dev/null || echo unavailable)"],
+        "timeout": 10,
+    },
+    "system_info": {
+        "description": "Show basic system information",
+        "risk": "SAFE_READ_ONLY",
+        "sudo": False,
+        "command": ["bash", "-c", "echo '=== System Info ===' && uname -a && echo '---' && uptime && echo '---' && free -h && echo '---' && df -h / | tail -1"],
+        "timeout": 10,
+    },
+    "usb_devices": {
+        "description": "List USB devices and USBGuard-visible state",
+        "risk": "SAFE_READ_ONLY",
+        "sudo": False,
+        "command": ["bash", "-c", "echo '=== USB Devices ===' && usbguard list-devices 2>/dev/null | head -10 && echo '---' && lsusb 2>/dev/null | head -10"],
+        "timeout": 10,
+    },
+    "process_check": {
+        "description": "List top processes and established connections",
+        "risk": "SAFE_READ_ONLY",
+        "sudo": False,
+        "command": ["bash", "-c", "echo '=== Process Check ===' && ps aux --sort=-%cpu | head -20 && echo '---' && ss -tunap 2>/dev/null | grep ESTAB | head -15"],
+        "timeout": 10,
+    },
+}
+
 def normalize_plain_command(text):
     """Return an obvious slash command for exact no-slash shortcuts."""
     raw = text.strip()
@@ -283,6 +328,7 @@ def _wrap_lines(text, prefix="", width=60):
 
 def _run_helper_stream(cmd_args, out_queue):
     try:
+        raw_lines = []
         process = subprocess.Popen(
             cmd_args,
             stdout=subprocess.PIPE,
@@ -291,11 +337,29 @@ def _run_helper_stream(cmd_args, out_queue):
             bufsize=1
         )
         for line in process.stdout:
+            raw_lines.append(line)
             out_queue.put(("chunk", line))
         process.wait()
+        out_queue.put(("debug", "$ " + " ".join(cmd_args) + "\n" + "".join(raw_lines)))
         out_queue.put(("done", ""))
     except Exception as e:
         out_queue.put(("error", f"Failed to run {' '.join(cmd_args)}: {e}"))
+
+def _suggest_security_action(text):
+    normalized = text.lower()
+    if "firewall" in normalized or "firewalld" in normalized:
+        return "firewall_status"
+    if "usb" in normalized or "usbguard" in normalized:
+        return "usb_devices"
+    if "process" in normalized or "running" in normalized or "connection" in normalized:
+        return "process_check"
+    if "system" in normalized or "host" in normalized or "info" in normalized:
+        return "system_info"
+    if "security" in normalized or "status" in normalized:
+        return "security_summary"
+    if any(term in normalized for term in ("clamav", "clamscan", "lynis", "rootkit", "audit", "auditd", "ssh", "systemd", "rpm-ostree")):
+        return "manual_workflow_required"
+    return "security_summary"
 
 def _helper_available(name):
     return (BIN_DIR / name).is_file() or shutil.which(name)
@@ -326,7 +390,59 @@ def _clean_source_list(value, limit=3):
     parts = [p.strip(" ,;") for p in re.split(r"[,;]", cleaned)]
     return [p for p in parts if p][:limit]
 
-def _compact_memory_panel(query, raw_output, source_label, status_note):
+def _memory_confidence(parsed):
+    for key in ("confidence", "recommendation_confidence"):
+        value = parsed.get(key, "").strip()
+        if value:
+            return value.strip("`")
+    match = re.search(r"\bconfidence=([a-z0-9_.-]+)", parsed.get("answerability_status", ""), re.IGNORECASE)
+    if match:
+        return match.group(1)
+    return "unknown"
+
+def _memory_direct_source_count(parsed):
+    status = parsed.get("answerability_status", "")
+    total = 0
+    found = False
+    for key in ("ruvector_direct", "stage3a_direct"):
+        match = re.search(rf"\b{key}=(\d+)", status, re.IGNORECASE)
+        if match:
+            found = True
+            total += int(match.group(1))
+    return total if found else None
+
+def _memory_search_insufficient(raw_output, returncode):
+    if returncode != 0:
+        return True
+    parsed = _parse_keyed_output(raw_output)
+    recommendation = parsed.get("final_recommendation", "").lower()
+    if recommendation in {"insufficient_evidence", "ruvector_unavailable_use_stage3a", "stop_human_review_required"}:
+        return True
+    fallback_status = parsed.get("fallback_status", "").lower()
+    if fallback_status and "stage3a" in fallback_status and "baseline" not in fallback_status:
+        return True
+    confidence = _memory_confidence(parsed).lower()
+    if confidence in {"low", "weak", "unknown"}:
+        return True
+    direct_count = _memory_direct_source_count(parsed)
+    if direct_count == 0:
+        return True
+    return False
+
+def _expanded_memory_query(query):
+    normalized = re.sub(r"\s+", " ", query.lower()).strip()
+    policy_terms = (
+        "what did we decide about ruvector",
+        "ruvector promotion decision",
+        "is ruvector default",
+        "stage 3a fallback",
+        "stage three a fallback",
+    )
+    if any(term in normalized for term in policy_terms):
+        return query + " " + " ".join(RUVECTOR_POLICY_EXPANSION_TERMS)
+    return query
+
+def _memory_sources_from_output(raw_output):
     parsed = _parse_keyed_output(raw_output)
     sources = _clean_source_list(parsed.get("ruvector_top_sources", ""))
     if not sources:
@@ -335,7 +451,16 @@ def _compact_memory_panel(query, raw_output, source_label, status_note):
         sources = _clean_source_list(parsed.get("stage3a_top_sources", ""))
     if not sources:
         sources = _clean_source_list(parsed.get("stage_3a_sources", ""))
+    if not sources:
+        source_lines = []
+        for line in raw_output.splitlines():
+            match = re.match(r"source:\s*(.+)", line.strip(), re.IGNORECASE)
+            if match:
+                source_lines.append(match.group(1))
+        sources = _clean_source_list(", ".join(source_lines))
+    return sources
 
+def _source_family_label(source_label, parsed):
     fallback_status = parsed.get("fallback_status", "").lower()
     recommendation = parsed.get("final_recommendation", "").lower()
     if (
@@ -343,18 +468,29 @@ def _compact_memory_panel(query, raw_output, source_label, status_note):
         and "Stage 3A" in source_label
         and ("stage3a" in fallback_status or "stage3a" in recommendation or "fallback" in fallback_status)
     ):
-        source_family = "fallback"
-    elif "RuVector" in source_label:
-        source_family = "RuVector"
-    elif "Stage 3A" in source_label:
-        source_family = "Stage 3A"
-    else:
-        source_family = "fallback"
+        return "fallback"
+    if "RuVector" in source_label:
+        return "RuVector"
+    if "Stage 3A" in source_label:
+        return "Stage 3A"
+    return "fallback"
+
+def _compact_memory_panel(query, raw_output, source_label, status_note, route_confidence=0.88):
+    parsed = _parse_keyed_output(raw_output)
+    sources = _memory_sources_from_output(raw_output)
+    source_family = _source_family_label(source_label, parsed)
+    confidence = _memory_confidence(parsed)
+    if confidence == "unknown":
+        confidence = f"{route_confidence:.2f}"
     panel = [
-        "│ Memory context:",
-        f"│   source family: {source_family}",
-        f"│   top sources: {', '.join(sources) if sources else 'not available'}",
+        f"│ Routed: memory_auto · {source_family} · read-only · confidence {confidence}",
+        "│ Sources:",
     ]
+    if sources:
+        panel.extend(f"│   - {source}" for source in sources[:3])
+    else:
+        panel.append("│   - not available")
+    panel.append("│ Answer:")
     return panel
 
 def _format_report_size(size):
@@ -364,14 +500,22 @@ def _format_report_size(size):
         return f"{size / 1024:.1f} KB"
     return f"{size / (1024 * 1024):.1f} MB"
 
-def _report_excerpt(path, max_chars=360):
+def _sanitize_report_preview(text):
+    home = re.escape(str(HOME))
+    text = re.sub(home + r"/", "~/", text)
+    text = re.sub(r"/var/home/[^\s)]+/", "~/", text)
+    text = re.sub(r"/home/[^\s)]+/", "~/", text)
+    text = re.sub(r"\s+", " ", text).strip()
+    return text
+
+def _report_excerpt(path, max_chars=240):
     try:
         content = path.read_text(encoding="utf-8", errors="replace")
     except Exception as exc:
         return f"Preview unavailable: {exc}"
     lines = []
     for raw_line in content.splitlines():
-        line = re.sub(r"\s+", " ", raw_line).strip()
+        line = _sanitize_report_preview(raw_line)
         if line:
             lines.append(line)
         if len(" ".join(lines)) >= max_chars:
@@ -383,7 +527,13 @@ def _report_excerpt(path, max_chars=360):
         excerpt = excerpt[: max_chars - 3].rstrip() + "..."
     return excerpt
 
-def _report_cards(files, include_preview=True, limit=5):
+def _report_preview_lines(path, width, max_lines=3):
+    excerpt = _report_excerpt(path)
+    if not excerpt:
+        return ["(empty report)"]
+    return textwrap.wrap(excerpt, width=max(24, width), break_long_words=False)[:max_lines]
+
+def _report_cards(files, include_preview=True, limit=5, width=88):
     import datetime
     cards = []
     for path, mtime, size in files[:limit]:
@@ -394,19 +544,13 @@ def _report_cards(files, include_preview=True, limit=5):
             f"│   size: {_format_report_size(size)}",
         ])
         if include_preview:
-            cards.append(f"│   preview: {_report_excerpt(path)}")
+            preview_width = max(24, width - len("│   preview: "))
+            preview_lines = _report_preview_lines(path, preview_width, max_lines=3)
+            for idx, line in enumerate(preview_lines):
+                prefix = "│   preview: " if idx == 0 else "│            "
+                cards.append(f"{prefix}{line}")
         cards.append("│")
     return cards
-
-def _memory_search_insufficient(raw_output, returncode):
-    if returncode != 0:
-        return True
-    parsed = _parse_keyed_output(raw_output)
-    recommendation = parsed.get("final_recommendation", "").lower()
-    if recommendation in {"insufficient_evidence", "ruvector_unavailable_use_stage3a", "stop_human_review_required"}:
-        return True
-    status = parsed.get("answerability_status", "").lower()
-    return "ruvector_direct=0" in status and "stage3a_direct=0" in status
 
 def _run_command_capture(cmd_args, timeout):
     try:
@@ -426,7 +570,8 @@ def _build_memory_prompt(query, context):
         "You are Gemma running locally through Ollama on a Bazzite/Fedora Atomic desktop.",
         "Answer the user's question using the read-only retrieved context below.",
         "Do not claim to have changed files, executed security tools, ingested memory, trained, or updated indexes.",
-        "If the context is insufficient, say what is missing. Keep the answer concise.",
+        "If the context contains a Known Project Policy section, treat it as high-priority project policy evidence.",
+        "Keep the answer concise and human-readable.",
         "",
         f"User question: {query}",
         "",
@@ -434,15 +579,29 @@ def _build_memory_prompt(query, context):
         clipped if clipped else "No retrieved context was available.",
     ])
 
+def _known_project_policy_context(query):
+    expanded = _expanded_memory_query(query)
+    if expanded == query:
+        return ""
+    return "\n".join([
+        "## Known Project Policy: RuVector / Stage 3A",
+        "- RuVector remains a supervised prototype / supervised-secondary memory source, not the production default.",
+        "- Stage 3A deterministic retrieval remains the canonical fallback.",
+        "- RuVector promotion to default was denied until explicit future quality gates pass.",
+        "- Relevant policy terms: " + "; ".join(RUVECTOR_POLICY_EXPANSION_TERMS),
+    ])
+
 def _run_memory_auto_worker(query, out_queue, model, host):
     raw_sections = []
     source_label = "Stage 3A"
     status_note = "fallback search"
     context = ""
+    expanded_query = _expanded_memory_query(query)
+    policy_context = _known_project_policy_context(query)
 
     if _helper_available("gemma-memory-search"):
-        rc, raw = _run_command_capture(["gemma-memory-search", query], timeout=75)
-        raw_sections.append("$ gemma-memory-search\n" + raw)
+        rc, raw = _run_command_capture(["gemma-memory-search", expanded_query], timeout=75)
+        raw_sections.append(f"$ gemma-memory-search {expanded_query}\n" + raw)
         context = raw
         source_label = "RuVector"
         status_note = "read-only semantic search"
@@ -455,17 +614,20 @@ def _run_memory_auto_worker(query, out_queue, model, host):
 
     if needs_stage3a:
         if _helper_available("gemma-knowledge-rag"):
-            rc2, raw2 = _run_command_capture(["gemma-knowledge-rag", query], timeout=210)
-            raw_sections.append("$ gemma-knowledge-rag\n" + raw2)
+            rc2, raw2 = _run_command_capture(["gemma-knowledge-rag", expanded_query], timeout=210)
+            raw_sections.append(f"$ gemma-knowledge-rag {expanded_query}\n" + raw2)
             context += "\n\n" + raw2
             source_label = f"{source_label} + Stage 3A" if source_label != "Stage 3A" else "Stage 3A"
             status_note = "Stage 3A read-only support"
         elif _helper_available("gemma-knowledge-search"):
-            rc2, raw2 = _run_command_capture(["gemma-knowledge-search", query], timeout=45)
-            raw_sections.append("$ gemma-knowledge-search\n" + raw2)
+            rc2, raw2 = _run_command_capture(["gemma-knowledge-search", expanded_query], timeout=45)
+            raw_sections.append(f"$ gemma-knowledge-search {expanded_query}\n" + raw2)
             context += "\n\n" + raw2
             source_label = f"{source_label} + Stage 3A" if source_label != "Stage 3A" else "Stage 3A"
             status_note = "Stage 3A read-only search support"
+
+    if policy_context:
+        context = policy_context + "\n\n" + context
 
     raw_debug = "\n\n".join(raw_sections)
     out_queue.put(("debug", raw_debug))
@@ -499,6 +661,7 @@ class GemmaTui:
         self.gen_queue = queue.Queue()
         self.current_response = ""
         self.last_debug_output = "No routed helper output yet."
+        self.pending_action = None
         
         self._reset_welcome()
 
@@ -756,6 +919,9 @@ class GemmaTui:
 
     def handle_command(self, text):
         if not text.startswith("/"):
+            if self.pending_action and text.strip().lower() in {"yes", "y", "no", "n"}:
+                self._handle_pending_confirmation(text)
+                return
             normalized_command = normalize_plain_command(text)
             if normalized_command:
                 self.handle_command(normalized_command)
@@ -828,8 +994,11 @@ class GemmaTui:
             self.mode = "memory"
             if not self.lines or self.lines[0] != "╭─ Chat":
                 self.lines = ["╭─ Chat", "│"]
-            source = "RuVector" if _helper_available("gemma-memory-search") else "Stage 3A"
-            self._append_chat_header(text, route, f"{source} · read-only")
+            _, width = self.stdscr.getmaxyx()
+            max_width = max(20, width - 4)
+            self.lines.append("├──────────────────────────────────────────────────")
+            self.lines.extend(_wrap_lines(text, prefix="│ You: ", width=max_width))
+            self.lines.append("│")
             self.is_generating = True
             self.status = "Retrieving memory..."
             self.current_response = ""
@@ -876,17 +1045,65 @@ class GemmaTui:
 
     def _show_security_confirmation_required(self, text, route):
         self.mode = "security"
+        action_name = _suggest_security_action(text)
+        action = SECURITY_ACTIONS.get(action_name)
+        self.pending_action = None
         self.lines = ["╭─ Confirmation Required", "│"]
         self._append_chat_header(text, route, "confirmation required")
+        if action is None:
+            self.lines.extend([
+                "│ Security-sensitive request detected.",
+                "│",
+                f"│ Suggested workflow: {action_name}",
+                "│ Risk: SUDO / MANUAL REVIEW",
+                "│ Status: manual workflow required. Nothing was executed.",
+                "│",
+                "╰─ Use the reviewed security workflow outside chat-first routing.",
+            ])
+            return
+        self.pending_action = {"name": action_name, **action}
         self.lines.extend([
             "│ Security-sensitive request detected.",
             "│",
-            "│ No firewall, USBGuard, ClamAV, Lynis, auditd, SSH, rpm-ostree,",
-            "│ systemd, Ollama, Agent Zero, Space Agent, or RuVector index action",
-            "│ was executed.",
+            f"│ Suggested tool: {action_name}",
+            f"│ Purpose: {action['description']}",
+            f"│ Risk: {action['risk']}",
+            "│ Executes read-only only; no writes, no sudo.",
             "│",
-            "╰─ Use the dedicated reviewed workflow if you want to authorize a safe read-only check.",
+            "│ Proceed? Type yes or no.",
+            "│",
+            "╰─ No security tool was executed yet.",
         ])
+
+    def _handle_pending_confirmation(self, text):
+        answer = text.strip().lower()
+        action = self.pending_action
+        self.pending_action = None
+        if answer not in {"yes", "y"}:
+            self.lines.extend(["│", "│ Security action cancelled. Nothing was executed.", "│"])
+            self.scroll = max(0, len(self.lines) - 1)
+            return
+        if not action:
+            self.lines.extend(["│", "│ No pending action.", "│"])
+            self.scroll = max(0, len(self.lines) - 1)
+            return
+        if action.get("sudo"):
+            self.lines.extend(["│", "│ Manual workflow required. Sudo tools are not run from chat routing.", "│"])
+            self.scroll = max(0, len(self.lines) - 1)
+            return
+        self.lines.append("├──────────────────────────────────────────────────")
+        self.lines.append(f"│ You: {text.strip()}")
+        self.lines.append(f"│ Running confirmed read-only tool: {action['name']}")
+        self.lines.append("│")
+        self.is_generating = True
+        self.status = f"Running {action['name']}..."
+        self.current_response = ""
+        self.stream_start_idx = len(self.lines)
+        self.stream_prefix = f"│ {action['name']}: "
+        self.lines.append(f"│ {action['name']}: running...")
+        self.scroll = max(0, len(self.lines) - 1)
+        self.draw()
+        threading.Thread(target=_run_helper_stream, args=(action["command"], self.gen_queue), daemon=True).start()
 
     def _handle_memory(self, text):
         parts = text.split(None, 2)
@@ -960,13 +1177,23 @@ class GemmaTui:
         try:
             files = [(f, f.stat().st_mtime, f.stat().st_size) for f in REPORT_DIR.iterdir() if f.is_file()]
             files.sort(key=lambda x: x[1], reverse=True)
-            
+            _, width = self.stdscr.getmaxyx()
+            max_width = max(40, width - 4)
+
             self.lines.append("│ Reports: Recent manual security reports")
             self.lines.append("│")
             if not files:
                 self.lines.append("│   (No reports found)")
+                self.last_debug_output = "No reports found."
             else:
-                self.lines.extend(_report_cards(files, include_preview=True, limit=5))
+                self.lines.extend(_report_cards(files, include_preview=True, limit=5, width=max_width))
+                raw_parts = []
+                for path, _, _ in files[:5]:
+                    try:
+                        raw_parts.append(f"$ report {path.name}\n" + path.read_text(encoding="utf-8", errors="replace"))
+                    except Exception as exc:
+                        raw_parts.append(f"$ report {path.name}\nPreview unavailable: {exc}")
+                self.last_debug_output = "\n\n".join(raw_parts)
             self.lines.append("│")
         except Exception as e:
             self.lines.extend([f"│ Reports: Error reading directory: {e}", "│"])
@@ -991,13 +1218,21 @@ class GemmaTui:
         try:
             files = [(f, f.stat().st_mtime, f.stat().st_size) for f in REPORT_DIR.iterdir() if f.is_file()]
             files.sort(key=lambda x: x[1], reverse=True)
-            
+            _, width = self.stdscr.getmaxyx()
+            max_width = max(40, width - 4)
+
             if not files:
                 self.lines.extend(["│ Reports: No reports found.", "│"])
+                self.last_debug_output = "No reports found."
             else:
                 self.lines.append("│ Reports: Latest manual security report")
                 self.lines.append("│")
-                self.lines.extend(_report_cards(files, include_preview=True, limit=1))
+                self.lines.extend(_report_cards(files, include_preview=True, limit=1, width=max_width))
+                latest = files[0][0]
+                try:
+                    self.last_debug_output = f"$ report {latest.name}\n" + latest.read_text(encoding="utf-8", errors="replace")
+                except Exception as exc:
+                    self.last_debug_output = f"$ report {latest.name}\nPreview unavailable: {exc}"
                 
         except Exception as e:
             self.lines.extend([f"│ Reports: Error reading file: {e}", "│"])
