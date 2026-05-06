@@ -144,17 +144,58 @@ def _call_ollama_stream(prompt_text, out_queue, model=MODEL, host=OLLAMA_HOST, t
 def _wrap_lines(text, prefix="", width=60):
     lines = text.split("\n")
     wrapped = []
+    in_code_block = False
+    
     for i, line in enumerate(lines):
-        curr_prefix = prefix if i == 0 else ("│ " + " " * (len(prefix) - 2) if prefix.startswith("│ ") else "")
-        if curr_prefix == "" and prefix.startswith("│"):
-             curr_prefix = "│ "
-        
-        text_to_wrap = curr_prefix + line
+        if line.strip().startswith("```"):
+            in_code_block = not in_code_block
+            
+        curr_prefix = prefix if i == 0 else ("│ " + " " * max(0, len(prefix) - 2) if prefix.startswith("│") else "")
+        if not curr_prefix and prefix.startswith("│"):
+            curr_prefix = "│ "
+            
         if not line.strip():
-            wrapped.append("│" if prefix.startswith("│") else "")
-        else:
-            wrapped.extend(textwrap.wrap(text_to_wrap, width=width))
+            wrapped.append(curr_prefix.rstrip() if prefix.startswith("│") else "")
+            continue
+            
+        stripped = line.lstrip()
+        indent_spaces = len(line) - len(stripped)
+        
+        sub_indent = "  " if stripped.startswith(("- ", "* ")) or (stripped and stripped[0].isdigit() and ". " in stripped[:4]) else ""
+        
+        if in_code_block:
+             indent_spaces += 2
+             
+        init_ind = curr_prefix + " " * indent_spaces
+        sub_ind = curr_prefix + " " * indent_spaces + sub_indent
+        
+        w = textwrap.wrap(
+            stripped, 
+            width=width, 
+            initial_indent=init_ind, 
+            subsequent_indent=sub_ind,
+            drop_whitespace=True
+        )
+        wrapped.extend(w)
+        
     return wrapped
+
+def _run_helper_stream(cmd_args, out_queue):
+    import subprocess
+    try:
+        process = subprocess.Popen(
+            cmd_args,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.STDOUT,
+            text=True,
+            bufsize=1
+        )
+        for line in process.stdout:
+            out_queue.put(("chunk", line))
+        process.wait()
+        out_queue.put(("done", ""))
+    except Exception as e:
+        out_queue.put(("error", f"Failed to run {' '.join(cmd_args)}: {e}"))
 
 class GemmaTui:
     def __init__(self, stdscr):
@@ -276,7 +317,8 @@ class GemmaTui:
             
         _, width = self.stdscr.getmaxyx()
         max_width = max(20, width - 4)
-        wrapped = _wrap_lines(self.current_response, prefix="│ Gemma: ", width=max_width)
+        prefix = getattr(self, 'stream_prefix', "│ Gemma: ")
+        wrapped = _wrap_lines(self.current_response, prefix=prefix, width=max_width)
         self.lines = self.lines[:self.stream_start_idx] + wrapped
         self.scroll = max(0, len(self.lines) - 1)
 
@@ -324,10 +366,15 @@ class GemmaTui:
             if line.startswith("╭─") or line.startswith("╰─") or line.startswith("├─"):
                 attr = self.style("frame")
             elif line.startswith("│"):
-                if "You:" in line:
-                    attr = self.style("user")
-                elif "Gemma:" in line:
-                    attr = self.style("assistant")
+                if " You: " in line or " Gemma: " in line or " Search: " in line or " Reports: " in line or " Stage3A: " in line:
+                    for prefix_str, style_name in [(" You: ", "user"), (" Gemma: ", "assistant"), (" Search: ", "title"), (" Reports: ", "title"), (" Stage3A: ", "title")]:
+                        if prefix_str in line:
+                            parts = line.split(":", 1)
+                            _safe_addstr(self.stdscr, row, 0, parts[0] + ":", self.style(style_name))
+                            if len(parts) > 1:
+                                _safe_addstr(self.stdscr, row, len(parts[0]) + 1, parts[1], 0)
+                            break
+                    continue
                 elif "OK" in line or "ready" in line or "online" in line:
                     attr = self.style("ok")
                 elif "MISSING" in line or "WARN" in line or "offline" in line or "fallback" in line:
@@ -428,6 +475,7 @@ class GemmaTui:
             self.status = "Thinking..."
             self.current_response = ""
             self.stream_start_idx = len(self.lines)
+            self.stream_prefix = "│ Gemma: "
             self.lines.append("│ Gemma: thinking...")
             self.scroll = max(0, len(self.lines) - 1)
             self.draw()
@@ -445,8 +493,14 @@ class GemmaTui:
             self.show_general()
         elif cmd in ("/dashboard", "/status"):
             self.show_dashboard()
-        elif cmd in ("/memory", "/m"):
+        elif cmd == "/memory" or cmd in ("/m",):
             self.show_memory()
+        elif cmd.startswith("/memory "):
+            self._handle_memory(text)
+        elif cmd == "/reports" or cmd in ("/r",):
+            self._handle_reports_list()
+        elif cmd.startswith("/reports latest"):
+            self._handle_reports_latest()
         elif cmd in ("/voice", "/v"):
             self.show_voice()
         elif cmd in ("/settings", "/t", "/theme", "/ascii", "/compact"):
@@ -457,6 +511,130 @@ class GemmaTui:
         else:
             self.lines.extend(["│", f"│  WARN Unknown command: {text}", "│  Try /commands or /menu."])
             self.scroll = max(0, len(self.lines) - 1)
+
+    def _handle_memory(self, text):
+        parts = text.split(None, 2)
+        if len(parts) < 2:
+            return
+        subcmd = parts[1].lower()
+        query = parts[2] if len(parts) > 2 else ""
+        
+        if subcmd == "status":
+            self.show_memory()
+            return
+            
+        if subcmd in ("ask", "compare"):
+            self.lines.extend(["│", f"│  Memory {subcmd} is reserved for future implementation.", "│"])
+            self.scroll = max(0, len(self.lines) - 1)
+            return
+            
+        if subcmd == "search":
+            cmd_args = ["gemma-memory-search", query]
+            prefix_name = "Search"
+        elif subcmd == "stage3a":
+            if shutil.which("gemma-knowledge-rag") or (BIN_DIR / "gemma-knowledge-rag").is_file():
+                cmd_args = ["gemma-knowledge-rag", query]
+            else:
+                cmd_args = ["gemma-knowledge-search", query]
+            prefix_name = "Stage3A"
+        else:
+            self.lines.extend(["│", f"│  Unknown memory command: {subcmd}", "│"])
+            self.scroll = max(0, len(self.lines) - 1)
+            return
+            
+        if not query:
+            self.lines.extend(["│", "│  Missing query.", "│"])
+            self.scroll = max(0, len(self.lines) - 1)
+            return
+            
+        self.mode = "memory"
+        _, width = self.stdscr.getmaxyx()
+        max_width = max(20, width - 4)
+        
+        self.lines.append("├──────────────────────────────────────────────────")
+        self.lines.extend(_wrap_lines(text, prefix="│ You: ", width=max_width))
+        self.lines.append("│")
+        
+        self.is_generating = True
+        self.status = f"Running {cmd_args[0]}..."
+        self.current_response = ""
+        self.stream_start_idx = len(self.lines)
+        self.stream_prefix = f"│ {prefix_name}: "
+        self.lines.append(f"│ {prefix_name}: running...")
+        self.scroll = max(0, len(self.lines) - 1)
+        self.draw()
+        
+        threading.Thread(target=_run_helper_stream, args=(cmd_args, self.gen_queue), daemon=True).start()
+
+    def _handle_reports_list(self):
+        self.mode = "reports"
+        self.lines.append("├──────────────────────────────────────────────────")
+        self.lines.append("│ You: /reports")
+        self.lines.append("│")
+        
+        if not REPORT_DIR.is_dir():
+            self.lines.extend(["│ Reports: Directory not found.", "│"])
+            self.scroll = max(0, len(self.lines) - 1)
+            return
+            
+        try:
+            files = [(f, f.stat().st_mtime, f.stat().st_size) for f in REPORT_DIR.iterdir() if f.is_file()]
+            files.sort(key=lambda x: x[1], reverse=True)
+            
+            self.lines.append("│ Reports: Recent manual security reports:")
+            if not files:
+                self.lines.append("│   (No reports found)")
+            else:
+                import datetime
+                for f, mtime, size in files[:10]:
+                    dt = datetime.datetime.fromtimestamp(mtime).strftime("%Y-%m-%d %H:%M:%S")
+                    sz_kb = size / 1024
+                    self.lines.append(f"│   {f.name} ({dt}, {sz_kb:.1f} KB)")
+            self.lines.append("│")
+        except Exception as e:
+            self.lines.extend([f"│ Reports: Error reading directory: {e}", "│"])
+            
+        self.scroll = max(0, len(self.lines) - 1)
+
+    def _handle_reports_latest(self):
+        self.mode = "reports"
+        self.lines.append("├──────────────────────────────────────────────────")
+        self.lines.append("│ You: /reports latest")
+        self.lines.append("│")
+        
+        if not REPORT_DIR.is_dir():
+            self.lines.extend(["│ Reports: Directory not found.", "│"])
+            self.scroll = max(0, len(self.lines) - 1)
+            return
+            
+        try:
+            files = [(f, f.stat().st_mtime) for f in REPORT_DIR.iterdir() if f.is_file()]
+            files.sort(key=lambda x: x[1], reverse=True)
+            
+            if not files:
+                self.lines.extend(["│ Reports: No reports found.", "│"])
+            else:
+                latest_file = files[0][0]
+                self.lines.append(f"│ Reports: Previewing {latest_file.name}")
+                self.lines.append("│")
+                
+                content = latest_file.read_text(encoding="utf-8")
+                lines = content.split("\n")
+                preview = "\n".join(lines[:50])
+                if len(lines) > 50:
+                    preview += "\n... (truncated)"
+                    
+                _, width = self.stdscr.getmaxyx()
+                max_width = max(20, width - 4)
+                
+                wrapped = _wrap_lines(preview, prefix="│ ", width=max_width)
+                self.lines.extend(wrapped)
+                self.lines.append("│")
+                
+        except Exception as e:
+            self.lines.extend([f"│ Reports: Error reading file: {e}", "│"])
+            
+        self.scroll = max(0, len(self.lines) - 1)
 
     def show_menu(self):
         self.mode = "welcome"
