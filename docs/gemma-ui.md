@@ -39,6 +39,19 @@ gemma-ui --list-modes
 gemma-ui --help
 ```
 
+The curses TUI remains optional and is not the default entrypoint:
+
+```bash
+gemma-ui --tui
+gemma-ui-tui
+```
+
+In `gemma-ui-tui`, normal input is chat-first. Users can type natural
+language such as `what did we decide about ruvector`, `show latest report`,
+`list reports`, `dashboard`, `voice status`, or `check firewall`. The TUI
+routes safe read-only views automatically and shows a visible routing chip in
+the transcript.
+
 ---
 
 ## Welcome Screen
@@ -102,6 +115,7 @@ Modes can be selected by number or command:
 | `/clear` | Clear the screen |
 | `/save` | Save current session state |
 | `/back` | Return to welcome screen |
+| `/debug last` | Show raw helper output from the last routed action |
 | `/quit` | Exit |
 
 ---
@@ -184,7 +198,12 @@ When `gemma-voice-chat` is not installed, the UI shows:
 
 ## Memory Mode
 
-Memory mode provides explicit supervised access to RuVector and Stage 3A retrieval.
+Memory mode provides supervised read-only access to RuVector and Stage 3A
+retrieval. In `gemma-ui-tui`, natural-language memory questions are routed
+automatically before normal Gemma chat. The TUI first runs safe retrieval,
+shows a compact context panel with source/status/top sources, then asks Gemma
+with that retrieved context. Raw helper output is hidden unless `/debug last`
+is used.
 
 **Commands:**
 ```
@@ -214,6 +233,7 @@ gemma-ui --memory-compare "<question>"
 - Stage 3A deterministic retrieval remains the canonical fallback.
 - Memory mode performs read-only retrieval/RAG only.
 - Memory mode does not ingest new data, train the model, mutate repos, or execute remediation.
+- Chat-first routing does not enable MCP routing, transcript ingestion, training, fine-tuning, or index updates.
 
 **Voice-to-Memory Routing:**
 - Natural voice commands are routed deterministically to memory mode.

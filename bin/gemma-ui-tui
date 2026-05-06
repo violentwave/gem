@@ -4,6 +4,8 @@ from __future__ import annotations
 import curses
 import json
 import shutil
+import re
+import subprocess
 import sys
 import time
 import urllib.request
@@ -42,6 +44,79 @@ HELPERS = [
     "gemma-voice-chat",
     "gemma-dashboard",
 ]
+
+SECURITY_CONFIRM_TERMS = {
+    "auditd", "clamav", "clamscan", "firewall", "firewalld", "lynis",
+    "rootkit", "scan", "ssh", "sudo", "systemd", "usbguard",
+}
+
+MEMORY_TERMS = {
+    "agent zero", "decide", "decided", "decision", "memory", "recall",
+    "remember", "ruvector", "search memory", "space agent", "what did we say",
+    "what did we decide",
+}
+
+EXACT_POLICY_PATH_TERMS = {
+    "approved", "canonical", "config", "default", "log", "logs", "path",
+    "paths", "policy", "report", "reports", "stored", "where",
+}
+
+def route_chat_intent(text):
+    """Deterministically route natural-language chat before model fallback."""
+    raw = text.strip()
+    normalized = re.sub(r"\s+", " ", raw.lower())
+    words = set(re.findall(r"[a-z0-9][a-z0-9_-]*", normalized))
+
+    def result(intent, confidence, action, reason):
+        return {
+            "intent": intent,
+            "confidence": confidence,
+            "action": action,
+            "reason": reason,
+        }
+
+    if not normalized:
+        return result("general_chat", 0.0, "call_gemma", "empty input")
+
+    security_phrases = (
+        "check firewall", "change firewall", "scan rootkit", "run clamav",
+        "run clamscan", "run lynis", "start audit", "modify ssh",
+        "restart ssh", "change usbguard",
+    )
+    if any(phrase in normalized for phrase in security_phrases):
+        return result(
+            "security_confirm_required",
+            0.95,
+            "show_confirmation_required",
+            "security-sensitive tool request requires explicit confirmation outside chat routing",
+        )
+    if ("run" in words or "scan" in words or "check" in words) and (words & SECURITY_CONFIRM_TERMS):
+        return result(
+            "security_confirm_required",
+            0.88,
+            "show_confirmation_required",
+            "security-sensitive verb and target detected",
+        )
+
+    if normalized in {"help", "what can you do", "commands"}:
+        return result("help", 0.95, "show_help", "help request")
+    if normalized in {"settings", "preferences", "configuration"}:
+        return result("settings", 0.92, "show_settings", "settings request")
+    if normalized in {"voice", "voice status", "audio status", "speech status"} or normalized.startswith("voice "):
+        return result("voice_status", 0.93, "show_voice_status", "voice status request")
+    if normalized in {"dashboard", "status", "show dashboard", "show status", "system status"}:
+        return result("dashboard", 0.94, "show_dashboard", "dashboard/status request")
+    if any(phrase in normalized for phrase in ("show latest report", "latest report", "most recent report", "open latest report")):
+        return result("reports_latest", 0.94, "show_latest_report", "latest report request")
+    if any(phrase in normalized for phrase in ("list reports", "show reports", "recent reports", "reports list")) or normalized == "reports":
+        return result("reports_list", 0.92, "show_reports_list", "reports list request")
+
+    if any(term in normalized for term in MEMORY_TERMS):
+        return result("memory_auto", 0.88, "retrieve_memory_then_gemma", "memory/decision recall request")
+    if normalized.startswith(("search memory for ", "memory search ", "find in memory ")):
+        return result("memory_auto", 0.94, "retrieve_memory_then_gemma", "explicit memory search request")
+
+    return result("general_chat", 0.52, "call_gemma", "no deterministic route matched")
 
 def _safe_addstr(win, y, x, text, attr=0):
     height, width = win.getmaxyx()
@@ -181,7 +256,6 @@ def _wrap_lines(text, prefix="", width=60):
     return wrapped
 
 def _run_helper_stream(cmd_args, out_queue):
-    import subprocess
     try:
         process = subprocess.Popen(
             cmd_args,
@@ -196,6 +270,128 @@ def _run_helper_stream(cmd_args, out_queue):
         out_queue.put(("done", ""))
     except Exception as e:
         out_queue.put(("error", f"Failed to run {' '.join(cmd_args)}: {e}"))
+
+def _helper_available(name):
+    return (BIN_DIR / name).is_file() or shutil.which(name)
+
+def _looks_like_exact_policy_path_question(text):
+    normalized = text.lower()
+    words = set(re.findall(r"[a-z0-9][a-z0-9_-]*", normalized))
+    return bool(words & EXACT_POLICY_PATH_TERMS) or any(
+        phrase in normalized for phrase in ("where should", "where do", "what path", "which path")
+    )
+
+def _parse_keyed_output(output):
+    parsed = {}
+    for line in output.splitlines():
+        if ":" not in line:
+            continue
+        key, value = line.split(":", 1)
+        key = key.strip().lower().replace(" ", "_")
+        if key:
+            parsed[key] = value.strip()
+    return parsed
+
+def _clean_source_list(value, limit=3):
+    if not value or value.lower() in {"none", "n/a"}:
+        return []
+    cleaned = re.sub(r"\([^)]*\)", "", value)
+    parts = [p.strip(" ,") for p in cleaned.split(",")]
+    return [p for p in parts if p][:limit]
+
+def _compact_memory_panel(query, raw_output, source_label, status_note):
+    parsed = _parse_keyed_output(raw_output)
+    recommendation = parsed.get("final_recommendation", "unknown")
+    confidence = parsed.get("answerability_status", parsed.get("fallback_status", status_note))
+    sources = _clean_source_list(parsed.get("ruvector_top_sources", ""))
+    if not sources:
+        sources = _clean_source_list(parsed.get("stage3a_top_sources", ""))
+    if not sources:
+        sources = ["No top sources parsed"]
+    panel = [
+        "│ Context:",
+        f"│   source: {source_label}",
+        f"│   status: {status_note}",
+        f"│   recommendation: {recommendation}",
+        f"│   confidence: {confidence}",
+        f"│   top sources: {', '.join(sources)}",
+    ]
+    return panel
+
+def _memory_search_insufficient(raw_output, returncode):
+    if returncode != 0:
+        return True
+    parsed = _parse_keyed_output(raw_output)
+    recommendation = parsed.get("final_recommendation", "").lower()
+    if recommendation in {"insufficient_evidence", "ruvector_unavailable_use_stage3a", "stop_human_review_required"}:
+        return True
+    status = parsed.get("answerability_status", "").lower()
+    return "ruvector_direct=0" in status and "stage3a_direct=0" in status
+
+def _run_command_capture(cmd_args, timeout):
+    try:
+        result = subprocess.run(cmd_args, capture_output=True, text=True, timeout=timeout)
+        raw = (result.stdout or "")
+        if result.stderr:
+            raw += ("\n" if raw else "") + result.stderr
+        return result.returncode, raw
+    except subprocess.TimeoutExpired:
+        return 124, f"{cmd_args[0]} timed out after {timeout}s."
+    except Exception as exc:
+        return 1, f"Failed to run {' '.join(cmd_args)}: {exc}"
+
+def _build_memory_prompt(query, context):
+    clipped = context.strip()[:9000]
+    return "\n".join([
+        "You are Gemma running locally through Ollama on a Bazzite/Fedora Atomic desktop.",
+        "Answer the user's question using the read-only retrieved context below.",
+        "Do not claim to have changed files, executed security tools, ingested memory, trained, or updated indexes.",
+        "If the context is insufficient, say what is missing. Keep the answer concise.",
+        "",
+        f"User question: {query}",
+        "",
+        "READ-ONLY RETRIEVED CONTEXT:",
+        clipped if clipped else "No retrieved context was available.",
+    ])
+
+def _run_memory_auto_worker(query, out_queue, model, host):
+    raw_sections = []
+    source_label = "Stage 3A"
+    status_note = "fallback search"
+    context = ""
+
+    if _helper_available("gemma-memory-search"):
+        rc, raw = _run_command_capture(["gemma-memory-search", query], timeout=75)
+        raw_sections.append("$ gemma-memory-search\n" + raw)
+        context = raw
+        source_label = "RuVector"
+        status_note = "read-only semantic search"
+        needs_stage3a = _memory_search_insufficient(raw, rc) or _looks_like_exact_policy_path_question(query)
+    else:
+        needs_stage3a = True
+        raw = "gemma-memory-search unavailable; using Stage 3A fallback."
+        raw_sections.append(raw)
+        context = raw
+
+    if needs_stage3a:
+        if _helper_available("gemma-knowledge-rag"):
+            rc2, raw2 = _run_command_capture(["gemma-knowledge-rag", query], timeout=210)
+            raw_sections.append("$ gemma-knowledge-rag\n" + raw2)
+            context += "\n\n" + raw2
+            source_label = f"{source_label} + Stage 3A" if source_label != "Stage 3A" else "Stage 3A"
+            status_note = "Stage 3A read-only support"
+        elif _helper_available("gemma-knowledge-search"):
+            rc2, raw2 = _run_command_capture(["gemma-knowledge-search", query], timeout=45)
+            raw_sections.append("$ gemma-knowledge-search\n" + raw2)
+            context += "\n\n" + raw2
+            source_label = f"{source_label} + Stage 3A" if source_label != "Stage 3A" else "Stage 3A"
+            status_note = "Stage 3A read-only search support"
+
+    raw_debug = "\n\n".join(raw_sections)
+    out_queue.put(("debug", raw_debug))
+    out_queue.put(("append_lines", _compact_memory_panel(query, raw_debug, source_label, status_note)))
+    out_queue.put(("start_stream", "│ Gemma: "))
+    _call_ollama_stream(_build_memory_prompt(query, context), out_queue, model=model, host=host, timeout=120)
 
 class GemmaTui:
     def __init__(self, stdscr):
@@ -222,6 +418,7 @@ class GemmaTui:
         self.is_generating = False
         self.gen_queue = queue.Queue()
         self.current_response = ""
+        self.last_debug_output = "No routed helper output yet."
         
         self._reset_welcome()
 
@@ -230,11 +427,15 @@ class GemmaTui:
         self.lines = [
             "╭─ Welcome to Gemma Local Agent",
             "│",
-            "│  Persistent curses TUI prototype. Header, mode rail,",
-            "│  transcript, and input stay pinned.",
+            "│  Chat-first assistant shell. Type naturally; memory, reports,",
+            "│  dashboard, voice status, and safe read-only views route automatically.",
             "│",
-            "│  Try: /menu, /general, /dashboard, /memory,",
-            "│       /settings, /clear, /quit",
+            "│  Try: what did we decide about ruvector?",
+            "│       show latest report",
+            "│       check firewall",
+            "│",
+            "│  Slash commands still work: /memory search, /reports latest,",
+            "│  /dashboard, /debug last, /settings, /clear, /quit",
             "│",
             "╰─ This prototype does not execute security tools.",
         ]
@@ -310,6 +511,18 @@ class GemmaTui:
             elif msg_type == "done":
                 self.is_generating = False
                 self.status = "Ready"
+            elif msg_type == "debug":
+                self.last_debug_output = content or "No helper output captured."
+            elif msg_type == "append_lines":
+                self.lines.extend(content)
+                self.lines.append("│")
+                self.scroll = max(0, len(self.lines) - 1)
+            elif msg_type == "start_stream":
+                self.current_response = ""
+                self.stream_start_idx = len(self.lines)
+                self.stream_prefix = content or "│ Gemma: "
+                self.lines.append(f"{self.stream_prefix}thinking...")
+                self.scroll = max(0, len(self.lines) - 1)
 
     def _update_streaming_response(self):
         if not hasattr(self, 'stream_start_idx'):
@@ -366,8 +579,8 @@ class GemmaTui:
             if line.startswith("╭─") or line.startswith("╰─") or line.startswith("├─"):
                 attr = self.style("frame")
             elif line.startswith("│"):
-                if " You: " in line or " Gemma: " in line or " Search: " in line or " Reports: " in line or " Stage3A: " in line:
-                    for prefix_str, style_name in [(" You: ", "user"), (" Gemma: ", "assistant"), (" Search: ", "title"), (" Reports: ", "title"), (" Stage3A: ", "title")]:
+                if " You: " in line or " Gemma: " in line or " Search: " in line or " Reports: " in line or " Stage3A: " in line or " Routed: " in line:
+                    for prefix_str, style_name in [(" You: ", "user"), (" Gemma: ", "assistant"), (" Search: ", "title"), (" Reports: ", "title"), (" Stage3A: ", "title"), (" Routed: ", "title")]:
                         if prefix_str in line:
                             parts = line.split(":", 1)
                             _safe_addstr(self.stdscr, row, 0, parts[0] + ":", self.style(style_name))
@@ -392,7 +605,7 @@ class GemmaTui:
             _safe_addstr(self.stdscr, bottom - 1, max(0, width - len(marker) - 1), marker, self.style("muted"))
 
     def draw_footer(self, height, width):
-        hint = f" {self.status} │ /help /menu /dashboard /memory /voice /settings /clear /quit "
+        hint = f" {self.status} │ natural chat routes automatically │ /debug last /help /clear /quit "
         _safe_addstr(self.stdscr, height - 2, 0, hint.ljust(width), self.style("footer"))
         
         prompt = f" ❯ {self.input_text}"
@@ -460,27 +673,7 @@ class GemmaTui:
 
     def handle_command(self, text):
         if not text.startswith("/"):
-            if self.mode != "general":
-                self.mode = "general"
-                self.lines = ["╭─ General", "│", "│  General chat inside the persistent TUI shell.", "│"]
-            
-            _, width = self.stdscr.getmaxyx()
-            max_width = max(20, width - 4)
-            
-            self.lines.append("├──────────────────────────────────────────────────")
-            self.lines.extend(_wrap_lines(text, prefix="│ You: ", width=max_width))
-            self.lines.append("│")
-            
-            self.is_generating = True
-            self.status = "Thinking..."
-            self.current_response = ""
-            self.stream_start_idx = len(self.lines)
-            self.stream_prefix = "│ Gemma: "
-            self.lines.append("│ Gemma: thinking...")
-            self.scroll = max(0, len(self.lines) - 1)
-            self.draw()
-            
-            threading.Thread(target=_call_ollama_stream, args=(text, self.gen_queue, self.model, self.ollama_host, 120), daemon=True).start()
+            self._handle_chat_input(text)
             return
             
         self.status = "Ready"
@@ -505,12 +698,108 @@ class GemmaTui:
             self.show_voice()
         elif cmd in ("/settings", "/t", "/theme", "/ascii", "/compact"):
             self.show_settings(cmd)
+        elif cmd == "/debug last":
+            self._show_debug_last()
         elif cmd == "/clear":
             self.lines = [f"╭─ {self.mode.title()}", "│", "│  Transcript cleared.", "╰─"]
             self.scroll = 0
         else:
             self.lines.extend(["│", f"│  WARN Unknown command: {text}", "│  Try /commands or /menu."])
             self.scroll = max(0, len(self.lines) - 1)
+
+    def _append_chat_header(self, text, route, chip_extra="read-only"):
+        _, width = self.stdscr.getmaxyx()
+        max_width = max(20, width - 4)
+        self.lines.append("├──────────────────────────────────────────────────")
+        self.lines.extend(_wrap_lines(text, prefix="│ You: ", width=max_width))
+        self.lines.append(
+            f"│ Routed: {route['intent']} · {chip_extra} · confidence {route['confidence']:.2f}"
+        )
+        self.lines.append("│")
+
+    def _handle_chat_input(self, text):
+        route = route_chat_intent(text)
+        intent = route["intent"]
+
+        if intent == "general_chat":
+            if self.mode != "general":
+                self.mode = "general"
+                self.lines = ["╭─ Chat", "│"]
+            self._append_chat_header(text, route, "Gemma")
+            self.is_generating = True
+            self.status = "Thinking..."
+            self.current_response = ""
+            self.stream_start_idx = len(self.lines)
+            self.stream_prefix = "│ Gemma: "
+            self.lines.append("│ Gemma: thinking...")
+            self.scroll = max(0, len(self.lines) - 1)
+            self.draw()
+            threading.Thread(target=_call_ollama_stream, args=(text, self.gen_queue, self.model, self.ollama_host, 120), daemon=True).start()
+            return
+
+        if intent == "memory_auto":
+            self.mode = "memory"
+            if not self.lines or self.lines[0] != "╭─ Chat":
+                self.lines = ["╭─ Chat", "│"]
+            source = "RuVector" if _helper_available("gemma-memory-search") else "Stage 3A"
+            self._append_chat_header(text, route, f"{source} · read-only")
+            self.is_generating = True
+            self.status = "Retrieving memory..."
+            self.current_response = ""
+            if hasattr(self, "stream_start_idx"):
+                delattr(self, "stream_start_idx")
+            self.scroll = max(0, len(self.lines) - 1)
+            self.draw()
+            threading.Thread(
+                target=_run_memory_auto_worker,
+                args=(text, self.gen_queue, self.model, self.ollama_host),
+                daemon=True,
+            ).start()
+            return
+
+        if intent == "reports_latest":
+            self._handle_reports_latest(user_text=text, route=route)
+        elif intent == "reports_list":
+            self._handle_reports_list(user_text=text, route=route)
+        elif intent == "dashboard":
+            self.show_dashboard(user_text=text, route=route)
+        elif intent == "voice_status":
+            self.show_voice(user_text=text, route=route)
+        elif intent == "settings":
+            self.show_settings("settings", user_text=text, route=route)
+        elif intent == "help":
+            self.show_menu(user_text=text, route=route)
+        elif intent == "security_confirm_required":
+            self._show_security_confirmation_required(text, route)
+        self.scroll = max(0, len(self.lines) - 1)
+
+    def _show_debug_last(self):
+        self.mode = "debug"
+        _, width = self.stdscr.getmaxyx()
+        max_width = max(20, width - 4)
+        self.lines = [
+            "╭─ Debug Last Routed Action",
+            "│",
+            "│  Raw helper output is hidden during normal chat.",
+            "│",
+        ]
+        self.lines.extend(_wrap_lines(self.last_debug_output, prefix="│ ", width=max_width))
+        self.lines.append("╰─")
+        self.scroll = 0
+
+    def _show_security_confirmation_required(self, text, route):
+        self.mode = "security"
+        self.lines = ["╭─ Confirmation Required", "│"]
+        self._append_chat_header(text, route, "confirmation required")
+        self.lines.extend([
+            "│ Security-sensitive request detected.",
+            "│",
+            "│ No firewall, USBGuard, ClamAV, Lynis, auditd, SSH, rpm-ostree,",
+            "│ systemd, Ollama, Agent Zero, Space Agent, or RuVector index action",
+            "│ was executed.",
+            "│",
+            "╰─ Use the dedicated reviewed workflow if you want to authorize a safe read-only check.",
+        ])
 
     def _handle_memory(self, text):
         parts = text.split(None, 2)
@@ -566,11 +855,15 @@ class GemmaTui:
         
         threading.Thread(target=_run_helper_stream, args=(cmd_args, self.gen_queue), daemon=True).start()
 
-    def _handle_reports_list(self):
+    def _handle_reports_list(self, user_text=None, route=None):
         self.mode = "reports"
-        self.lines.append("├──────────────────────────────────────────────────")
-        self.lines.append("│ You: /reports")
-        self.lines.append("│")
+        if user_text and route:
+            self.lines = ["╭─ Reports", "│"]
+            self._append_chat_header(user_text, route, "read-only")
+        else:
+            self.lines.append("├──────────────────────────────────────────────────")
+            self.lines.append("│ You: /reports")
+            self.lines.append("│")
         
         if not REPORT_DIR.is_dir():
             self.lines.extend(["│ Reports: Directory not found.", "│"])
@@ -596,11 +889,15 @@ class GemmaTui:
             
         self.scroll = max(0, len(self.lines) - 1)
 
-    def _handle_reports_latest(self):
+    def _handle_reports_latest(self, user_text=None, route=None):
         self.mode = "reports"
-        self.lines.append("├──────────────────────────────────────────────────")
-        self.lines.append("│ You: /reports latest")
-        self.lines.append("│")
+        if user_text and route:
+            self.lines = ["╭─ Reports", "│"]
+            self._append_chat_header(user_text, route, "read-only")
+        else:
+            self.lines.append("├──────────────────────────────────────────────────")
+            self.lines.append("│ You: /reports latest")
+            self.lines.append("│")
         
         if not REPORT_DIR.is_dir():
             self.lines.extend(["│ Reports: Directory not found.", "│"])
@@ -636,11 +933,15 @@ class GemmaTui:
             
         self.scroll = max(0, len(self.lines) - 1)
 
-    def show_menu(self):
+    def show_menu(self, user_text=None, route=None):
         self.mode = "welcome"
         self.lines = [
             "╭─ Menu",
             "│",
+        ]
+        if user_text and route:
+            self._append_chat_header(user_text, route, "read-only")
+        self.lines.extend([
             "│  [g] /general     General Chat              [SAFE]",
             "│  [s] /security    Security Console          [CONFIRM]",
             "│  [m] /memory      Memory / RuVector         [SAFE]",
@@ -650,10 +951,11 @@ class GemmaTui:
             "│  [h] /health      Health                    [SAFE]",
             "│  [t] /settings    Settings                  [SAFE]",
             "│      /dashboard   Dashboard                 [SAFE]",
+            "│      /debug last  Raw last routed helper output",
             "│  [q] /quit        Quit                      [SAFE]",
             "│",
             "╰─ Security tools are not executed from this TUI.",
-        ]
+        ])
         self.scroll = 0
 
     def show_general(self):
@@ -668,11 +970,15 @@ class GemmaTui:
         ]
         self.scroll = 0
 
-    def show_dashboard(self):
+    def show_dashboard(self, user_text=None, route=None):
         self.mode = "dashboard"
         self.lines = [
             "╭─ Dashboard",
             "│",
+        ]
+        if user_text and route:
+            self._append_chat_header(user_text, route, "read-only")
+        self.lines.extend([
             f"│  Ollama:    {_ollama_status(self.ollama_host)}",
             f"│  Model:     {self.model}",
             f"│  Tools:     {_helper_count()}",
@@ -682,7 +988,7 @@ class GemmaTui:
             "│  Static export: optional",
             "│",
             "╰─ No security scans. No tool execution.",
-        ]
+        ])
         self.scroll = 0
 
     def show_memory(self):
@@ -706,7 +1012,7 @@ class GemmaTui:
         ]
         self.scroll = 0
 
-    def show_voice(self):
+    def show_voice(self, user_text=None, route=None):
         self.mode = "voice"
         rec = 'OK' if shutil.which('pw-record') else 'MISSING'
         stt = 'OK' if shutil.which('whisper-cli') else 'MISSING'
@@ -715,21 +1021,29 @@ class GemmaTui:
         self.lines = [
             "╭─ Voice",
             "│",
+        ]
+        if user_text and route:
+            self._append_chat_header(user_text, route, "read-only")
+        self.lines.extend([
             f"│  recorder: {rec}",
             f"│  STT:      {stt}",
             f"│  TTS:      {tts}",
             "│  mode:     push-to-talk only",
             "│",
             "╰─ Do not record audio.",
-        ]
+        ])
         self.scroll = 0
 
-    def show_settings(self, cmd):
+    def show_settings(self, cmd, user_text=None, route=None):
         self.mode = "settings"
         ui = self.config.get("ui", {})
         self.lines = [
             "╭─ Settings",
             "│",
+        ]
+        if user_text and route:
+            self._append_chat_header(user_text, route, "read-only")
+        self.lines.extend([
             f"│  layout:          {ui.get('layout', 'app_shell')}",
             f"│  density:         {ui.get('density', 'normal')}",
             f"│  use_unicode:     {ui.get('use_unicode', True)}",
@@ -738,7 +1052,7 @@ class GemmaTui:
             f"│  Ollama host:     {self.ollama_host}",
             "│",
             "╰─ Changing persistent settings remains in gemma-ui print-loop.",
-        ]
+        ])
         self.scroll = 0
 
 def _run_check(check_model=False):
